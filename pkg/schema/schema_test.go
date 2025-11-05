@@ -199,11 +199,11 @@ func TestArrayTypeName(t *testing.T) {
 
 func TestFieldJSONName(t *testing.T) {
 	tests := []struct {
-		name     string
-		field    Field
-		want     string
-		setTag   string
-		wantTag  string
+		name    string
+		field   Field
+		want    string
+		setTag  string
+		wantTag string
 	}{
 		{
 			name:  "no_json_tag",

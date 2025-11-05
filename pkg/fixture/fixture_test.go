@@ -558,7 +558,7 @@ func TestConvertOptionalArrayPresent(t *testing.T) {
 	}
 
 	r := bytes.NewReader(binary)
-	
+
 	// Read present flag
 	present, _ := wire.DecodeBool(r)
 	if !present {
@@ -597,7 +597,7 @@ func TestConvertOptionalStructPresent(t *testing.T) {
 	}
 
 	r := bytes.NewReader(binary)
-	
+
 	// Read present flag
 	present, _ := wire.DecodeBool(r)
 	if !present {
@@ -630,7 +630,7 @@ func TestConvertOptionalPrimitivePresent(t *testing.T) {
 	}
 
 	r := bytes.NewReader(binary)
-	
+
 	// Read present flag
 	present, _ := wire.DecodeBool(r)
 	if !present {
