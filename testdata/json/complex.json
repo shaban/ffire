@@ -1,0 +1,862 @@
+[
+  {
+    "name": "Apple: AUVarispeed [Instance 1]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 2]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 3]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 4]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 5]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 6]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 7]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 8]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 9]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 10]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 11]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 12]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 13]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 14]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 15]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 16]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 17]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 18]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUVarispeed [Instance 19]",
+    "manufacturerID": "appl",
+    "type": "aufc",
+    "subtype": "vari",
+    "parameters": [
+      {
+        "displayName": "Playback Rate",
+        "defaultValue": 1,
+        "currentValue": 1,
+        "address": 0,
+        "maxValue": 4,
+        "minValue": 0.25,
+        "unit": "Rate",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3502243840
+      },
+      {
+        "displayName": "Playback Pitch",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 1,
+        "maxValue": 2400,
+        "minValue": -2400,
+        "unit": "Cents",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3498049536
+      }
+    ]
+  },
+  {
+    "name": "Apple: AUFilter [Instance 20]",
+    "manufacturerID": "appl",
+    "type": "aufx",
+    "subtype": "filt",
+    "parameters": [
+      {
+        "displayName": "Low Filter Type",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 0,
+        "maxValue": 1,
+        "minValue": 0,
+        "unit": "Indexed",
+        "identifier": "0",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048,
+        "indexedValues": [
+          "Low Shelf",
+          "High Pass"
+        ],
+        "indexedValuesSource": "valueStrings"
+      },
+      {
+        "displayName": "Low Frequency",
+        "defaultValue": 100,
+        "currentValue": 100,
+        "address": 1,
+        "maxValue": 21829.5,
+        "minValue": 10,
+        "unit": "Hertz",
+        "identifier": "1",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3226468352
+      },
+      {
+        "displayName": "Low Gain",
+        "defaultValue": 0,
+        "currentValue": 0,
+        "address": 2,
+        "maxValue": 18,
+        "minValue": -18,
+        "unit": "Decibels",
+        "identifier": "2",
+        "canRamp": false,
+        "isWritable": true,
+        "rawFlags": 3222274048
+      }
+    ]
+  }
+]

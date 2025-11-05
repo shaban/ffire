@@ -1,0 +1,28 @@
+package test
+
+// Message represents realistic plugin enumeration data
+type Message = []Plugin
+
+type Plugin struct {
+	Name           string `json:"name"`
+	ManufacturerID string `json:"manufacturerID"`
+	Type           string `json:"type"`
+	Subtype        string `json:"subtype"`
+	Parameters     []Parameter `json:"parameters"`
+}
+
+type Parameter struct {
+	DisplayName         string `json:"displayName"`
+	DefaultValue        float32 `json:"defaultValue"`
+	CurrentValue        float32 `json:"currentValue"`
+	Address             int32 `json:"address"`
+	MaxValue            float32 `json:"maxValue"`
+	MinValue            float32 `json:"minValue"`
+	Unit                string `json:"unit"`
+	Identifier          string `json:"identifier"`
+	CanRamp             bool `json:"canRamp"`
+	IsWritable          bool `json:"isWritable"`
+	RawFlags            int64 `json:"rawFlags"`
+	IndexedValues       *[]string `json:"indexedValues"`
+	IndexedValuesSource *string `json:"indexedValuesSource"`
+}

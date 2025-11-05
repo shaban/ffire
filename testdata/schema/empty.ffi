@@ -1,0 +1,10 @@
+package test
+
+// Message represents edge case with empty collections
+type Message = EmptyTest
+
+type EmptyTest struct {
+	EmptyString string  `json:"emptyString"`
+	EmptyArray  []int32 `json:"emptyArray"`
+	ZeroValue   int32   `json:"zeroValue"`
+}

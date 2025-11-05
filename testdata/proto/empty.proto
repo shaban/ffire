@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message EmptyTest {
+  string empty_string = 1;
+  repeated int32 empty_array = 2;
+  int32 zero_value = 3;
+}

@@ -1,0 +1,10 @@
+package test
+
+// Message represents an array of device structs
+type Message = []Device
+
+type Device struct {
+	Name     string `json:"name"`
+	Channels int32  `json:"channels"`
+	Rate     int32  `json:"rate"`
+}

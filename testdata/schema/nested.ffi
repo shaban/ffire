@@ -1,0 +1,44 @@
+package test
+
+// Message represents deeply nested structure (10 levels)
+type Message = Level1
+
+type Level1 struct {
+	Level2 Level2 `json:"level2"`
+}
+
+type Level2 struct {
+	Level3 Level3 `json:"level3"`
+}
+
+type Level3 struct {
+	Level4 Level4 `json:"level4"`
+}
+
+type Level4 struct {
+	Level5 Level5 `json:"level5"`
+}
+
+type Level5 struct {
+	Level6 Level6 `json:"level6"`
+}
+
+type Level6 struct {
+	Level7 Level7 `json:"level7"`
+}
+
+type Level7 struct {
+	Level8 Level8 `json:"level8"`
+}
+
+type Level8 struct {
+	Level9 Level9 `json:"level9"`
+}
+
+type Level9 struct {
+	Level10 Level10 `json:"level10"`
+}
+
+type Level10 struct {
+	Data []int32 `json:"data"`
+}

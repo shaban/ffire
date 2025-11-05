@@ -1,0 +1,11 @@
+package test
+
+// Message represents data with optional fields
+type Message = []Record
+
+type Record struct {
+	Required     string  `json:"required"`
+	OptionalStr  *string `json:"optionalStr"`
+	OptionalInt  *int32  `json:"optionalInt"`
+	OptionalBool *bool   `json:"optionalBool"`
+}

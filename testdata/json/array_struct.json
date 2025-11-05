@@ -1,0 +1,1002 @@
+[
+  {
+    "name": "Audio Device 001",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 002",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 003",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 004",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 005",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 006",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 007",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 008",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 009",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 010",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 011",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 012",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 013",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 014",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 015",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 016",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 017",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 018",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 019",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 020",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 021",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 022",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 023",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 024",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 025",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 026",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 027",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 028",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 029",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 030",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 031",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 032",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 033",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 034",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 035",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 036",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 037",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 038",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 039",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 040",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 041",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 042",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 043",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 044",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 045",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 046",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 047",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 048",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 049",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 050",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 051",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 052",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 053",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 054",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 055",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 056",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 057",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 058",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 059",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 060",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 061",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 062",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 063",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 064",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 065",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 066",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 067",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 068",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 069",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 070",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 071",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 072",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 073",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 074",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 075",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 076",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 077",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 078",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 079",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 080",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 081",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 082",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 083",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 084",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 085",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 086",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 087",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 088",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 089",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 090",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 091",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 092",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 093",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 094",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 095",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 096",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 097",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 098",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 099",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 100",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 101",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 102",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 103",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 104",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 105",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 106",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 107",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 108",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 109",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 110",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 111",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 112",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 113",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 114",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 115",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 116",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 117",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 118",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 119",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 120",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 121",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 122",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 123",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 124",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 125",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 126",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 127",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 128",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 129",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 130",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 131",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 132",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 133",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 134",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 135",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 136",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 137",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 138",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 139",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 140",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 141",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 142",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 143",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 144",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 145",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 146",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 147",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 148",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 149",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 150",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 151",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 152",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 153",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 154",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 155",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 156",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 157",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 158",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 159",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 160",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 161",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 162",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 163",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 164",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 165",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 166",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 167",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 168",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 169",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 170",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 171",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 172",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 173",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 174",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 175",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 176",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 177",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 178",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 179",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 180",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 181",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 182",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 183",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 184",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 185",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 186",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 187",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 188",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 189",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 190",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 191",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 192",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 193",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 194",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 195",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 196",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 197",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 198",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 199",
+    "channels": 2,
+    "rate": 48000
+  },
+  {
+    "name": "Audio Device 200",
+    "channels": 2,
+    "rate": 48000
+  }
+]

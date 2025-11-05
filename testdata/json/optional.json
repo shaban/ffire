@@ -1,0 +1,3786 @@
+[
+  {
+    "required": "record_0001",
+    "optionalStr": "optional_0",
+    "optionalInt": 0,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0002"
+  },
+  {
+    "required": "record_0003"
+  },
+  {
+    "required": "record_0004",
+    "optionalStr": "optional_3"
+  },
+  {
+    "required": "record_0005",
+    "optionalInt": 400
+  },
+  {
+    "required": "record_0006",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0007",
+    "optionalStr": "optional_6"
+  },
+  {
+    "required": "record_0008"
+  },
+  {
+    "required": "record_0009",
+    "optionalInt": 800
+  },
+  {
+    "required": "record_0010",
+    "optionalStr": "optional_9"
+  },
+  {
+    "required": "record_0011",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0012"
+  },
+  {
+    "required": "record_0013",
+    "optionalStr": "optional_12",
+    "optionalInt": 1200
+  },
+  {
+    "required": "record_0014"
+  },
+  {
+    "required": "record_0015"
+  },
+  {
+    "required": "record_0016",
+    "optionalStr": "optional_15",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0017",
+    "optionalInt": 1600
+  },
+  {
+    "required": "record_0018"
+  },
+  {
+    "required": "record_0019",
+    "optionalStr": "optional_18"
+  },
+  {
+    "required": "record_0020"
+  },
+  {
+    "required": "record_0021",
+    "optionalInt": 2000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0022",
+    "optionalStr": "optional_21"
+  },
+  {
+    "required": "record_0023"
+  },
+  {
+    "required": "record_0024"
+  },
+  {
+    "required": "record_0025",
+    "optionalStr": "optional_24",
+    "optionalInt": 2400
+  },
+  {
+    "required": "record_0026",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0027"
+  },
+  {
+    "required": "record_0028",
+    "optionalStr": "optional_27"
+  },
+  {
+    "required": "record_0029",
+    "optionalInt": 2800
+  },
+  {
+    "required": "record_0030"
+  },
+  {
+    "required": "record_0031",
+    "optionalStr": "optional_30",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0032"
+  },
+  {
+    "required": "record_0033",
+    "optionalInt": 3200
+  },
+  {
+    "required": "record_0034",
+    "optionalStr": "optional_33"
+  },
+  {
+    "required": "record_0035"
+  },
+  {
+    "required": "record_0036",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0037",
+    "optionalStr": "optional_36",
+    "optionalInt": 3600
+  },
+  {
+    "required": "record_0038"
+  },
+  {
+    "required": "record_0039"
+  },
+  {
+    "required": "record_0040",
+    "optionalStr": "optional_39"
+  },
+  {
+    "required": "record_0041",
+    "optionalInt": 4000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0042"
+  },
+  {
+    "required": "record_0043",
+    "optionalStr": "optional_42"
+  },
+  {
+    "required": "record_0044"
+  },
+  {
+    "required": "record_0045",
+    "optionalInt": 4400
+  },
+  {
+    "required": "record_0046",
+    "optionalStr": "optional_45",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0047"
+  },
+  {
+    "required": "record_0048"
+  },
+  {
+    "required": "record_0049",
+    "optionalStr": "optional_48",
+    "optionalInt": 4800
+  },
+  {
+    "required": "record_0050"
+  },
+  {
+    "required": "record_0051",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0052",
+    "optionalStr": "optional_51"
+  },
+  {
+    "required": "record_0053",
+    "optionalInt": 5200
+  },
+  {
+    "required": "record_0054"
+  },
+  {
+    "required": "record_0055",
+    "optionalStr": "optional_54"
+  },
+  {
+    "required": "record_0056",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0057",
+    "optionalInt": 5600
+  },
+  {
+    "required": "record_0058",
+    "optionalStr": "optional_57"
+  },
+  {
+    "required": "record_0059"
+  },
+  {
+    "required": "record_0060"
+  },
+  {
+    "required": "record_0061",
+    "optionalStr": "optional_60",
+    "optionalInt": 6000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0062"
+  },
+  {
+    "required": "record_0063"
+  },
+  {
+    "required": "record_0064",
+    "optionalStr": "optional_63"
+  },
+  {
+    "required": "record_0065",
+    "optionalInt": 6400
+  },
+  {
+    "required": "record_0066",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0067",
+    "optionalStr": "optional_66"
+  },
+  {
+    "required": "record_0068"
+  },
+  {
+    "required": "record_0069",
+    "optionalInt": 6800
+  },
+  {
+    "required": "record_0070",
+    "optionalStr": "optional_69"
+  },
+  {
+    "required": "record_0071",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0072"
+  },
+  {
+    "required": "record_0073",
+    "optionalStr": "optional_72",
+    "optionalInt": 7200
+  },
+  {
+    "required": "record_0074"
+  },
+  {
+    "required": "record_0075"
+  },
+  {
+    "required": "record_0076",
+    "optionalStr": "optional_75",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0077",
+    "optionalInt": 7600
+  },
+  {
+    "required": "record_0078"
+  },
+  {
+    "required": "record_0079",
+    "optionalStr": "optional_78"
+  },
+  {
+    "required": "record_0080"
+  },
+  {
+    "required": "record_0081",
+    "optionalInt": 8000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0082",
+    "optionalStr": "optional_81"
+  },
+  {
+    "required": "record_0083"
+  },
+  {
+    "required": "record_0084"
+  },
+  {
+    "required": "record_0085",
+    "optionalStr": "optional_84",
+    "optionalInt": 8400
+  },
+  {
+    "required": "record_0086",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0087"
+  },
+  {
+    "required": "record_0088",
+    "optionalStr": "optional_87"
+  },
+  {
+    "required": "record_0089",
+    "optionalInt": 8800
+  },
+  {
+    "required": "record_0090"
+  },
+  {
+    "required": "record_0091",
+    "optionalStr": "optional_90",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0092"
+  },
+  {
+    "required": "record_0093",
+    "optionalInt": 9200
+  },
+  {
+    "required": "record_0094",
+    "optionalStr": "optional_93"
+  },
+  {
+    "required": "record_0095"
+  },
+  {
+    "required": "record_0096",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0097",
+    "optionalStr": "optional_96",
+    "optionalInt": 9600
+  },
+  {
+    "required": "record_0098"
+  },
+  {
+    "required": "record_0099"
+  },
+  {
+    "required": "record_0100",
+    "optionalStr": "optional_99"
+  },
+  {
+    "required": "record_0101",
+    "optionalInt": 10000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0102"
+  },
+  {
+    "required": "record_0103",
+    "optionalStr": "optional_102"
+  },
+  {
+    "required": "record_0104"
+  },
+  {
+    "required": "record_0105",
+    "optionalInt": 10400
+  },
+  {
+    "required": "record_0106",
+    "optionalStr": "optional_105",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0107"
+  },
+  {
+    "required": "record_0108"
+  },
+  {
+    "required": "record_0109",
+    "optionalStr": "optional_108",
+    "optionalInt": 10800
+  },
+  {
+    "required": "record_0110"
+  },
+  {
+    "required": "record_0111",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0112",
+    "optionalStr": "optional_111"
+  },
+  {
+    "required": "record_0113",
+    "optionalInt": 11200
+  },
+  {
+    "required": "record_0114"
+  },
+  {
+    "required": "record_0115",
+    "optionalStr": "optional_114"
+  },
+  {
+    "required": "record_0116",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0117",
+    "optionalInt": 11600
+  },
+  {
+    "required": "record_0118",
+    "optionalStr": "optional_117"
+  },
+  {
+    "required": "record_0119"
+  },
+  {
+    "required": "record_0120"
+  },
+  {
+    "required": "record_0121",
+    "optionalStr": "optional_120",
+    "optionalInt": 12000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0122"
+  },
+  {
+    "required": "record_0123"
+  },
+  {
+    "required": "record_0124",
+    "optionalStr": "optional_123"
+  },
+  {
+    "required": "record_0125",
+    "optionalInt": 12400
+  },
+  {
+    "required": "record_0126",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0127",
+    "optionalStr": "optional_126"
+  },
+  {
+    "required": "record_0128"
+  },
+  {
+    "required": "record_0129",
+    "optionalInt": 12800
+  },
+  {
+    "required": "record_0130",
+    "optionalStr": "optional_129"
+  },
+  {
+    "required": "record_0131",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0132"
+  },
+  {
+    "required": "record_0133",
+    "optionalStr": "optional_132",
+    "optionalInt": 13200
+  },
+  {
+    "required": "record_0134"
+  },
+  {
+    "required": "record_0135"
+  },
+  {
+    "required": "record_0136",
+    "optionalStr": "optional_135",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0137",
+    "optionalInt": 13600
+  },
+  {
+    "required": "record_0138"
+  },
+  {
+    "required": "record_0139",
+    "optionalStr": "optional_138"
+  },
+  {
+    "required": "record_0140"
+  },
+  {
+    "required": "record_0141",
+    "optionalInt": 14000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0142",
+    "optionalStr": "optional_141"
+  },
+  {
+    "required": "record_0143"
+  },
+  {
+    "required": "record_0144"
+  },
+  {
+    "required": "record_0145",
+    "optionalStr": "optional_144",
+    "optionalInt": 14400
+  },
+  {
+    "required": "record_0146",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0147"
+  },
+  {
+    "required": "record_0148",
+    "optionalStr": "optional_147"
+  },
+  {
+    "required": "record_0149",
+    "optionalInt": 14800
+  },
+  {
+    "required": "record_0150"
+  },
+  {
+    "required": "record_0151",
+    "optionalStr": "optional_150",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0152"
+  },
+  {
+    "required": "record_0153",
+    "optionalInt": 15200
+  },
+  {
+    "required": "record_0154",
+    "optionalStr": "optional_153"
+  },
+  {
+    "required": "record_0155"
+  },
+  {
+    "required": "record_0156",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0157",
+    "optionalStr": "optional_156",
+    "optionalInt": 15600
+  },
+  {
+    "required": "record_0158"
+  },
+  {
+    "required": "record_0159"
+  },
+  {
+    "required": "record_0160",
+    "optionalStr": "optional_159"
+  },
+  {
+    "required": "record_0161",
+    "optionalInt": 16000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0162"
+  },
+  {
+    "required": "record_0163",
+    "optionalStr": "optional_162"
+  },
+  {
+    "required": "record_0164"
+  },
+  {
+    "required": "record_0165",
+    "optionalInt": 16400
+  },
+  {
+    "required": "record_0166",
+    "optionalStr": "optional_165",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0167"
+  },
+  {
+    "required": "record_0168"
+  },
+  {
+    "required": "record_0169",
+    "optionalStr": "optional_168",
+    "optionalInt": 16800
+  },
+  {
+    "required": "record_0170"
+  },
+  {
+    "required": "record_0171",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0172",
+    "optionalStr": "optional_171"
+  },
+  {
+    "required": "record_0173",
+    "optionalInt": 17200
+  },
+  {
+    "required": "record_0174"
+  },
+  {
+    "required": "record_0175",
+    "optionalStr": "optional_174"
+  },
+  {
+    "required": "record_0176",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0177",
+    "optionalInt": 17600
+  },
+  {
+    "required": "record_0178",
+    "optionalStr": "optional_177"
+  },
+  {
+    "required": "record_0179"
+  },
+  {
+    "required": "record_0180"
+  },
+  {
+    "required": "record_0181",
+    "optionalStr": "optional_180",
+    "optionalInt": 18000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0182"
+  },
+  {
+    "required": "record_0183"
+  },
+  {
+    "required": "record_0184",
+    "optionalStr": "optional_183"
+  },
+  {
+    "required": "record_0185",
+    "optionalInt": 18400
+  },
+  {
+    "required": "record_0186",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0187",
+    "optionalStr": "optional_186"
+  },
+  {
+    "required": "record_0188"
+  },
+  {
+    "required": "record_0189",
+    "optionalInt": 18800
+  },
+  {
+    "required": "record_0190",
+    "optionalStr": "optional_189"
+  },
+  {
+    "required": "record_0191",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0192"
+  },
+  {
+    "required": "record_0193",
+    "optionalStr": "optional_192",
+    "optionalInt": 19200
+  },
+  {
+    "required": "record_0194"
+  },
+  {
+    "required": "record_0195"
+  },
+  {
+    "required": "record_0196",
+    "optionalStr": "optional_195",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0197",
+    "optionalInt": 19600
+  },
+  {
+    "required": "record_0198"
+  },
+  {
+    "required": "record_0199",
+    "optionalStr": "optional_198"
+  },
+  {
+    "required": "record_0200"
+  },
+  {
+    "required": "record_0201",
+    "optionalInt": 20000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0202",
+    "optionalStr": "optional_201"
+  },
+  {
+    "required": "record_0203"
+  },
+  {
+    "required": "record_0204"
+  },
+  {
+    "required": "record_0205",
+    "optionalStr": "optional_204",
+    "optionalInt": 20400
+  },
+  {
+    "required": "record_0206",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0207"
+  },
+  {
+    "required": "record_0208",
+    "optionalStr": "optional_207"
+  },
+  {
+    "required": "record_0209",
+    "optionalInt": 20800
+  },
+  {
+    "required": "record_0210"
+  },
+  {
+    "required": "record_0211",
+    "optionalStr": "optional_210",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0212"
+  },
+  {
+    "required": "record_0213",
+    "optionalInt": 21200
+  },
+  {
+    "required": "record_0214",
+    "optionalStr": "optional_213"
+  },
+  {
+    "required": "record_0215"
+  },
+  {
+    "required": "record_0216",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0217",
+    "optionalStr": "optional_216",
+    "optionalInt": 21600
+  },
+  {
+    "required": "record_0218"
+  },
+  {
+    "required": "record_0219"
+  },
+  {
+    "required": "record_0220",
+    "optionalStr": "optional_219"
+  },
+  {
+    "required": "record_0221",
+    "optionalInt": 22000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0222"
+  },
+  {
+    "required": "record_0223",
+    "optionalStr": "optional_222"
+  },
+  {
+    "required": "record_0224"
+  },
+  {
+    "required": "record_0225",
+    "optionalInt": 22400
+  },
+  {
+    "required": "record_0226",
+    "optionalStr": "optional_225",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0227"
+  },
+  {
+    "required": "record_0228"
+  },
+  {
+    "required": "record_0229",
+    "optionalStr": "optional_228",
+    "optionalInt": 22800
+  },
+  {
+    "required": "record_0230"
+  },
+  {
+    "required": "record_0231",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0232",
+    "optionalStr": "optional_231"
+  },
+  {
+    "required": "record_0233",
+    "optionalInt": 23200
+  },
+  {
+    "required": "record_0234"
+  },
+  {
+    "required": "record_0235",
+    "optionalStr": "optional_234"
+  },
+  {
+    "required": "record_0236",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0237",
+    "optionalInt": 23600
+  },
+  {
+    "required": "record_0238",
+    "optionalStr": "optional_237"
+  },
+  {
+    "required": "record_0239"
+  },
+  {
+    "required": "record_0240"
+  },
+  {
+    "required": "record_0241",
+    "optionalStr": "optional_240",
+    "optionalInt": 24000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0242"
+  },
+  {
+    "required": "record_0243"
+  },
+  {
+    "required": "record_0244",
+    "optionalStr": "optional_243"
+  },
+  {
+    "required": "record_0245",
+    "optionalInt": 24400
+  },
+  {
+    "required": "record_0246",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0247",
+    "optionalStr": "optional_246"
+  },
+  {
+    "required": "record_0248"
+  },
+  {
+    "required": "record_0249",
+    "optionalInt": 24800
+  },
+  {
+    "required": "record_0250",
+    "optionalStr": "optional_249"
+  },
+  {
+    "required": "record_0251",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0252"
+  },
+  {
+    "required": "record_0253",
+    "optionalStr": "optional_252",
+    "optionalInt": 25200
+  },
+  {
+    "required": "record_0254"
+  },
+  {
+    "required": "record_0255"
+  },
+  {
+    "required": "record_0256",
+    "optionalStr": "optional_255",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0257",
+    "optionalInt": 25600
+  },
+  {
+    "required": "record_0258"
+  },
+  {
+    "required": "record_0259",
+    "optionalStr": "optional_258"
+  },
+  {
+    "required": "record_0260"
+  },
+  {
+    "required": "record_0261",
+    "optionalInt": 26000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0262",
+    "optionalStr": "optional_261"
+  },
+  {
+    "required": "record_0263"
+  },
+  {
+    "required": "record_0264"
+  },
+  {
+    "required": "record_0265",
+    "optionalStr": "optional_264",
+    "optionalInt": 26400
+  },
+  {
+    "required": "record_0266",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0267"
+  },
+  {
+    "required": "record_0268",
+    "optionalStr": "optional_267"
+  },
+  {
+    "required": "record_0269",
+    "optionalInt": 26800
+  },
+  {
+    "required": "record_0270"
+  },
+  {
+    "required": "record_0271",
+    "optionalStr": "optional_270",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0272"
+  },
+  {
+    "required": "record_0273",
+    "optionalInt": 27200
+  },
+  {
+    "required": "record_0274",
+    "optionalStr": "optional_273"
+  },
+  {
+    "required": "record_0275"
+  },
+  {
+    "required": "record_0276",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0277",
+    "optionalStr": "optional_276",
+    "optionalInt": 27600
+  },
+  {
+    "required": "record_0278"
+  },
+  {
+    "required": "record_0279"
+  },
+  {
+    "required": "record_0280",
+    "optionalStr": "optional_279"
+  },
+  {
+    "required": "record_0281",
+    "optionalInt": 28000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0282"
+  },
+  {
+    "required": "record_0283",
+    "optionalStr": "optional_282"
+  },
+  {
+    "required": "record_0284"
+  },
+  {
+    "required": "record_0285",
+    "optionalInt": 28400
+  },
+  {
+    "required": "record_0286",
+    "optionalStr": "optional_285",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0287"
+  },
+  {
+    "required": "record_0288"
+  },
+  {
+    "required": "record_0289",
+    "optionalStr": "optional_288",
+    "optionalInt": 28800
+  },
+  {
+    "required": "record_0290"
+  },
+  {
+    "required": "record_0291",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0292",
+    "optionalStr": "optional_291"
+  },
+  {
+    "required": "record_0293",
+    "optionalInt": 29200
+  },
+  {
+    "required": "record_0294"
+  },
+  {
+    "required": "record_0295",
+    "optionalStr": "optional_294"
+  },
+  {
+    "required": "record_0296",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0297",
+    "optionalInt": 29600
+  },
+  {
+    "required": "record_0298",
+    "optionalStr": "optional_297"
+  },
+  {
+    "required": "record_0299"
+  },
+  {
+    "required": "record_0300"
+  },
+  {
+    "required": "record_0301",
+    "optionalStr": "optional_300",
+    "optionalInt": 30000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0302"
+  },
+  {
+    "required": "record_0303"
+  },
+  {
+    "required": "record_0304",
+    "optionalStr": "optional_303"
+  },
+  {
+    "required": "record_0305",
+    "optionalInt": 30400
+  },
+  {
+    "required": "record_0306",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0307",
+    "optionalStr": "optional_306"
+  },
+  {
+    "required": "record_0308"
+  },
+  {
+    "required": "record_0309",
+    "optionalInt": 30800
+  },
+  {
+    "required": "record_0310",
+    "optionalStr": "optional_309"
+  },
+  {
+    "required": "record_0311",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0312"
+  },
+  {
+    "required": "record_0313",
+    "optionalStr": "optional_312",
+    "optionalInt": 31200
+  },
+  {
+    "required": "record_0314"
+  },
+  {
+    "required": "record_0315"
+  },
+  {
+    "required": "record_0316",
+    "optionalStr": "optional_315",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0317",
+    "optionalInt": 31600
+  },
+  {
+    "required": "record_0318"
+  },
+  {
+    "required": "record_0319",
+    "optionalStr": "optional_318"
+  },
+  {
+    "required": "record_0320"
+  },
+  {
+    "required": "record_0321",
+    "optionalInt": 32000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0322",
+    "optionalStr": "optional_321"
+  },
+  {
+    "required": "record_0323"
+  },
+  {
+    "required": "record_0324"
+  },
+  {
+    "required": "record_0325",
+    "optionalStr": "optional_324",
+    "optionalInt": 32400
+  },
+  {
+    "required": "record_0326",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0327"
+  },
+  {
+    "required": "record_0328",
+    "optionalStr": "optional_327"
+  },
+  {
+    "required": "record_0329",
+    "optionalInt": 32800
+  },
+  {
+    "required": "record_0330"
+  },
+  {
+    "required": "record_0331",
+    "optionalStr": "optional_330",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0332"
+  },
+  {
+    "required": "record_0333",
+    "optionalInt": 33200
+  },
+  {
+    "required": "record_0334",
+    "optionalStr": "optional_333"
+  },
+  {
+    "required": "record_0335"
+  },
+  {
+    "required": "record_0336",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0337",
+    "optionalStr": "optional_336",
+    "optionalInt": 33600
+  },
+  {
+    "required": "record_0338"
+  },
+  {
+    "required": "record_0339"
+  },
+  {
+    "required": "record_0340",
+    "optionalStr": "optional_339"
+  },
+  {
+    "required": "record_0341",
+    "optionalInt": 34000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0342"
+  },
+  {
+    "required": "record_0343",
+    "optionalStr": "optional_342"
+  },
+  {
+    "required": "record_0344"
+  },
+  {
+    "required": "record_0345",
+    "optionalInt": 34400
+  },
+  {
+    "required": "record_0346",
+    "optionalStr": "optional_345",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0347"
+  },
+  {
+    "required": "record_0348"
+  },
+  {
+    "required": "record_0349",
+    "optionalStr": "optional_348",
+    "optionalInt": 34800
+  },
+  {
+    "required": "record_0350"
+  },
+  {
+    "required": "record_0351",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0352",
+    "optionalStr": "optional_351"
+  },
+  {
+    "required": "record_0353",
+    "optionalInt": 35200
+  },
+  {
+    "required": "record_0354"
+  },
+  {
+    "required": "record_0355",
+    "optionalStr": "optional_354"
+  },
+  {
+    "required": "record_0356",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0357",
+    "optionalInt": 35600
+  },
+  {
+    "required": "record_0358",
+    "optionalStr": "optional_357"
+  },
+  {
+    "required": "record_0359"
+  },
+  {
+    "required": "record_0360"
+  },
+  {
+    "required": "record_0361",
+    "optionalStr": "optional_360",
+    "optionalInt": 36000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0362"
+  },
+  {
+    "required": "record_0363"
+  },
+  {
+    "required": "record_0364",
+    "optionalStr": "optional_363"
+  },
+  {
+    "required": "record_0365",
+    "optionalInt": 36400
+  },
+  {
+    "required": "record_0366",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0367",
+    "optionalStr": "optional_366"
+  },
+  {
+    "required": "record_0368"
+  },
+  {
+    "required": "record_0369",
+    "optionalInt": 36800
+  },
+  {
+    "required": "record_0370",
+    "optionalStr": "optional_369"
+  },
+  {
+    "required": "record_0371",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0372"
+  },
+  {
+    "required": "record_0373",
+    "optionalStr": "optional_372",
+    "optionalInt": 37200
+  },
+  {
+    "required": "record_0374"
+  },
+  {
+    "required": "record_0375"
+  },
+  {
+    "required": "record_0376",
+    "optionalStr": "optional_375",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0377",
+    "optionalInt": 37600
+  },
+  {
+    "required": "record_0378"
+  },
+  {
+    "required": "record_0379",
+    "optionalStr": "optional_378"
+  },
+  {
+    "required": "record_0380"
+  },
+  {
+    "required": "record_0381",
+    "optionalInt": 38000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0382",
+    "optionalStr": "optional_381"
+  },
+  {
+    "required": "record_0383"
+  },
+  {
+    "required": "record_0384"
+  },
+  {
+    "required": "record_0385",
+    "optionalStr": "optional_384",
+    "optionalInt": 38400
+  },
+  {
+    "required": "record_0386",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0387"
+  },
+  {
+    "required": "record_0388",
+    "optionalStr": "optional_387"
+  },
+  {
+    "required": "record_0389",
+    "optionalInt": 38800
+  },
+  {
+    "required": "record_0390"
+  },
+  {
+    "required": "record_0391",
+    "optionalStr": "optional_390",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0392"
+  },
+  {
+    "required": "record_0393",
+    "optionalInt": 39200
+  },
+  {
+    "required": "record_0394",
+    "optionalStr": "optional_393"
+  },
+  {
+    "required": "record_0395"
+  },
+  {
+    "required": "record_0396",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0397",
+    "optionalStr": "optional_396",
+    "optionalInt": 39600
+  },
+  {
+    "required": "record_0398"
+  },
+  {
+    "required": "record_0399"
+  },
+  {
+    "required": "record_0400",
+    "optionalStr": "optional_399"
+  },
+  {
+    "required": "record_0401",
+    "optionalInt": 40000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0402"
+  },
+  {
+    "required": "record_0403",
+    "optionalStr": "optional_402"
+  },
+  {
+    "required": "record_0404"
+  },
+  {
+    "required": "record_0405",
+    "optionalInt": 40400
+  },
+  {
+    "required": "record_0406",
+    "optionalStr": "optional_405",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0407"
+  },
+  {
+    "required": "record_0408"
+  },
+  {
+    "required": "record_0409",
+    "optionalStr": "optional_408",
+    "optionalInt": 40800
+  },
+  {
+    "required": "record_0410"
+  },
+  {
+    "required": "record_0411",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0412",
+    "optionalStr": "optional_411"
+  },
+  {
+    "required": "record_0413",
+    "optionalInt": 41200
+  },
+  {
+    "required": "record_0414"
+  },
+  {
+    "required": "record_0415",
+    "optionalStr": "optional_414"
+  },
+  {
+    "required": "record_0416",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0417",
+    "optionalInt": 41600
+  },
+  {
+    "required": "record_0418",
+    "optionalStr": "optional_417"
+  },
+  {
+    "required": "record_0419"
+  },
+  {
+    "required": "record_0420"
+  },
+  {
+    "required": "record_0421",
+    "optionalStr": "optional_420",
+    "optionalInt": 42000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0422"
+  },
+  {
+    "required": "record_0423"
+  },
+  {
+    "required": "record_0424",
+    "optionalStr": "optional_423"
+  },
+  {
+    "required": "record_0425",
+    "optionalInt": 42400
+  },
+  {
+    "required": "record_0426",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0427",
+    "optionalStr": "optional_426"
+  },
+  {
+    "required": "record_0428"
+  },
+  {
+    "required": "record_0429",
+    "optionalInt": 42800
+  },
+  {
+    "required": "record_0430",
+    "optionalStr": "optional_429"
+  },
+  {
+    "required": "record_0431",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0432"
+  },
+  {
+    "required": "record_0433",
+    "optionalStr": "optional_432",
+    "optionalInt": 43200
+  },
+  {
+    "required": "record_0434"
+  },
+  {
+    "required": "record_0435"
+  },
+  {
+    "required": "record_0436",
+    "optionalStr": "optional_435",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0437",
+    "optionalInt": 43600
+  },
+  {
+    "required": "record_0438"
+  },
+  {
+    "required": "record_0439",
+    "optionalStr": "optional_438"
+  },
+  {
+    "required": "record_0440"
+  },
+  {
+    "required": "record_0441",
+    "optionalInt": 44000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0442",
+    "optionalStr": "optional_441"
+  },
+  {
+    "required": "record_0443"
+  },
+  {
+    "required": "record_0444"
+  },
+  {
+    "required": "record_0445",
+    "optionalStr": "optional_444",
+    "optionalInt": 44400
+  },
+  {
+    "required": "record_0446",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0447"
+  },
+  {
+    "required": "record_0448",
+    "optionalStr": "optional_447"
+  },
+  {
+    "required": "record_0449",
+    "optionalInt": 44800
+  },
+  {
+    "required": "record_0450"
+  },
+  {
+    "required": "record_0451",
+    "optionalStr": "optional_450",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0452"
+  },
+  {
+    "required": "record_0453",
+    "optionalInt": 45200
+  },
+  {
+    "required": "record_0454",
+    "optionalStr": "optional_453"
+  },
+  {
+    "required": "record_0455"
+  },
+  {
+    "required": "record_0456",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0457",
+    "optionalStr": "optional_456",
+    "optionalInt": 45600
+  },
+  {
+    "required": "record_0458"
+  },
+  {
+    "required": "record_0459"
+  },
+  {
+    "required": "record_0460",
+    "optionalStr": "optional_459"
+  },
+  {
+    "required": "record_0461",
+    "optionalInt": 46000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0462"
+  },
+  {
+    "required": "record_0463",
+    "optionalStr": "optional_462"
+  },
+  {
+    "required": "record_0464"
+  },
+  {
+    "required": "record_0465",
+    "optionalInt": 46400
+  },
+  {
+    "required": "record_0466",
+    "optionalStr": "optional_465",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0467"
+  },
+  {
+    "required": "record_0468"
+  },
+  {
+    "required": "record_0469",
+    "optionalStr": "optional_468",
+    "optionalInt": 46800
+  },
+  {
+    "required": "record_0470"
+  },
+  {
+    "required": "record_0471",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0472",
+    "optionalStr": "optional_471"
+  },
+  {
+    "required": "record_0473",
+    "optionalInt": 47200
+  },
+  {
+    "required": "record_0474"
+  },
+  {
+    "required": "record_0475",
+    "optionalStr": "optional_474"
+  },
+  {
+    "required": "record_0476",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0477",
+    "optionalInt": 47600
+  },
+  {
+    "required": "record_0478",
+    "optionalStr": "optional_477"
+  },
+  {
+    "required": "record_0479"
+  },
+  {
+    "required": "record_0480"
+  },
+  {
+    "required": "record_0481",
+    "optionalStr": "optional_480",
+    "optionalInt": 48000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0482"
+  },
+  {
+    "required": "record_0483"
+  },
+  {
+    "required": "record_0484",
+    "optionalStr": "optional_483"
+  },
+  {
+    "required": "record_0485",
+    "optionalInt": 48400
+  },
+  {
+    "required": "record_0486",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0487",
+    "optionalStr": "optional_486"
+  },
+  {
+    "required": "record_0488"
+  },
+  {
+    "required": "record_0489",
+    "optionalInt": 48800
+  },
+  {
+    "required": "record_0490",
+    "optionalStr": "optional_489"
+  },
+  {
+    "required": "record_0491",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0492"
+  },
+  {
+    "required": "record_0493",
+    "optionalStr": "optional_492",
+    "optionalInt": 49200
+  },
+  {
+    "required": "record_0494"
+  },
+  {
+    "required": "record_0495"
+  },
+  {
+    "required": "record_0496",
+    "optionalStr": "optional_495",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0497",
+    "optionalInt": 49600
+  },
+  {
+    "required": "record_0498"
+  },
+  {
+    "required": "record_0499",
+    "optionalStr": "optional_498"
+  },
+  {
+    "required": "record_0500"
+  },
+  {
+    "required": "record_0501",
+    "optionalInt": 50000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0502",
+    "optionalStr": "optional_501"
+  },
+  {
+    "required": "record_0503"
+  },
+  {
+    "required": "record_0504"
+  },
+  {
+    "required": "record_0505",
+    "optionalStr": "optional_504",
+    "optionalInt": 50400
+  },
+  {
+    "required": "record_0506",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0507"
+  },
+  {
+    "required": "record_0508",
+    "optionalStr": "optional_507"
+  },
+  {
+    "required": "record_0509",
+    "optionalInt": 50800
+  },
+  {
+    "required": "record_0510"
+  },
+  {
+    "required": "record_0511",
+    "optionalStr": "optional_510",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0512"
+  },
+  {
+    "required": "record_0513",
+    "optionalInt": 51200
+  },
+  {
+    "required": "record_0514",
+    "optionalStr": "optional_513"
+  },
+  {
+    "required": "record_0515"
+  },
+  {
+    "required": "record_0516",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0517",
+    "optionalStr": "optional_516",
+    "optionalInt": 51600
+  },
+  {
+    "required": "record_0518"
+  },
+  {
+    "required": "record_0519"
+  },
+  {
+    "required": "record_0520",
+    "optionalStr": "optional_519"
+  },
+  {
+    "required": "record_0521",
+    "optionalInt": 52000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0522"
+  },
+  {
+    "required": "record_0523",
+    "optionalStr": "optional_522"
+  },
+  {
+    "required": "record_0524"
+  },
+  {
+    "required": "record_0525",
+    "optionalInt": 52400
+  },
+  {
+    "required": "record_0526",
+    "optionalStr": "optional_525",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0527"
+  },
+  {
+    "required": "record_0528"
+  },
+  {
+    "required": "record_0529",
+    "optionalStr": "optional_528",
+    "optionalInt": 52800
+  },
+  {
+    "required": "record_0530"
+  },
+  {
+    "required": "record_0531",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0532",
+    "optionalStr": "optional_531"
+  },
+  {
+    "required": "record_0533",
+    "optionalInt": 53200
+  },
+  {
+    "required": "record_0534"
+  },
+  {
+    "required": "record_0535",
+    "optionalStr": "optional_534"
+  },
+  {
+    "required": "record_0536",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0537",
+    "optionalInt": 53600
+  },
+  {
+    "required": "record_0538",
+    "optionalStr": "optional_537"
+  },
+  {
+    "required": "record_0539"
+  },
+  {
+    "required": "record_0540"
+  },
+  {
+    "required": "record_0541",
+    "optionalStr": "optional_540",
+    "optionalInt": 54000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0542"
+  },
+  {
+    "required": "record_0543"
+  },
+  {
+    "required": "record_0544",
+    "optionalStr": "optional_543"
+  },
+  {
+    "required": "record_0545",
+    "optionalInt": 54400
+  },
+  {
+    "required": "record_0546",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0547",
+    "optionalStr": "optional_546"
+  },
+  {
+    "required": "record_0548"
+  },
+  {
+    "required": "record_0549",
+    "optionalInt": 54800
+  },
+  {
+    "required": "record_0550",
+    "optionalStr": "optional_549"
+  },
+  {
+    "required": "record_0551",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0552"
+  },
+  {
+    "required": "record_0553",
+    "optionalStr": "optional_552",
+    "optionalInt": 55200
+  },
+  {
+    "required": "record_0554"
+  },
+  {
+    "required": "record_0555"
+  },
+  {
+    "required": "record_0556",
+    "optionalStr": "optional_555",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0557",
+    "optionalInt": 55600
+  },
+  {
+    "required": "record_0558"
+  },
+  {
+    "required": "record_0559",
+    "optionalStr": "optional_558"
+  },
+  {
+    "required": "record_0560"
+  },
+  {
+    "required": "record_0561",
+    "optionalInt": 56000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0562",
+    "optionalStr": "optional_561"
+  },
+  {
+    "required": "record_0563"
+  },
+  {
+    "required": "record_0564"
+  },
+  {
+    "required": "record_0565",
+    "optionalStr": "optional_564",
+    "optionalInt": 56400
+  },
+  {
+    "required": "record_0566",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0567"
+  },
+  {
+    "required": "record_0568",
+    "optionalStr": "optional_567"
+  },
+  {
+    "required": "record_0569",
+    "optionalInt": 56800
+  },
+  {
+    "required": "record_0570"
+  },
+  {
+    "required": "record_0571",
+    "optionalStr": "optional_570",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0572"
+  },
+  {
+    "required": "record_0573",
+    "optionalInt": 57200
+  },
+  {
+    "required": "record_0574",
+    "optionalStr": "optional_573"
+  },
+  {
+    "required": "record_0575"
+  },
+  {
+    "required": "record_0576",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0577",
+    "optionalStr": "optional_576",
+    "optionalInt": 57600
+  },
+  {
+    "required": "record_0578"
+  },
+  {
+    "required": "record_0579"
+  },
+  {
+    "required": "record_0580",
+    "optionalStr": "optional_579"
+  },
+  {
+    "required": "record_0581",
+    "optionalInt": 58000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0582"
+  },
+  {
+    "required": "record_0583",
+    "optionalStr": "optional_582"
+  },
+  {
+    "required": "record_0584"
+  },
+  {
+    "required": "record_0585",
+    "optionalInt": 58400
+  },
+  {
+    "required": "record_0586",
+    "optionalStr": "optional_585",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0587"
+  },
+  {
+    "required": "record_0588"
+  },
+  {
+    "required": "record_0589",
+    "optionalStr": "optional_588",
+    "optionalInt": 58800
+  },
+  {
+    "required": "record_0590"
+  },
+  {
+    "required": "record_0591",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0592",
+    "optionalStr": "optional_591"
+  },
+  {
+    "required": "record_0593",
+    "optionalInt": 59200
+  },
+  {
+    "required": "record_0594"
+  },
+  {
+    "required": "record_0595",
+    "optionalStr": "optional_594"
+  },
+  {
+    "required": "record_0596",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0597",
+    "optionalInt": 59600
+  },
+  {
+    "required": "record_0598",
+    "optionalStr": "optional_597"
+  },
+  {
+    "required": "record_0599"
+  },
+  {
+    "required": "record_0600"
+  },
+  {
+    "required": "record_0601",
+    "optionalStr": "optional_600",
+    "optionalInt": 60000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0602"
+  },
+  {
+    "required": "record_0603"
+  },
+  {
+    "required": "record_0604",
+    "optionalStr": "optional_603"
+  },
+  {
+    "required": "record_0605",
+    "optionalInt": 60400
+  },
+  {
+    "required": "record_0606",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0607",
+    "optionalStr": "optional_606"
+  },
+  {
+    "required": "record_0608"
+  },
+  {
+    "required": "record_0609",
+    "optionalInt": 60800
+  },
+  {
+    "required": "record_0610",
+    "optionalStr": "optional_609"
+  },
+  {
+    "required": "record_0611",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0612"
+  },
+  {
+    "required": "record_0613",
+    "optionalStr": "optional_612",
+    "optionalInt": 61200
+  },
+  {
+    "required": "record_0614"
+  },
+  {
+    "required": "record_0615"
+  },
+  {
+    "required": "record_0616",
+    "optionalStr": "optional_615",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0617",
+    "optionalInt": 61600
+  },
+  {
+    "required": "record_0618"
+  },
+  {
+    "required": "record_0619",
+    "optionalStr": "optional_618"
+  },
+  {
+    "required": "record_0620"
+  },
+  {
+    "required": "record_0621",
+    "optionalInt": 62000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0622",
+    "optionalStr": "optional_621"
+  },
+  {
+    "required": "record_0623"
+  },
+  {
+    "required": "record_0624"
+  },
+  {
+    "required": "record_0625",
+    "optionalStr": "optional_624",
+    "optionalInt": 62400
+  },
+  {
+    "required": "record_0626",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0627"
+  },
+  {
+    "required": "record_0628",
+    "optionalStr": "optional_627"
+  },
+  {
+    "required": "record_0629",
+    "optionalInt": 62800
+  },
+  {
+    "required": "record_0630"
+  },
+  {
+    "required": "record_0631",
+    "optionalStr": "optional_630",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0632"
+  },
+  {
+    "required": "record_0633",
+    "optionalInt": 63200
+  },
+  {
+    "required": "record_0634",
+    "optionalStr": "optional_633"
+  },
+  {
+    "required": "record_0635"
+  },
+  {
+    "required": "record_0636",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0637",
+    "optionalStr": "optional_636",
+    "optionalInt": 63600
+  },
+  {
+    "required": "record_0638"
+  },
+  {
+    "required": "record_0639"
+  },
+  {
+    "required": "record_0640",
+    "optionalStr": "optional_639"
+  },
+  {
+    "required": "record_0641",
+    "optionalInt": 64000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0642"
+  },
+  {
+    "required": "record_0643",
+    "optionalStr": "optional_642"
+  },
+  {
+    "required": "record_0644"
+  },
+  {
+    "required": "record_0645",
+    "optionalInt": 64400
+  },
+  {
+    "required": "record_0646",
+    "optionalStr": "optional_645",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0647"
+  },
+  {
+    "required": "record_0648"
+  },
+  {
+    "required": "record_0649",
+    "optionalStr": "optional_648",
+    "optionalInt": 64800
+  },
+  {
+    "required": "record_0650"
+  },
+  {
+    "required": "record_0651",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0652",
+    "optionalStr": "optional_651"
+  },
+  {
+    "required": "record_0653",
+    "optionalInt": 65200
+  },
+  {
+    "required": "record_0654"
+  },
+  {
+    "required": "record_0655",
+    "optionalStr": "optional_654"
+  },
+  {
+    "required": "record_0656",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0657",
+    "optionalInt": 65600
+  },
+  {
+    "required": "record_0658",
+    "optionalStr": "optional_657"
+  },
+  {
+    "required": "record_0659"
+  },
+  {
+    "required": "record_0660"
+  },
+  {
+    "required": "record_0661",
+    "optionalStr": "optional_660",
+    "optionalInt": 66000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0662"
+  },
+  {
+    "required": "record_0663"
+  },
+  {
+    "required": "record_0664",
+    "optionalStr": "optional_663"
+  },
+  {
+    "required": "record_0665",
+    "optionalInt": 66400
+  },
+  {
+    "required": "record_0666",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0667",
+    "optionalStr": "optional_666"
+  },
+  {
+    "required": "record_0668"
+  },
+  {
+    "required": "record_0669",
+    "optionalInt": 66800
+  },
+  {
+    "required": "record_0670",
+    "optionalStr": "optional_669"
+  },
+  {
+    "required": "record_0671",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0672"
+  },
+  {
+    "required": "record_0673",
+    "optionalStr": "optional_672",
+    "optionalInt": 67200
+  },
+  {
+    "required": "record_0674"
+  },
+  {
+    "required": "record_0675"
+  },
+  {
+    "required": "record_0676",
+    "optionalStr": "optional_675",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0677",
+    "optionalInt": 67600
+  },
+  {
+    "required": "record_0678"
+  },
+  {
+    "required": "record_0679",
+    "optionalStr": "optional_678"
+  },
+  {
+    "required": "record_0680"
+  },
+  {
+    "required": "record_0681",
+    "optionalInt": 68000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0682",
+    "optionalStr": "optional_681"
+  },
+  {
+    "required": "record_0683"
+  },
+  {
+    "required": "record_0684"
+  },
+  {
+    "required": "record_0685",
+    "optionalStr": "optional_684",
+    "optionalInt": 68400
+  },
+  {
+    "required": "record_0686",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0687"
+  },
+  {
+    "required": "record_0688",
+    "optionalStr": "optional_687"
+  },
+  {
+    "required": "record_0689",
+    "optionalInt": 68800
+  },
+  {
+    "required": "record_0690"
+  },
+  {
+    "required": "record_0691",
+    "optionalStr": "optional_690",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0692"
+  },
+  {
+    "required": "record_0693",
+    "optionalInt": 69200
+  },
+  {
+    "required": "record_0694",
+    "optionalStr": "optional_693"
+  },
+  {
+    "required": "record_0695"
+  },
+  {
+    "required": "record_0696",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0697",
+    "optionalStr": "optional_696",
+    "optionalInt": 69600
+  },
+  {
+    "required": "record_0698"
+  },
+  {
+    "required": "record_0699"
+  },
+  {
+    "required": "record_0700",
+    "optionalStr": "optional_699"
+  },
+  {
+    "required": "record_0701",
+    "optionalInt": 70000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0702"
+  },
+  {
+    "required": "record_0703",
+    "optionalStr": "optional_702"
+  },
+  {
+    "required": "record_0704"
+  },
+  {
+    "required": "record_0705",
+    "optionalInt": 70400
+  },
+  {
+    "required": "record_0706",
+    "optionalStr": "optional_705",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0707"
+  },
+  {
+    "required": "record_0708"
+  },
+  {
+    "required": "record_0709",
+    "optionalStr": "optional_708",
+    "optionalInt": 70800
+  },
+  {
+    "required": "record_0710"
+  },
+  {
+    "required": "record_0711",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0712",
+    "optionalStr": "optional_711"
+  },
+  {
+    "required": "record_0713",
+    "optionalInt": 71200
+  },
+  {
+    "required": "record_0714"
+  },
+  {
+    "required": "record_0715",
+    "optionalStr": "optional_714"
+  },
+  {
+    "required": "record_0716",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0717",
+    "optionalInt": 71600
+  },
+  {
+    "required": "record_0718",
+    "optionalStr": "optional_717"
+  },
+  {
+    "required": "record_0719"
+  },
+  {
+    "required": "record_0720"
+  },
+  {
+    "required": "record_0721",
+    "optionalStr": "optional_720",
+    "optionalInt": 72000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0722"
+  },
+  {
+    "required": "record_0723"
+  },
+  {
+    "required": "record_0724",
+    "optionalStr": "optional_723"
+  },
+  {
+    "required": "record_0725",
+    "optionalInt": 72400
+  },
+  {
+    "required": "record_0726",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0727",
+    "optionalStr": "optional_726"
+  },
+  {
+    "required": "record_0728"
+  },
+  {
+    "required": "record_0729",
+    "optionalInt": 72800
+  },
+  {
+    "required": "record_0730",
+    "optionalStr": "optional_729"
+  },
+  {
+    "required": "record_0731",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0732"
+  },
+  {
+    "required": "record_0733",
+    "optionalStr": "optional_732",
+    "optionalInt": 73200
+  },
+  {
+    "required": "record_0734"
+  },
+  {
+    "required": "record_0735"
+  },
+  {
+    "required": "record_0736",
+    "optionalStr": "optional_735",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0737",
+    "optionalInt": 73600
+  },
+  {
+    "required": "record_0738"
+  },
+  {
+    "required": "record_0739",
+    "optionalStr": "optional_738"
+  },
+  {
+    "required": "record_0740"
+  },
+  {
+    "required": "record_0741",
+    "optionalInt": 74000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0742",
+    "optionalStr": "optional_741"
+  },
+  {
+    "required": "record_0743"
+  },
+  {
+    "required": "record_0744"
+  },
+  {
+    "required": "record_0745",
+    "optionalStr": "optional_744",
+    "optionalInt": 74400
+  },
+  {
+    "required": "record_0746",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0747"
+  },
+  {
+    "required": "record_0748",
+    "optionalStr": "optional_747"
+  },
+  {
+    "required": "record_0749",
+    "optionalInt": 74800
+  },
+  {
+    "required": "record_0750"
+  },
+  {
+    "required": "record_0751",
+    "optionalStr": "optional_750",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0752"
+  },
+  {
+    "required": "record_0753",
+    "optionalInt": 75200
+  },
+  {
+    "required": "record_0754",
+    "optionalStr": "optional_753"
+  },
+  {
+    "required": "record_0755"
+  },
+  {
+    "required": "record_0756",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0757",
+    "optionalStr": "optional_756",
+    "optionalInt": 75600
+  },
+  {
+    "required": "record_0758"
+  },
+  {
+    "required": "record_0759"
+  },
+  {
+    "required": "record_0760",
+    "optionalStr": "optional_759"
+  },
+  {
+    "required": "record_0761",
+    "optionalInt": 76000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0762"
+  },
+  {
+    "required": "record_0763",
+    "optionalStr": "optional_762"
+  },
+  {
+    "required": "record_0764"
+  },
+  {
+    "required": "record_0765",
+    "optionalInt": 76400
+  },
+  {
+    "required": "record_0766",
+    "optionalStr": "optional_765",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0767"
+  },
+  {
+    "required": "record_0768"
+  },
+  {
+    "required": "record_0769",
+    "optionalStr": "optional_768",
+    "optionalInt": 76800
+  },
+  {
+    "required": "record_0770"
+  },
+  {
+    "required": "record_0771",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0772",
+    "optionalStr": "optional_771"
+  },
+  {
+    "required": "record_0773",
+    "optionalInt": 77200
+  },
+  {
+    "required": "record_0774"
+  },
+  {
+    "required": "record_0775",
+    "optionalStr": "optional_774"
+  },
+  {
+    "required": "record_0776",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0777",
+    "optionalInt": 77600
+  },
+  {
+    "required": "record_0778",
+    "optionalStr": "optional_777"
+  },
+  {
+    "required": "record_0779"
+  },
+  {
+    "required": "record_0780"
+  },
+  {
+    "required": "record_0781",
+    "optionalStr": "optional_780",
+    "optionalInt": 78000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0782"
+  },
+  {
+    "required": "record_0783"
+  },
+  {
+    "required": "record_0784",
+    "optionalStr": "optional_783"
+  },
+  {
+    "required": "record_0785",
+    "optionalInt": 78400
+  },
+  {
+    "required": "record_0786",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0787",
+    "optionalStr": "optional_786"
+  },
+  {
+    "required": "record_0788"
+  },
+  {
+    "required": "record_0789",
+    "optionalInt": 78800
+  },
+  {
+    "required": "record_0790",
+    "optionalStr": "optional_789"
+  },
+  {
+    "required": "record_0791",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0792"
+  },
+  {
+    "required": "record_0793",
+    "optionalStr": "optional_792",
+    "optionalInt": 79200
+  },
+  {
+    "required": "record_0794"
+  },
+  {
+    "required": "record_0795"
+  },
+  {
+    "required": "record_0796",
+    "optionalStr": "optional_795",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0797",
+    "optionalInt": 79600
+  },
+  {
+    "required": "record_0798"
+  },
+  {
+    "required": "record_0799",
+    "optionalStr": "optional_798"
+  },
+  {
+    "required": "record_0800"
+  },
+  {
+    "required": "record_0801",
+    "optionalInt": 80000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0802",
+    "optionalStr": "optional_801"
+  },
+  {
+    "required": "record_0803"
+  },
+  {
+    "required": "record_0804"
+  },
+  {
+    "required": "record_0805",
+    "optionalStr": "optional_804",
+    "optionalInt": 80400
+  },
+  {
+    "required": "record_0806",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0807"
+  },
+  {
+    "required": "record_0808",
+    "optionalStr": "optional_807"
+  },
+  {
+    "required": "record_0809",
+    "optionalInt": 80800
+  },
+  {
+    "required": "record_0810"
+  },
+  {
+    "required": "record_0811",
+    "optionalStr": "optional_810",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0812"
+  },
+  {
+    "required": "record_0813",
+    "optionalInt": 81200
+  },
+  {
+    "required": "record_0814",
+    "optionalStr": "optional_813"
+  },
+  {
+    "required": "record_0815"
+  },
+  {
+    "required": "record_0816",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0817",
+    "optionalStr": "optional_816",
+    "optionalInt": 81600
+  },
+  {
+    "required": "record_0818"
+  },
+  {
+    "required": "record_0819"
+  },
+  {
+    "required": "record_0820",
+    "optionalStr": "optional_819"
+  },
+  {
+    "required": "record_0821",
+    "optionalInt": 82000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0822"
+  },
+  {
+    "required": "record_0823",
+    "optionalStr": "optional_822"
+  },
+  {
+    "required": "record_0824"
+  },
+  {
+    "required": "record_0825",
+    "optionalInt": 82400
+  },
+  {
+    "required": "record_0826",
+    "optionalStr": "optional_825",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0827"
+  },
+  {
+    "required": "record_0828"
+  },
+  {
+    "required": "record_0829",
+    "optionalStr": "optional_828",
+    "optionalInt": 82800
+  },
+  {
+    "required": "record_0830"
+  },
+  {
+    "required": "record_0831",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0832",
+    "optionalStr": "optional_831"
+  },
+  {
+    "required": "record_0833",
+    "optionalInt": 83200
+  },
+  {
+    "required": "record_0834"
+  },
+  {
+    "required": "record_0835",
+    "optionalStr": "optional_834"
+  },
+  {
+    "required": "record_0836",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0837",
+    "optionalInt": 83600
+  },
+  {
+    "required": "record_0838",
+    "optionalStr": "optional_837"
+  },
+  {
+    "required": "record_0839"
+  },
+  {
+    "required": "record_0840"
+  },
+  {
+    "required": "record_0841",
+    "optionalStr": "optional_840",
+    "optionalInt": 84000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0842"
+  },
+  {
+    "required": "record_0843"
+  },
+  {
+    "required": "record_0844",
+    "optionalStr": "optional_843"
+  },
+  {
+    "required": "record_0845",
+    "optionalInt": 84400
+  },
+  {
+    "required": "record_0846",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0847",
+    "optionalStr": "optional_846"
+  },
+  {
+    "required": "record_0848"
+  },
+  {
+    "required": "record_0849",
+    "optionalInt": 84800
+  },
+  {
+    "required": "record_0850",
+    "optionalStr": "optional_849"
+  },
+  {
+    "required": "record_0851",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0852"
+  },
+  {
+    "required": "record_0853",
+    "optionalStr": "optional_852",
+    "optionalInt": 85200
+  },
+  {
+    "required": "record_0854"
+  },
+  {
+    "required": "record_0855"
+  },
+  {
+    "required": "record_0856",
+    "optionalStr": "optional_855",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0857",
+    "optionalInt": 85600
+  },
+  {
+    "required": "record_0858"
+  },
+  {
+    "required": "record_0859",
+    "optionalStr": "optional_858"
+  },
+  {
+    "required": "record_0860"
+  },
+  {
+    "required": "record_0861",
+    "optionalInt": 86000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0862",
+    "optionalStr": "optional_861"
+  },
+  {
+    "required": "record_0863"
+  },
+  {
+    "required": "record_0864"
+  },
+  {
+    "required": "record_0865",
+    "optionalStr": "optional_864",
+    "optionalInt": 86400
+  },
+  {
+    "required": "record_0866",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0867"
+  },
+  {
+    "required": "record_0868",
+    "optionalStr": "optional_867"
+  },
+  {
+    "required": "record_0869",
+    "optionalInt": 86800
+  },
+  {
+    "required": "record_0870"
+  },
+  {
+    "required": "record_0871",
+    "optionalStr": "optional_870",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0872"
+  },
+  {
+    "required": "record_0873",
+    "optionalInt": 87200
+  },
+  {
+    "required": "record_0874",
+    "optionalStr": "optional_873"
+  },
+  {
+    "required": "record_0875"
+  },
+  {
+    "required": "record_0876",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0877",
+    "optionalStr": "optional_876",
+    "optionalInt": 87600
+  },
+  {
+    "required": "record_0878"
+  },
+  {
+    "required": "record_0879"
+  },
+  {
+    "required": "record_0880",
+    "optionalStr": "optional_879"
+  },
+  {
+    "required": "record_0881",
+    "optionalInt": 88000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0882"
+  },
+  {
+    "required": "record_0883",
+    "optionalStr": "optional_882"
+  },
+  {
+    "required": "record_0884"
+  },
+  {
+    "required": "record_0885",
+    "optionalInt": 88400
+  },
+  {
+    "required": "record_0886",
+    "optionalStr": "optional_885",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0887"
+  },
+  {
+    "required": "record_0888"
+  },
+  {
+    "required": "record_0889",
+    "optionalStr": "optional_888",
+    "optionalInt": 88800
+  },
+  {
+    "required": "record_0890"
+  },
+  {
+    "required": "record_0891",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0892",
+    "optionalStr": "optional_891"
+  },
+  {
+    "required": "record_0893",
+    "optionalInt": 89200
+  },
+  {
+    "required": "record_0894"
+  },
+  {
+    "required": "record_0895",
+    "optionalStr": "optional_894"
+  },
+  {
+    "required": "record_0896",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0897",
+    "optionalInt": 89600
+  },
+  {
+    "required": "record_0898",
+    "optionalStr": "optional_897"
+  },
+  {
+    "required": "record_0899"
+  },
+  {
+    "required": "record_0900"
+  },
+  {
+    "required": "record_0901",
+    "optionalStr": "optional_900",
+    "optionalInt": 90000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0902"
+  },
+  {
+    "required": "record_0903"
+  },
+  {
+    "required": "record_0904",
+    "optionalStr": "optional_903"
+  },
+  {
+    "required": "record_0905",
+    "optionalInt": 90400
+  },
+  {
+    "required": "record_0906",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0907",
+    "optionalStr": "optional_906"
+  },
+  {
+    "required": "record_0908"
+  },
+  {
+    "required": "record_0909",
+    "optionalInt": 90800
+  },
+  {
+    "required": "record_0910",
+    "optionalStr": "optional_909"
+  },
+  {
+    "required": "record_0911",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0912"
+  },
+  {
+    "required": "record_0913",
+    "optionalStr": "optional_912",
+    "optionalInt": 91200
+  },
+  {
+    "required": "record_0914"
+  },
+  {
+    "required": "record_0915"
+  },
+  {
+    "required": "record_0916",
+    "optionalStr": "optional_915",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0917",
+    "optionalInt": 91600
+  },
+  {
+    "required": "record_0918"
+  },
+  {
+    "required": "record_0919",
+    "optionalStr": "optional_918"
+  },
+  {
+    "required": "record_0920"
+  },
+  {
+    "required": "record_0921",
+    "optionalInt": 92000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0922",
+    "optionalStr": "optional_921"
+  },
+  {
+    "required": "record_0923"
+  },
+  {
+    "required": "record_0924"
+  },
+  {
+    "required": "record_0925",
+    "optionalStr": "optional_924",
+    "optionalInt": 92400
+  },
+  {
+    "required": "record_0926",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0927"
+  },
+  {
+    "required": "record_0928",
+    "optionalStr": "optional_927"
+  },
+  {
+    "required": "record_0929",
+    "optionalInt": 92800
+  },
+  {
+    "required": "record_0930"
+  },
+  {
+    "required": "record_0931",
+    "optionalStr": "optional_930",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0932"
+  },
+  {
+    "required": "record_0933",
+    "optionalInt": 93200
+  },
+  {
+    "required": "record_0934",
+    "optionalStr": "optional_933"
+  },
+  {
+    "required": "record_0935"
+  },
+  {
+    "required": "record_0936",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0937",
+    "optionalStr": "optional_936",
+    "optionalInt": 93600
+  },
+  {
+    "required": "record_0938"
+  },
+  {
+    "required": "record_0939"
+  },
+  {
+    "required": "record_0940",
+    "optionalStr": "optional_939"
+  },
+  {
+    "required": "record_0941",
+    "optionalInt": 94000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0942"
+  },
+  {
+    "required": "record_0943",
+    "optionalStr": "optional_942"
+  },
+  {
+    "required": "record_0944"
+  },
+  {
+    "required": "record_0945",
+    "optionalInt": 94400
+  },
+  {
+    "required": "record_0946",
+    "optionalStr": "optional_945",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0947"
+  },
+  {
+    "required": "record_0948"
+  },
+  {
+    "required": "record_0949",
+    "optionalStr": "optional_948",
+    "optionalInt": 94800
+  },
+  {
+    "required": "record_0950"
+  },
+  {
+    "required": "record_0951",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0952",
+    "optionalStr": "optional_951"
+  },
+  {
+    "required": "record_0953",
+    "optionalInt": 95200
+  },
+  {
+    "required": "record_0954"
+  },
+  {
+    "required": "record_0955",
+    "optionalStr": "optional_954"
+  },
+  {
+    "required": "record_0956",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0957",
+    "optionalInt": 95600
+  },
+  {
+    "required": "record_0958",
+    "optionalStr": "optional_957"
+  },
+  {
+    "required": "record_0959"
+  },
+  {
+    "required": "record_0960"
+  },
+  {
+    "required": "record_0961",
+    "optionalStr": "optional_960",
+    "optionalInt": 96000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0962"
+  },
+  {
+    "required": "record_0963"
+  },
+  {
+    "required": "record_0964",
+    "optionalStr": "optional_963"
+  },
+  {
+    "required": "record_0965",
+    "optionalInt": 96400
+  },
+  {
+    "required": "record_0966",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0967",
+    "optionalStr": "optional_966"
+  },
+  {
+    "required": "record_0968"
+  },
+  {
+    "required": "record_0969",
+    "optionalInt": 96800
+  },
+  {
+    "required": "record_0970",
+    "optionalStr": "optional_969"
+  },
+  {
+    "required": "record_0971",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0972"
+  },
+  {
+    "required": "record_0973",
+    "optionalStr": "optional_972",
+    "optionalInt": 97200
+  },
+  {
+    "required": "record_0974"
+  },
+  {
+    "required": "record_0975"
+  },
+  {
+    "required": "record_0976",
+    "optionalStr": "optional_975",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0977",
+    "optionalInt": 97600
+  },
+  {
+    "required": "record_0978"
+  },
+  {
+    "required": "record_0979",
+    "optionalStr": "optional_978"
+  },
+  {
+    "required": "record_0980"
+  },
+  {
+    "required": "record_0981",
+    "optionalInt": 98000,
+    "optionalBool": true
+  },
+  {
+    "required": "record_0982",
+    "optionalStr": "optional_981"
+  },
+  {
+    "required": "record_0983"
+  },
+  {
+    "required": "record_0984"
+  },
+  {
+    "required": "record_0985",
+    "optionalStr": "optional_984",
+    "optionalInt": 98400
+  },
+  {
+    "required": "record_0986",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0987"
+  },
+  {
+    "required": "record_0988",
+    "optionalStr": "optional_987"
+  },
+  {
+    "required": "record_0989",
+    "optionalInt": 98800
+  },
+  {
+    "required": "record_0990"
+  },
+  {
+    "required": "record_0991",
+    "optionalStr": "optional_990",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0992"
+  },
+  {
+    "required": "record_0993",
+    "optionalInt": 99200
+  },
+  {
+    "required": "record_0994",
+    "optionalStr": "optional_993"
+  },
+  {
+    "required": "record_0995"
+  },
+  {
+    "required": "record_0996",
+    "optionalBool": true
+  },
+  {
+    "required": "record_0997",
+    "optionalStr": "optional_996",
+    "optionalInt": 99600
+  },
+  {
+    "required": "record_0998"
+  },
+  {
+    "required": "record_0999"
+  },
+  {
+    "required": "record_1000",
+    "optionalStr": "optional_999"
+  }
+]

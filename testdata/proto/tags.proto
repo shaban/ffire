@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message User {
+  int64 id = 1;
+  string name = 2;
+  string email = 3;
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message Config {
+  string host = 1;
+  int32 port = 2;
+  bool enableSSL = 3;
+  float timeout = 4;
+  int32 maxRetries = 5;
+}

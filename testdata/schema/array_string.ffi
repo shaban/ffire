@@ -1,0 +1,4 @@
+package test
+
+// Message represents an array of strings
+type Message = []string

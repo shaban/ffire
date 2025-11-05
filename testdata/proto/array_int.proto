@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message IntList {
+  repeated int32 values = 1;
+}

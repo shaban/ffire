@@ -1,0 +1,12 @@
+package test
+
+// Message represents a single configuration struct
+type Message = Config
+
+type Config struct {
+	Host       string  `json:"host"`
+	Port       int32   `json:"port"`
+	EnableSSL  bool    `json:"enableSSL"`
+	Timeout    float32 `json:"timeout"`
+	MaxRetries int32   `json:"maxRetries"`
+}

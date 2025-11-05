@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message DeviceList {
+  repeated Device devices = 1;
+}
+
+message Device {
+  string name = 1;
+  int32 channels = 2;
+  int32 rate = 3;
+}

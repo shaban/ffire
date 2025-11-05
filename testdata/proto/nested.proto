@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package test;
+
+option go_package = "github.com/shaban/ffire/testdata/proto;testproto";
+
+message Level1 {
+  Level2 level2 = 1;
+}
+
+message Level2 {
+  Level3 level3 = 1;
+}
+
+message Level3 {
+  Level4 level4 = 1;
+}
+
+message Level4 {
+  Level5 level5 = 1;
+}
+
+message Level5 {
+  Level6 level6 = 1;
+}
+
+message Level6 {
+  Level7 level7 = 1;
+}
+
+message Level7 {
+  Level8 level8 = 1;
+}
+
+message Level8 {
+  Level9 level9 = 1;
+}
+
+message Level9 {
+  Level10 level10 = 1;
+}
+
+message Level10 {
+  repeated int32 data = 1;
+}
