@@ -327,7 +327,7 @@ func generateCppFixture(data []byte) string {
 	buf.WriteString("#include <cstdint>\n")
 	buf.WriteString("#include <cstddef>\n\n")
 	buf.WriteString("const uint8_t FIXTURE_DATA[] = {\n")
-	
+
 	for i, b := range data {
 		if i > 0 {
 			buf.WriteString(", ")
@@ -337,7 +337,7 @@ func generateCppFixture(data []byte) string {
 		}
 		fmt.Fprintf(&buf, "0x%02x", b)
 	}
-	
+
 	buf.WriteString("\n};\n\n")
 	fmt.Fprintf(&buf, "const size_t FIXTURE_SIZE = %d;\n\n", len(data))
 	buf.WriteString("#endif // FIXTURE_HPP\n")

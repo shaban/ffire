@@ -683,6 +683,7 @@ func GenerateCpp(s *schema.Schema) ([]byte, error) {
 type cppGenerator struct {
 	schema *schema.Schema
 	buf    *bytes.Buffer
+	depth  int // Track nesting depth for unique variable names
 }
 
 func (g *cppGenerator) generate() ([]byte, error) {
@@ -702,11 +703,24 @@ func (g *cppGenerator) generate() ([]byte, error) {
 	// Namespace
 	fmt.Fprintf(g.buf, "namespace %s {\n\n", g.schema.Package)
 
-	// Generate struct definitions
+	// Forward declarations for all structs (needed for mutual references)
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			g.generateStruct(structType)
+			fmt.Fprintf(g.buf, "struct %s;\n", structType.Name)
 		}
+	}
+	g.buf.WriteString("\n")
+
+	// Generate struct definitions in dependency order (structs with no dependencies first)
+	structs := make([]*schema.StructType, 0)
+	for _, typ := range g.schema.Types {
+		if structType, ok := typ.(*schema.StructType); ok {
+			structs = append(structs, structType)
+		}
+	}
+	sortedStructs := g.topologicalSort(structs)
+	for _, structType := range sortedStructs {
+		g.generateStruct(structType)
 	}
 
 	// Generate encoder class
@@ -1184,6 +1198,7 @@ func (g *cppGenerator) generateDecodeStruct(decVar, resultVar string, typ *schem
 }
 
 func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema.ArrayType, indent string) {
+	originalResultVar := resultVar // Save for optional assignment
 	if typ.Optional {
 		fmt.Fprintf(g.buf, "%sif (%s.read_bool()) {\n", indent, decVar)
 		indent += "    "
@@ -1197,22 +1212,114 @@ func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema
 	fmt.Fprintf(g.buf, "%s    %s.reserve(len);\n", indent, resultVar)
 	fmt.Fprintf(g.buf, "%s    for (uint16_t i = 0; i < len; ++i) {\n", indent)
 
+	// Use unique variable name based on depth to avoid shadowing in nested arrays
+	elemVar := fmt.Sprintf("elem%d", g.depth)
+	g.depth++
 	elemType := g.cppTypeString(typ.ElementType)
-	fmt.Fprintf(g.buf, "%s        %s elem;\n", indent, elemType)
-	g.generateDecodeValue(decVar, "elem", typ.ElementType, indent+"        ")
-	fmt.Fprintf(g.buf, "%s        %s.push_back(std::move(elem));\n", indent, resultVar)
+	fmt.Fprintf(g.buf, "%s        %s %s;\n", indent, elemType, elemVar)
+	g.generateDecodeValue(decVar, elemVar, typ.ElementType, indent+"        ")
+	fmt.Fprintf(g.buf, "%s        %s.push_back(std::move(%s));\n", indent, resultVar, elemVar)
+	g.depth--
 	fmt.Fprintf(g.buf, "%s    }\n", indent)
 	fmt.Fprintf(g.buf, "%s}\n", indent)
 
 	if typ.Optional {
 		indent = indent[:len(indent)-4]
-		baseResultVar := resultVar
-		if strings.HasSuffix(resultVar, ".value()") {
-			baseResultVar = resultVar[:len(resultVar)-8]
-		}
-		fmt.Fprintf(g.buf, "%s    %s = std::move(tmp);\n", indent, baseResultVar)
+		// Use the original result variable for assignment, not the temp variable
+		fmt.Fprintf(g.buf, "%s    %s = std::move(tmp);\n", indent, originalResultVar)
 		fmt.Fprintf(g.buf, "%s}\n", indent)
 	}
+}
+
+// topologicalSort sorts structs so that structs with no dependencies come first.
+// This ensures that when Level1 contains Level2, Level2 is defined before Level1.
+func (g *cppGenerator) topologicalSort(structs []*schema.StructType) []*schema.StructType {
+	// Build a map of struct names to their types
+	structMap := make(map[string]*schema.StructType)
+	for _, s := range structs {
+		structMap[s.Name] = s
+	}
+
+	// Track dependencies: for each struct, which other structs does it depend on?
+	dependencies := make(map[string][]string)
+	for _, s := range structs {
+		deps := make([]string, 0)
+		for _, field := range s.Fields {
+			if depName := g.getStructDependency(field.Type, structMap); depName != "" {
+				deps = append(deps, depName)
+			}
+		}
+		dependencies[s.Name] = deps
+	}
+
+	// Topological sort using Kahn's algorithm
+	result := make([]*schema.StructType, 0, len(structs))
+	
+	// Count dependencies for each struct (outgoing edges - how many structs does this depend on?)
+	remainingDeps := make(map[string]int)
+	for name, deps := range dependencies {
+		remainingDeps[name] = len(deps)
+	}
+
+	// Start with structs that have no dependencies
+	queue := make([]string, 0)
+	for name, count := range remainingDeps {
+		if count == 0 {
+			queue = append(queue, name)
+		}
+	}
+
+	// Process queue
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+		result = append(result, structMap[name])
+
+		// Find structs that depend on this one and reduce their dependency count
+		for depName, deps := range dependencies {
+			for _, dep := range deps {
+				if dep == name {
+					remainingDeps[depName]--
+					if remainingDeps[depName] == 0 {
+						queue = append(queue, depName)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// If there are cycles, just append remaining structs (shouldn't happen in valid schemas)
+	if len(result) < len(structs) {
+		for _, s := range structs {
+			found := false
+			for _, r := range result {
+				if r.Name == s.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result = append(result, s)
+			}
+		}
+	}
+
+	return result
+}
+
+// getStructDependency returns the name of the struct type that this field type depends on,
+// or empty string if it doesn't depend on any struct.
+func (g *cppGenerator) getStructDependency(typ schema.Type, structMap map[string]*schema.StructType) string {
+	switch t := typ.(type) {
+	case *schema.StructType:
+		if _, ok := structMap[t.Name]; ok {
+			return t.Name
+		}
+	case *schema.ArrayType:
+		return g.getStructDependency(t.ElementType, structMap)
+	}
+	return ""
 }
 
 func (g *cppGenerator) generateStructHelpers(structType *schema.StructType) {
