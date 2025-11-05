@@ -676,7 +676,548 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 
 // GenerateCpp generates C++ encoder/decoder code.
 func GenerateCpp(s *schema.Schema) ([]byte, error) {
-	return nil, fmt.Errorf("C++ generation not yet implemented")
+	gen := &cppGenerator{schema: s, buf: &bytes.Buffer{}}
+	return gen.generate()
+}
+
+type cppGenerator struct {
+	schema *schema.Schema
+	buf    *bytes.Buffer
+}
+
+func (g *cppGenerator) generate() ([]byte, error) {
+	// Header guard
+	guardName := strings.ToUpper(g.schema.Package) + "_H"
+	fmt.Fprintf(g.buf, "#ifndef %s\n", guardName)
+	fmt.Fprintf(g.buf, "#define %s\n\n", guardName)
+
+	// Includes
+	g.buf.WriteString("#include <cstdint>\n")
+	g.buf.WriteString("#include <cstring>\n")
+	g.buf.WriteString("#include <string>\n")
+	g.buf.WriteString("#include <vector>\n")
+	g.buf.WriteString("#include <optional>\n")
+	g.buf.WriteString("#include <stdexcept>\n\n")
+
+	// Namespace
+	fmt.Fprintf(g.buf, "namespace %s {\n\n", g.schema.Package)
+
+	// Generate struct definitions
+	for _, typ := range g.schema.Types {
+		if structType, ok := typ.(*schema.StructType); ok {
+			g.generateStruct(structType)
+		}
+	}
+
+	// Generate encoder class
+	g.buf.WriteString("// Binary encoder for wire format\n")
+	g.buf.WriteString("class Encoder {\n")
+	g.buf.WriteString("public:\n")
+	g.buf.WriteString("    std::vector<uint8_t> buffer;\n\n")
+	g.buf.WriteString("    void write_byte(uint8_t b) { buffer.push_back(b); }\n\n")
+	g.buf.WriteString("    void write_bool(bool v) { buffer.push_back(v ? 0x01 : 0x00); }\n\n")
+	g.buf.WriteString("    void write_int8(int8_t v) { buffer.push_back(static_cast<uint8_t>(v)); }\n\n")
+
+	g.buf.WriteString("    void write_int16(int16_t v) {\n")
+	g.buf.WriteString("        uint16_t u = static_cast<uint16_t>(v);\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 8));\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void write_int32(int32_t v) {\n")
+	g.buf.WriteString("        uint32_t u = static_cast<uint32_t>(v);\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 8));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 16));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 24));\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void write_int64(int64_t v) {\n")
+	g.buf.WriteString("        uint64_t u = static_cast<uint64_t>(v);\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 8));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 16));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 24));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 32));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 40));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 48));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(u >> 56));\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void write_float32(float v) {\n")
+	g.buf.WriteString("        uint32_t u;\n")
+	g.buf.WriteString("        std::memcpy(&u, &v, sizeof(float));\n")
+	g.buf.WriteString("        write_int32(static_cast<int32_t>(u));\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void write_float64(double v) {\n")
+	g.buf.WriteString("        uint64_t u;\n")
+	g.buf.WriteString("        std::memcpy(&u, &v, sizeof(double));\n")
+	g.buf.WriteString("        write_int64(static_cast<int64_t>(u));\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void write_string(const std::string& s) {\n")
+	g.buf.WriteString("        uint16_t len = static_cast<uint16_t>(s.size());\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(len));\n")
+	g.buf.WriteString("        buffer.push_back(static_cast<uint8_t>(len >> 8));\n")
+	g.buf.WriteString("        buffer.insert(buffer.end(), s.begin(), s.end());\n")
+	g.buf.WriteString("    }\n")
+	g.buf.WriteString("};\n\n")
+
+	// Generate decoder class
+	g.buf.WriteString("// Binary decoder for wire format\n")
+	g.buf.WriteString("class Decoder {\n")
+	g.buf.WriteString("public:\n")
+	g.buf.WriteString("    const uint8_t* data;\n")
+	g.buf.WriteString("    size_t size;\n")
+	g.buf.WriteString("    size_t pos = 0;\n\n")
+	g.buf.WriteString("    Decoder(const uint8_t* d, size_t s) : data(d), size(s) {}\n")
+	g.buf.WriteString("    Decoder(const std::vector<uint8_t>& v) : data(v.data()), size(v.size()) {}\n\n")
+
+	g.buf.WriteString("    void check_remaining(size_t needed) {\n")
+	g.buf.WriteString("        if (pos + needed > size) {\n")
+	g.buf.WriteString("            throw std::runtime_error(\"insufficient data for decode\");\n")
+	g.buf.WriteString("        }\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    bool read_bool() {\n")
+	g.buf.WriteString("        check_remaining(1);\n")
+	g.buf.WriteString("        return data[pos++] != 0x00;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    int8_t read_int8() {\n")
+	g.buf.WriteString("        check_remaining(1);\n")
+	g.buf.WriteString("        return static_cast<int8_t>(data[pos++]);\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    int16_t read_int16() {\n")
+	g.buf.WriteString("        check_remaining(2);\n")
+	g.buf.WriteString("        uint16_t u = static_cast<uint16_t>(data[pos]) |\n")
+	g.buf.WriteString("                     (static_cast<uint16_t>(data[pos + 1]) << 8);\n")
+	g.buf.WriteString("        pos += 2;\n")
+	g.buf.WriteString("        return static_cast<int16_t>(u);\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    int32_t read_int32() {\n")
+	g.buf.WriteString("        check_remaining(4);\n")
+	g.buf.WriteString("        uint32_t u = static_cast<uint32_t>(data[pos]) |\n")
+	g.buf.WriteString("                     (static_cast<uint32_t>(data[pos + 1]) << 8) |\n")
+	g.buf.WriteString("                     (static_cast<uint32_t>(data[pos + 2]) << 16) |\n")
+	g.buf.WriteString("                     (static_cast<uint32_t>(data[pos + 3]) << 24);\n")
+	g.buf.WriteString("        pos += 4;\n")
+	g.buf.WriteString("        return static_cast<int32_t>(u);\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    int64_t read_int64() {\n")
+	g.buf.WriteString("        check_remaining(8);\n")
+	g.buf.WriteString("        uint64_t u = static_cast<uint64_t>(data[pos]) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 1]) << 8) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 2]) << 16) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 3]) << 24) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 4]) << 32) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 5]) << 40) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 6]) << 48) |\n")
+	g.buf.WriteString("                     (static_cast<uint64_t>(data[pos + 7]) << 56);\n")
+	g.buf.WriteString("        pos += 8;\n")
+	g.buf.WriteString("        return static_cast<int64_t>(u);\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    float read_float32() {\n")
+	g.buf.WriteString("        uint32_t u = static_cast<uint32_t>(read_int32());\n")
+	g.buf.WriteString("        float f;\n")
+	g.buf.WriteString("        std::memcpy(&f, &u, sizeof(float));\n")
+	g.buf.WriteString("        return f;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    double read_float64() {\n")
+	g.buf.WriteString("        uint64_t u = static_cast<uint64_t>(read_int64());\n")
+	g.buf.WriteString("        double d;\n")
+	g.buf.WriteString("        std::memcpy(&d, &u, sizeof(double));\n")
+	g.buf.WriteString("        return d;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    std::string read_string() {\n")
+	g.buf.WriteString("        check_remaining(2);\n")
+	g.buf.WriteString("        uint16_t len = static_cast<uint16_t>(data[pos]) |\n")
+	g.buf.WriteString("                       (static_cast<uint16_t>(data[pos + 1]) << 8);\n")
+	g.buf.WriteString("        pos += 2;\n")
+	g.buf.WriteString("        check_remaining(len);\n")
+	g.buf.WriteString("        std::string s(reinterpret_cast<const char*>(data + pos), len);\n")
+	g.buf.WriteString("        pos += len;\n")
+	g.buf.WriteString("        return s;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    uint16_t read_array_length() {\n")
+	g.buf.WriteString("        check_remaining(2);\n")
+	g.buf.WriteString("        uint16_t len = static_cast<uint16_t>(data[pos]) |\n")
+	g.buf.WriteString("                       (static_cast<uint16_t>(data[pos + 1]) << 8);\n")
+	g.buf.WriteString("        pos += 2;\n")
+	g.buf.WriteString("        return len;\n")
+	g.buf.WriteString("    }\n")
+	g.buf.WriteString("};\n\n")
+
+	// Generate message encode/decode functions
+	for _, msg := range g.schema.Messages {
+		g.generateMessageEncode(msg)
+		g.generateMessageDecode(msg)
+	}
+
+	// Generate helper functions for structs
+	for _, typ := range g.schema.Types {
+		if structType, ok := typ.(*schema.StructType); ok {
+			g.generateStructHelpers(structType)
+		}
+	}
+
+	// Close namespace
+	fmt.Fprintf(g.buf, "} // namespace %s\n\n", g.schema.Package)
+
+	// Close header guard
+	fmt.Fprintf(g.buf, "#endif // %s\n", guardName)
+
+	return g.buf.Bytes(), nil
+}
+
+func (g *cppGenerator) generateStruct(structType *schema.StructType) {
+	fmt.Fprintf(g.buf, "struct %s {\n", structType.Name)
+	for _, field := range structType.Fields {
+		typeStr := g.cppTypeString(field.Type)
+		fmt.Fprintf(g.buf, "    %s %s;\n", typeStr, field.Name)
+	}
+	g.buf.WriteString("};\n\n")
+}
+
+func (g *cppGenerator) cppTypeString(typ schema.Type) string {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		baseName := g.cppPrimitiveType(t.Name)
+		if t.Optional {
+			return "std::optional<" + baseName + ">"
+		}
+		return baseName
+
+	case *schema.StructType:
+		if t.Optional {
+			return "std::optional<" + t.Name + ">"
+		}
+		return t.Name
+
+	case *schema.ArrayType:
+		elemType := g.cppTypeString(t.ElementType)
+		vectorType := "std::vector<" + elemType + ">"
+		if t.Optional {
+			return "std::optional<" + vectorType + ">"
+		}
+		return vectorType
+
+	default:
+		return "void*"
+	}
+}
+
+func (g *cppGenerator) cppPrimitiveType(name string) string {
+	switch name {
+	case "bool":
+		return "bool"
+	case "int8":
+		return "int8_t"
+	case "int16":
+		return "int16_t"
+	case "int32":
+		return "int32_t"
+	case "int64":
+		return "int64_t"
+	case "float32":
+		return "float"
+	case "float64":
+		return "double"
+	case "string":
+		return "std::string"
+	default:
+		return "void*"
+	}
+}
+
+func (g *cppGenerator) generateMessageEncode(msg schema.MessageType) {
+	rootTypeName := g.rootTypeName(msg.TargetType)
+	funcName := fmt.Sprintf("encode_%s_message", strings.ToLower(rootTypeName))
+
+	paramType := g.cppTypeString(msg.TargetType)
+	constRef := "const " + paramType + "&"
+	// Special case for primitives - pass by value
+	if _, ok := msg.TargetType.(*schema.PrimitiveType); ok {
+		constRef = paramType
+	}
+
+	fmt.Fprintf(g.buf, "// Encode %s to binary wire format\n", msg.Name)
+	fmt.Fprintf(g.buf, "inline std::vector<uint8_t> %s(%s value) {\n", funcName, constRef)
+	g.buf.WriteString("    Encoder enc;\n")
+	g.generateEncodeValue("enc", "value", msg.TargetType, "    ")
+	g.buf.WriteString("    return enc.buffer;\n")
+	g.buf.WriteString("}\n\n")
+}
+
+func (g *cppGenerator) generateMessageDecode(msg schema.MessageType) {
+	rootTypeName := g.rootTypeName(msg.TargetType)
+	funcName := fmt.Sprintf("decode_%s_message", strings.ToLower(rootTypeName))
+
+	returnType := g.cppTypeString(msg.TargetType)
+	fmt.Fprintf(g.buf, "// Decode %s from binary wire format\n", msg.Name)
+	fmt.Fprintf(g.buf, "inline %s %s(const uint8_t* data, size_t size) {\n", returnType, funcName)
+	g.buf.WriteString("    Decoder dec(data, size);\n")
+	fmt.Fprintf(g.buf, "    %s result;\n", returnType)
+	g.generateDecodeValue("dec", "result", msg.TargetType, "    ")
+	g.buf.WriteString("    return result;\n")
+	g.buf.WriteString("}\n\n")
+
+	// Overload for vector
+	fmt.Fprintf(g.buf, "inline %s %s(const std::vector<uint8_t>& data) {\n", returnType, funcName)
+	fmt.Fprintf(g.buf, "    return %s(data.data(), data.size());\n", funcName)
+	g.buf.WriteString("}\n\n")
+}
+
+func (g *cppGenerator) rootTypeName(typ schema.Type) string {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		return strings.Title(t.Name)
+	case *schema.StructType:
+		return t.Name
+	case *schema.ArrayType:
+		return g.rootTypeName(t.ElementType)
+	default:
+		return "Unknown"
+	}
+}
+
+func (g *cppGenerator) generateEncodeValue(encVar, valueVar string, typ schema.Type, indent string) {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		g.generateEncodePrimitive(encVar, valueVar, t, indent)
+	case *schema.StructType:
+		g.generateEncodeStruct(encVar, valueVar, t, indent)
+	case *schema.ArrayType:
+		g.generateEncodeArray(encVar, valueVar, t, indent)
+	}
+}
+
+func (g *cppGenerator) generateEncodePrimitive(encVar, valueVar string, typ *schema.PrimitiveType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.has_value()) {\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x01);\n", indent, encVar)
+		valueVar = valueVar + ".value()"
+		indent += "    "
+	}
+
+	switch typ.Name {
+	case "bool":
+		fmt.Fprintf(g.buf, "%s%s.write_bool(%s);\n", indent, encVar, valueVar)
+	case "int8":
+		fmt.Fprintf(g.buf, "%s%s.write_int8(%s);\n", indent, encVar, valueVar)
+	case "int16":
+		fmt.Fprintf(g.buf, "%s%s.write_int16(%s);\n", indent, encVar, valueVar)
+	case "int32":
+		fmt.Fprintf(g.buf, "%s%s.write_int32(%s);\n", indent, encVar, valueVar)
+	case "int64":
+		fmt.Fprintf(g.buf, "%s%s.write_int64(%s);\n", indent, encVar, valueVar)
+	case "float32":
+		fmt.Fprintf(g.buf, "%s%s.write_float32(%s);\n", indent, encVar, valueVar)
+	case "float64":
+		fmt.Fprintf(g.buf, "%s%s.write_float64(%s);\n", indent, encVar, valueVar)
+	case "string":
+		fmt.Fprintf(g.buf, "%s%s.write_string(%s);\n", indent, encVar, valueVar)
+	}
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		fmt.Fprintf(g.buf, "%s} else {\n", indent)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x00);\n", indent, encVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateEncodeStruct(encVar, valueVar string, typ *schema.StructType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.has_value()) {\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x01);\n", indent, encVar)
+		valueVar = valueVar + ".value()"
+		indent += "    "
+	}
+
+	for _, field := range typ.Fields {
+		fieldVar := valueVar + "." + field.Name
+		g.generateEncodeValue(encVar, fieldVar, field.Type, indent)
+	}
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		fmt.Fprintf(g.buf, "%s} else {\n", indent)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x00);\n", indent, encVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateEncodeArray(encVar, valueVar string, typ *schema.ArrayType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.has_value()) {\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x01);\n", indent, encVar)
+		valueVar = valueVar + ".value()"
+		indent += "    "
+	}
+
+	// Write array length
+	fmt.Fprintf(g.buf, "%s{\n", indent)
+	fmt.Fprintf(g.buf, "%s    uint16_t len = static_cast<uint16_t>(%s.size());\n", indent, valueVar)
+	fmt.Fprintf(g.buf, "%s    %s.write_byte(static_cast<uint8_t>(len));\n", indent, encVar)
+	fmt.Fprintf(g.buf, "%s    %s.write_byte(static_cast<uint8_t>(len >> 8));\n", indent, encVar)
+	fmt.Fprintf(g.buf, "%s}\n", indent)
+
+	// Encode elements
+	fmt.Fprintf(g.buf, "%sfor (const auto& elem : %s) {\n", indent, valueVar)
+	g.generateEncodeValue(encVar, "elem", typ.ElementType, indent+"    ")
+	fmt.Fprintf(g.buf, "%s}\n", indent)
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		fmt.Fprintf(g.buf, "%s} else {\n", indent)
+		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x00);\n", indent, encVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateDecodeValue(decVar, resultVar string, typ schema.Type, indent string) {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		g.generateDecodePrimitive(decVar, resultVar, t, indent)
+	case *schema.StructType:
+		g.generateDecodeStruct(decVar, resultVar, t, indent)
+	case *schema.ArrayType:
+		g.generateDecodeArray(decVar, resultVar, t, indent)
+	}
+}
+
+func (g *cppGenerator) generateDecodePrimitive(decVar, resultVar string, typ *schema.PrimitiveType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.read_bool()) {\n", indent, decVar)
+		indent += "    "
+	}
+
+	switch typ.Name {
+	case "bool":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_bool();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_bool();\n", indent, resultVar, decVar)
+		}
+	case "int8":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int8();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int8();\n", indent, resultVar, decVar)
+		}
+	case "int16":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int16();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int16();\n", indent, resultVar, decVar)
+		}
+	case "int32":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int32();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int32();\n", indent, resultVar, decVar)
+		}
+	case "int64":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int64();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_int64();\n", indent, resultVar, decVar)
+		}
+	case "float32":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_float32();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_float32();\n", indent, resultVar, decVar)
+		}
+	case "float64":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_float64();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_float64();\n", indent, resultVar, decVar)
+		}
+	case "string":
+		if typ.Optional {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_string();\n", indent, resultVar, decVar)
+		} else {
+			fmt.Fprintf(g.buf, "%s%s = %s.read_string();\n", indent, resultVar, decVar)
+		}
+	}
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateDecodeStruct(decVar, resultVar string, typ *schema.StructType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.read_bool()) {\n", indent, decVar)
+		fmt.Fprintf(g.buf, "%s    %s tmp;\n", indent, typ.Name)
+		indent += "    "
+		resultVar = "tmp"
+	}
+
+	for _, field := range typ.Fields {
+		fieldVar := resultVar + "." + field.Name
+		g.generateDecodeValue(decVar, fieldVar, field.Type, indent)
+	}
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		// Strip last ".value()" if added
+		baseResultVar := resultVar
+		if strings.HasSuffix(resultVar, ".value()") {
+			baseResultVar = resultVar[:len(resultVar)-8]
+		}
+		fmt.Fprintf(g.buf, "%s    %s = tmp;\n", indent, baseResultVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema.ArrayType, indent string) {
+	if typ.Optional {
+		fmt.Fprintf(g.buf, "%sif (%s.read_bool()) {\n", indent, decVar)
+		indent += "    "
+		elemType := g.cppTypeString(typ.ElementType)
+		fmt.Fprintf(g.buf, "%sstd::vector<%s> tmp;\n", indent, elemType)
+		resultVar = "tmp"
+	}
+
+	fmt.Fprintf(g.buf, "%s{\n", indent)
+	fmt.Fprintf(g.buf, "%s    uint16_t len = %s.read_array_length();\n", indent, decVar)
+	fmt.Fprintf(g.buf, "%s    %s.reserve(len);\n", indent, resultVar)
+	fmt.Fprintf(g.buf, "%s    for (uint16_t i = 0; i < len; ++i) {\n", indent)
+	
+	elemType := g.cppTypeString(typ.ElementType)
+	fmt.Fprintf(g.buf, "%s        %s elem;\n", indent, elemType)
+	g.generateDecodeValue(decVar, "elem", typ.ElementType, indent+"        ")
+	fmt.Fprintf(g.buf, "%s        %s.push_back(std::move(elem));\n", indent, resultVar)
+	fmt.Fprintf(g.buf, "%s    }\n", indent)
+	fmt.Fprintf(g.buf, "%s}\n", indent)
+
+	if typ.Optional {
+		indent = indent[:len(indent)-4]
+		baseResultVar := resultVar
+		if strings.HasSuffix(resultVar, ".value()") {
+			baseResultVar = resultVar[:len(resultVar)-8]
+		}
+		fmt.Fprintf(g.buf, "%s    %s = std::move(tmp);\n", indent, baseResultVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+	}
+}
+
+func (g *cppGenerator) generateStructHelpers(structType *schema.StructType) {
+	// C++ doesn't need separate helper functions since we inline everything
+	// The message encode/decode functions handle everything
 }
 
 // GenerateSwift generates Swift encoder/decoder code.

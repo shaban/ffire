@@ -590,10 +590,13 @@ func TestGenerateLanguageSwitching(t *testing.T) {
 		t.Errorf("Generate(go) returned empty code")
 	}
 
-	// Test C++ returns error (not implemented)
-	_, err = Generate(s, "cpp")
-	if err == nil {
-		t.Errorf("Generate(cpp) should return error (not implemented)")
+	// Test C++ generation works
+	codeCpp, err := Generate(s, "cpp")
+	if err != nil {
+		t.Fatalf("Generate(cpp) failed: %v", err)
+	}
+	if len(codeCpp) == 0 {
+		t.Errorf("Generate(cpp) returned empty code")
 	}
 
 	// Test Swift returns error (not implemented)
@@ -689,5 +692,312 @@ func TestBoolArrayUsesLoop(t *testing.T) {
 	// Should use element-by-element loop
 	if !strings.Contains(codeStr, "for _, elem := range") {
 		t.Errorf("Bool arrays should use element-by-element encoding")
+	}
+}
+
+func TestGenerateCppSimpleStruct(t *testing.T) {
+	s := &schema.Schema{
+		Package: "test",
+		Types: []schema.Type{
+			&schema.StructType{
+				Name: "User",
+				Fields: []schema.Field{
+					{Name: "ID", Type: &schema.PrimitiveType{Name: "int32"}},
+					{Name: "Name", Type: &schema.PrimitiveType{Name: "string"}},
+				},
+			},
+		},
+		Messages: []schema.MessageType{
+			{Name: "User", TargetType: &schema.StructType{
+				Name: "User",
+				Fields: []schema.Field{
+					{Name: "ID", Type: &schema.PrimitiveType{Name: "int32"}},
+					{Name: "Name", Type: &schema.PrimitiveType{Name: "string"}},
+				},
+			}},
+		},
+	}
+
+	code, err := GenerateCpp(s)
+	if err != nil {
+		t.Fatalf("GenerateCpp failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Check header guard
+	if !strings.Contains(codeStr, "#ifndef TEST_H") {
+		t.Errorf("missing header guard start")
+	}
+	if !strings.Contains(codeStr, "#define TEST_H") {
+		t.Errorf("missing header guard define")
+	}
+	if !strings.Contains(codeStr, "#endif // TEST_H") {
+		t.Errorf("missing header guard end")
+	}
+
+	// Check includes
+	if !strings.Contains(codeStr, "#include <cstdint>") {
+		t.Errorf("missing cstdint include")
+	}
+	if !strings.Contains(codeStr, "#include <string>") {
+		t.Errorf("missing string include")
+	}
+	if !strings.Contains(codeStr, "#include <vector>") {
+		t.Errorf("missing vector include")
+	}
+	if !strings.Contains(codeStr, "#include <optional>") {
+		t.Errorf("missing optional include")
+	}
+
+	// Check namespace
+	if !strings.Contains(codeStr, "namespace test {") {
+		t.Errorf("missing namespace declaration")
+	}
+
+	// Check struct definition
+	if !strings.Contains(codeStr, "struct User {") {
+		t.Errorf("missing struct definition")
+	}
+	if !strings.Contains(codeStr, "int32_t ID;") {
+		t.Errorf("missing ID field")
+	}
+	if !strings.Contains(codeStr, "std::string Name;") {
+		t.Errorf("missing Name field")
+	}
+
+	// Check Encoder class
+	if !strings.Contains(codeStr, "class Encoder {") {
+		t.Errorf("missing Encoder class")
+	}
+	if !strings.Contains(codeStr, "void write_int32(int32_t v)") {
+		t.Errorf("missing write_int32 method")
+	}
+	if !strings.Contains(codeStr, "void write_string(const std::string& s)") {
+		t.Errorf("missing write_string method")
+	}
+
+	// Check Decoder class
+	if !strings.Contains(codeStr, "class Decoder {") {
+		t.Errorf("missing Decoder class")
+	}
+	if !strings.Contains(codeStr, "int32_t read_int32()") {
+		t.Errorf("missing read_int32 method")
+	}
+	if !strings.Contains(codeStr, "std::string read_string()") {
+		t.Errorf("missing read_string method")
+	}
+	if !strings.Contains(codeStr, "void check_remaining(size_t needed)") {
+		t.Errorf("missing bounds checking")
+	}
+
+	// Check encode/decode functions
+	if !strings.Contains(codeStr, "encode_user_message") {
+		t.Errorf("missing encode function")
+	}
+	if !strings.Contains(codeStr, "decode_user_message") {
+		t.Errorf("missing decode function")
+	}
+}
+
+func TestGenerateCppArray(t *testing.T) {
+	s := &schema.Schema{
+		Package: "test",
+		Types:   []schema.Type{},
+		Messages: []schema.MessageType{
+			{Name: "IntArray", TargetType: &schema.ArrayType{
+				ElementType: &schema.PrimitiveType{Name: "int32"},
+			}},
+		},
+	}
+
+	code, err := GenerateCpp(s)
+	if err != nil {
+		t.Fatalf("GenerateCpp failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Check array encoding
+	if !strings.Contains(codeStr, "std::vector<int32_t>") {
+		t.Errorf("missing vector type for array")
+	}
+	if !strings.Contains(codeStr, "uint16_t len = static_cast<uint16_t>(value.size())") {
+		t.Errorf("missing array length encoding")
+	}
+	if !strings.Contains(codeStr, "for (const auto& elem : value)") {
+		t.Errorf("missing array element loop")
+	}
+
+	// Check array decoding
+	if !strings.Contains(codeStr, "uint16_t len = dec.read_array_length()") {
+		t.Errorf("missing array length decoding")
+	}
+	if !strings.Contains(codeStr, "result.reserve(len)") {
+		t.Errorf("missing vector reserve")
+	}
+	if !strings.Contains(codeStr, "for (uint16_t i = 0; i < len; ++i)") {
+		t.Errorf("missing decode loop")
+	}
+}
+
+func TestGenerateCppOptional(t *testing.T) {
+	s := &schema.Schema{
+		Package: "test",
+		Types: []schema.Type{
+			&schema.StructType{
+				Name: "Record",
+				Fields: []schema.Field{
+					{Name: "Required", Type: &schema.PrimitiveType{Name: "string"}},
+					{Name: "Optional", Type: &schema.PrimitiveType{Name: "int32", Optional: true}},
+				},
+			},
+		},
+		Messages: []schema.MessageType{
+			{Name: "Record", TargetType: &schema.StructType{
+				Name: "Record",
+				Fields: []schema.Field{
+					{Name: "Required", Type: &schema.PrimitiveType{Name: "string"}},
+					{Name: "Optional", Type: &schema.PrimitiveType{Name: "int32", Optional: true}},
+				},
+			}},
+		},
+	}
+
+	code, err := GenerateCpp(s)
+	if err != nil {
+		t.Fatalf("GenerateCpp failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Check optional field type
+	if !strings.Contains(codeStr, "std::optional<int32_t> Optional;") {
+		t.Errorf("optional field should use std::optional")
+	}
+
+	// Check optional encoding (presence byte)
+	if !strings.Contains(codeStr, ".has_value()") {
+		t.Errorf("missing has_value() check for optional")
+	}
+	if !strings.Contains(codeStr, "enc.write_byte(0x01)") {
+		t.Errorf("missing presence byte encoding")
+	}
+	if !strings.Contains(codeStr, "enc.write_byte(0x00)") {
+		t.Errorf("missing null byte encoding")
+	}
+
+	// Check optional decoding
+	if !strings.Contains(codeStr, "if (dec.read_bool())") {
+		t.Errorf("missing optional presence check in decode")
+	}
+}
+
+func TestGenerateCppAllPrimitives(t *testing.T) {
+	primitives := []string{"bool", "int8", "int16", "int32", "int64", "float32", "float64", "string"}
+	
+	for _, prim := range primitives {
+		t.Run(prim, func(t *testing.T) {
+s := &schema.Schema{
+				Package: "test",
+				Types:   []schema.Type{},
+				Messages: []schema.MessageType{
+					{Name: prim, TargetType: &schema.PrimitiveType{Name: prim}},
+				},
+			}
+
+			code, err := GenerateCpp(s)
+			if err != nil {
+				t.Fatalf("GenerateCpp failed for %s: %v", prim, err)
+			}
+
+			codeStr := string(code)
+
+			// Check that appropriate read/write methods exist
+			var expectedReadMethod, expectedWriteMethod string
+			switch prim {
+			case "float32":
+				expectedReadMethod = "read_float32"
+				expectedWriteMethod = "write_float32"
+			case "float64":
+				expectedReadMethod = "read_float64"
+				expectedWriteMethod = "write_float64"
+			default:
+				expectedReadMethod = "read_" + prim
+				expectedWriteMethod = "write_" + prim
+			}
+
+			if !strings.Contains(codeStr, expectedReadMethod) {
+				t.Errorf("missing %s method", expectedReadMethod)
+			}
+			if !strings.Contains(codeStr, expectedWriteMethod) {
+				t.Errorf("missing %s method", expectedWriteMethod)
+			}
+		})
+	}
+}
+
+func TestGenerateCppNestedStruct(t *testing.T) {
+	s := &schema.Schema{
+		Package: "test",
+		Types: []schema.Type{
+			&schema.StructType{
+				Name: "Inner",
+				Fields: []schema.Field{
+					{Name: "Value", Type: &schema.PrimitiveType{Name: "int32"}},
+				},
+			},
+			&schema.StructType{
+				Name: "Outer",
+				Fields: []schema.Field{
+					{Name: "Name", Type: &schema.PrimitiveType{Name: "string"}},
+					{Name: "Nested", Type: &schema.StructType{
+						Name: "Inner",
+						Fields: []schema.Field{
+							{Name: "Value", Type: &schema.PrimitiveType{Name: "int32"}},
+						},
+					}},
+				},
+			},
+		},
+		Messages: []schema.MessageType{
+			{Name: "Outer", TargetType: &schema.StructType{
+				Name: "Outer",
+				Fields: []schema.Field{
+					{Name: "Name", Type: &schema.PrimitiveType{Name: "string"}},
+					{Name: "Nested", Type: &schema.StructType{
+						Name: "Inner",
+						Fields: []schema.Field{
+							{Name: "Value", Type: &schema.PrimitiveType{Name: "int32"}},
+						},
+					}},
+				},
+			}},
+		},
+	}
+
+	code, err := GenerateCpp(s)
+	if err != nil {
+		t.Fatalf("GenerateCpp failed: %v", err)
+	}
+
+	codeStr := string(code)
+
+	// Check both structs are defined
+	if !strings.Contains(codeStr, "struct Inner {") {
+		t.Errorf("missing Inner struct")
+	}
+	if !strings.Contains(codeStr, "struct Outer {") {
+		t.Errorf("missing Outer struct")
+	}
+
+	// Check nested struct field
+	if !strings.Contains(codeStr, "Inner Nested;") {
+		t.Errorf("missing nested struct field")
+	}
+
+	// Check nested encoding
+	if !strings.Contains(codeStr, "value.Nested.Value") {
+		t.Errorf("missing nested field access in encoding")
 	}
 }
