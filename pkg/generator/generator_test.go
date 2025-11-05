@@ -895,10 +895,10 @@ func TestGenerateCppOptional(t *testing.T) {
 
 func TestGenerateCppAllPrimitives(t *testing.T) {
 	primitives := []string{"bool", "int8", "int16", "int32", "int64", "float32", "float64", "string"}
-	
+
 	for _, prim := range primitives {
 		t.Run(prim, func(t *testing.T) {
-s := &schema.Schema{
+			s := &schema.Schema{
 				Package: "test",
 				Types:   []schema.Type{},
 				Messages: []schema.MessageType{

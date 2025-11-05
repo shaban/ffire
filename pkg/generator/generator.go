@@ -1196,7 +1196,7 @@ func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema
 	fmt.Fprintf(g.buf, "%s    uint16_t len = %s.read_array_length();\n", indent, decVar)
 	fmt.Fprintf(g.buf, "%s    %s.reserve(len);\n", indent, resultVar)
 	fmt.Fprintf(g.buf, "%s    for (uint16_t i = 0; i < len; ++i) {\n", indent)
-	
+
 	elemType := g.cppTypeString(typ.ElementType)
 	fmt.Fprintf(g.buf, "%s        %s elem;\n", indent, elemType)
 	g.generateDecodeValue(decVar, "elem", typ.ElementType, indent+"        ")

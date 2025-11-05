@@ -17,6 +17,7 @@ func runBench(args []string) {
 	schemaFile := fs.String("schema", "", "Path to .ffi schema file (required)")
 	jsonFile := fs.String("json", "", "Path to JSON fixture file (required)")
 	outputDir := fs.String("output", "", "Output directory (required)")
+	lang := fs.String("lang", "go", "Target language: go, cpp (default: go)")
 	messageName := fs.String("message", "Message", "Message type name to encode (default: Message)")
 	iterations := fs.Int("iterations", 100000, "Number of benchmark iterations (default: 100000)")
 
@@ -31,6 +32,7 @@ Options:
 		fmt.Fprintf(os.Stderr, `
 Examples:
   ffire bench --schema schema.ffi --json data.json --output bench/
+  ffire bench --lang cpp --schema schema.ffi --json data.json --output bench_cpp/
   ffire bench --schema schema.ffi --json data.json --output bench/ --iterations 10000000
 `)
 	}
@@ -74,12 +76,29 @@ Examples:
 	schemaName := filepath.Base(*schemaFile)
 	schemaName = strings.TrimSuffix(schemaName, filepath.Ext(schemaName))
 
-	// Generate benchmark
-	if err := benchmark.GenerateGo(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+	// Generate benchmark based on language
+	switch *lang {
+	case "go":
+		if err := benchmark.GenerateGo(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Go benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s && go run .\n", *outputDir)
+
+	case "cpp":
+		if err := benchmark.GenerateCpp(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated C++ benchmark in %s\n", *outputDir)
+		fmt.Printf("\n  Build with CMake:\n")
+		fmt.Printf("    cd %s && cmake -B build && cmake --build build && ./build/bench\n", *outputDir)
+		fmt.Printf("\n  Or build with Make (fallback):\n")
+		fmt.Printf("    cd %s && make && ./bench\n", *outputDir)
+
+	default:
+		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp)\n", *lang)
 		os.Exit(1)
 	}
-
-	fmt.Printf("✓ Generated benchmark in %s\n", *outputDir)
-	fmt.Printf("  Run with: cd %s && go run .\n", *outputDir)
 }
