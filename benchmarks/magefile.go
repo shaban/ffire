@@ -213,11 +213,25 @@ func genProto(name, protoFile, jsonFile string) error {
 func RunGo() error {
 	fmt.Println("\n🏃 Running ffire Go benchmarks...")
 
-	// Find all ffire benchmark directories
+	// Find all Go ffire benchmark directories (exclude cpp and python variants)
 	pattern := filepath.Join(genDir, "ffire_*")
-	dirs, err := filepath.Glob(pattern)
+	allDirs, err := filepath.Glob(pattern)
 	if err != nil {
 		return err
+	}
+
+	// Filter to only pure Go benchmarks (exclude ffire_cpp_* and ffire_python_*)
+	var dirs []string
+	for _, dir := range allDirs {
+		base := filepath.Base(dir)
+		if !strings.HasPrefix(base, "ffire_cpp_") && !strings.HasPrefix(base, "ffire_python_") {
+			dirs = append(dirs, dir)
+		}
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Go benchmarks found (skipping)")
+		return nil
 	}
 
 	var allResults []BenchResult
