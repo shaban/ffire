@@ -1,21 +1,24 @@
 package generator
 
 import (
-"bytes"
-"fmt"
-"os"
-"path/filepath"
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/shaban/ffire/pkg/schema"
 )
 
 // GenerateDartPackage generates a complete Dart package with FFI bindings
 func GenerateDartPackage(config *PackageConfig) error {
 	return orchestrateTierBPackage(
-config,
-DartLayout,
-generateDartWrapperOrchestrated,
-generateDartMetadataOrchestrated,
-printDartInstructions,
-)
+		config,
+		DartLayout,
+		generateDartWrapperOrchestrated,
+		generateDartMetadataOrchestrated,
+		printDartInstructions,
+	)
 }
 
 func generateDartWrapperOrchestrated(config *PackageConfig, paths *PackagePaths) error {
@@ -55,14 +58,15 @@ func printDartInstructions(config *PackageConfig, paths *PackagePaths) {
 
 func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error {
 	packageName := config.Namespace
-	
+
 	// Main library file
 	buf := &bytes.Buffer{}
-	
+
 	buf.WriteString("import 'dart:ffi';\n")
 	buf.WriteString("import 'dart:io';\n")
-	buf.WriteString("import 'dart:typed_data';\n\n")
-	
+	buf.WriteString("import 'dart:typed_data';\n")
+	buf.WriteString("import 'package:ffi/ffi.dart';\n\n")
+
 	// Exception class
 	fmt.Fprintf(buf, "class %sException implements Exception {\n", ToPascalCase(packageName))
 	buf.WriteString("  final String message;\n")
@@ -70,96 +74,28 @@ func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error
 	buf.WriteString("  @override\n")
 	buf.WriteString("  String toString() => message;\n")
 	buf.WriteString("}\n\n")
-	
+
 	// Native library loader
 	buf.WriteString("class _NativeLibrary {\n")
 	buf.WriteString("  static final DynamicLibrary _lib = _loadLibrary();\n\n")
 	buf.WriteString("  static DynamicLibrary _loadLibrary() {\n")
 	buf.WriteString("    if (Platform.isMacOS) {\n")
-	buf.WriteString("      return DynamicLibrary.open('libffire.dylib');\n")
+	buf.WriteString("      return DynamicLibrary.open('lib/libffire.dylib');\n")
 	buf.WriteString("    } else if (Platform.isLinux) {\n")
-	buf.WriteString("      return DynamicLibrary.open('libffire.so');\n")
+	buf.WriteString("      return DynamicLibrary.open('lib/libffire.so');\n")
 	buf.WriteString("    } else if (Platform.isWindows) {\n")
-	buf.WriteString("      return DynamicLibrary.open('ffire.dll');\n")
+	buf.WriteString("      return DynamicLibrary.open('lib/ffire.dll');\n")
 	buf.WriteString("    }\n")
 	buf.WriteString("    throw UnsupportedError('Platform not supported');\n")
-	buf.WriteString("  }\n\n")
-	
-	// Native function declarations
-	buf.WriteString("  static final ffire_decode = _lib\n")
-	buf.WriteString("      .lookup<NativeFunction<Pointer<Void> Function(Pointer<Uint8>, Int32)>>('ffire_decode')\n")
-	buf.WriteString("      .asFunction<Pointer<Void> Function(Pointer<Uint8>, int)>();\n\n")
-	
-	buf.WriteString("  static final ffire_encode = _lib\n")
-	buf.WriteString("      .lookup<NativeFunction<Pointer<Void> Function(Pointer<Void>)>>('ffire_encode')\n")
-	buf.WriteString("      .asFunction<Pointer<Void> Function(Pointer<Void>)>();\n\n")
-	
-	buf.WriteString("  static final ffire_free = _lib\n")
-	buf.WriteString("      .lookup<NativeFunction<Void Function(Pointer<Void>)>>('ffire_free')\n")
-	buf.WriteString("      .asFunction<void Function(Pointer<Void>)>();\n\n")
-	
-	buf.WriteString("  static final ffire_get_error = _lib\n")
-	buf.WriteString("      .lookup<NativeFunction<Pointer<Utf8> Function()>>('ffire_get_error')\n")
-	buf.WriteString("      .asFunction<Pointer<Utf8> Function()>();\n\n")
-	
-	buf.WriteString("  static String getLastError() {\n")
-	buf.WriteString("    final errPtr = ffire_get_error();\n")
-	buf.WriteString("    if (errPtr.address == 0) return 'Unknown error';\n")
-	buf.WriteString("    return errPtr.toDartString();\n")
 	buf.WriteString("  }\n")
 	buf.WriteString("}\n\n")
-	
-	// Message class
-	buf.WriteString("class Message {\n")
-	buf.WriteString("  Pointer<Void>? _handle;\n")
-	buf.WriteString("  bool _disposed = false;\n\n")
-	
-	buf.WriteString("  Message._(this._handle);\n\n")
-	
-	buf.WriteString("  static Message decode(Uint8List data) {\n")
-	buf.WriteString("    final dataPtr = malloc.allocate<Uint8>(data.length);\n")
-	buf.WriteString("    final dataList = dataPtr.asTypedList(data.length);\n")
-	buf.WriteString("    dataList.setAll(0, data);\n\n")
-	
-	buf.WriteString("    final handle = _NativeLibrary.ffire_decode(dataPtr, data.length);\n")
-	buf.WriteString("    malloc.free(dataPtr);\n\n")
-	
-	buf.WriteString("    if (handle.address == 0) {\n")
-	buf.WriteString("      final error = _NativeLibrary.getLastError();\n")
-	fmt.Fprintf(buf, "      throw %sException('Decode failed: $error');\n", ToPascalCase(packageName))
-	buf.WriteString("    }\n\n")
-	
-	buf.WriteString("    return Message._(handle);\n")
-	buf.WriteString("  }\n\n")
-	
-	buf.WriteString("  Uint8List encode() {\n")
-	buf.WriteString("    if (_disposed) {\n")
-	buf.WriteString("      throw StateError('Message has been disposed');\n")
-	buf.WriteString("    }\n\n")
-	
-	buf.WriteString("    final resultPtr = _NativeLibrary.ffire_encode(_handle!);\n")
-	buf.WriteString("    if (resultPtr.address == 0) {\n")
-	buf.WriteString("      final error = _NativeLibrary.getLastError();\n")
-	fmt.Fprintf(buf, "      throw %sException('Encode failed: $error');\n", ToPascalCase(packageName))
-	buf.WriteString("    }\n\n")
-	
-	buf.WriteString("    // Read length (first 4 bytes) and data\n")
-	buf.WriteString("    final lengthPtr = resultPtr.cast<Uint32>();\n")
-	buf.WriteString("    final length = lengthPtr.value;\n")
-	buf.WriteString("    final dataPtr = Pointer<Uint8>.fromAddress(resultPtr.address + 4);\n")
-	buf.WriteString("    final data = Uint8List.fromList(dataPtr.asTypedList(length));\n\n")
-	
-	buf.WriteString("    return data;\n")
-	buf.WriteString("  }\n\n")
-	
-	buf.WriteString("  void dispose() {\n")
-	buf.WriteString("    if (!_disposed && _handle != null) {\n")
-	buf.WriteString("      _NativeLibrary.ffire_free(_handle!);\n")
-	buf.WriteString("      _handle = null;\n")
-	buf.WriteString("      _disposed = true;\n")
-	buf.WriteString("    }\n")
-	buf.WriteString("  }\n")
-	buf.WriteString("}\n")
+
+	// Generate bindings for each message type
+	for _, msg := range config.Schema.Messages {
+		if err := generateDartMessageBindings(buf, config.Schema, &msg, packageName); err != nil {
+			return err
+		}
+	}
 
 	filePath := filepath.Join(libDir, packageName+".dart")
 	if err := os.WriteFile(filePath, buf.Bytes(), 0644); err != nil {
@@ -170,17 +106,132 @@ func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error
 	return nil
 }
 
+func generateDartMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType, packageName string) error {
+	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	className := msg.Name
+
+	// Native function references in _NativeLibrary class extension
+	fmt.Fprintf(buf, "extension _%sFunctions on _NativeLibrary {\n", className)
+
+	// Decode function: Pointer<Void> func(Pointer<Uint8> data, int32_t len, Pointer<Pointer<Utf8>> error)
+	fmt.Fprintf(buf, "  static final %s_decode = _NativeLibrary._lib\n", baseName)
+	fmt.Fprintf(buf, "      .lookup<NativeFunction<Pointer<Void> Function(Pointer<Uint8>, Int32, Pointer<Pointer<Utf8>>)>>('%s_decode')\n", baseName)
+	fmt.Fprintf(buf, "      .asFunction<Pointer<Void> Function(Pointer<Uint8>, int, Pointer<Pointer<Utf8>>)>();\n\n")
+
+	// Encode function: size_t func(Pointer<Void> handle, Pointer<Pointer<Uint8>> out_data, Pointer<Pointer<Utf8>> error)
+	fmt.Fprintf(buf, "  static final %s_encode = _NativeLibrary._lib\n", baseName)
+	fmt.Fprintf(buf, "      .lookup<NativeFunction<Size Function(Pointer<Void>, Pointer<Pointer<Uint8>>, Pointer<Pointer<Utf8>>)>>('%s_encode')\n", baseName)
+	fmt.Fprintf(buf, "      .asFunction<int Function(Pointer<Void>, Pointer<Pointer<Uint8>>, Pointer<Pointer<Utf8>>)>();\n\n")
+
+	// Free functions
+	fmt.Fprintf(buf, "  static final %s_free = _NativeLibrary._lib\n", baseName)
+	fmt.Fprintf(buf, "      .lookup<NativeFunction<Void Function(Pointer<Void>)>>('%s_free')\n", baseName)
+	fmt.Fprintf(buf, "      .asFunction<void Function(Pointer<Void>)>();\n\n")
+
+	fmt.Fprintf(buf, "  static final %s_free_data = _NativeLibrary._lib\n", baseName)
+	fmt.Fprintf(buf, "      .lookup<NativeFunction<Void Function(Pointer<Uint8>)>>('%s_free_data')\n", baseName)
+	fmt.Fprintf(buf, "      .asFunction<void Function(Pointer<Uint8>)>();\n\n")
+
+	fmt.Fprintf(buf, "  static final %s_free_error = _NativeLibrary._lib\n", baseName)
+	fmt.Fprintf(buf, "      .lookup<NativeFunction<Void Function(Pointer<Utf8>)>>('%s_free_error')\n", baseName)
+	fmt.Fprintf(buf, "      .asFunction<void Function(Pointer<Utf8>)>();\n")
+
+	buf.WriteString("}\n\n")
+
+	// Message class
+	fmt.Fprintf(buf, "class %s {\n", className)
+	buf.WriteString("  Pointer<Void>? _handle;\n")
+	buf.WriteString("  bool _disposed = false;\n\n")
+
+	fmt.Fprintf(buf, "  %s._(this._handle);\n\n", className)
+
+	// Decode method
+	fmt.Fprintf(buf, "  static %s decode(Uint8List data) {\n", className)
+	buf.WriteString("    final dataPtr = malloc.allocate<Uint8>(data.length);\n")
+	buf.WriteString("    final dataList = dataPtr.asTypedList(data.length);\n")
+	buf.WriteString("    dataList.setAll(0, data);\n\n")
+
+	buf.WriteString("    final errorPtr = malloc.allocate<Pointer<Utf8>>(sizeOf<Pointer<Utf8>>());\n")
+	buf.WriteString("    errorPtr.value = nullptr;\n\n")
+
+	fmt.Fprintf(buf, "    final handle = _%sFunctions.%s_decode(dataPtr, data.length, errorPtr);\n", className, baseName)
+	buf.WriteString("    malloc.free(dataPtr);\n\n")
+
+	buf.WriteString("    if (handle.address == 0) {\n")
+	buf.WriteString("      final errMsg = errorPtr.value.address != 0 \n")
+	buf.WriteString("        ? errorPtr.value.toDartString() \n")
+	buf.WriteString("        : 'Unknown error';\n")
+	buf.WriteString("      if (errorPtr.value.address != 0) {\n")
+	fmt.Fprintf(buf, "        _%sFunctions.%s_free_error(errorPtr.value);\n", className, baseName)
+	buf.WriteString("      }\n")
+	buf.WriteString("      malloc.free(errorPtr);\n")
+	buf.WriteString("      throw ")
+	fmt.Fprintf(buf, "%sException('Decode failed: $errMsg');\n", ToPascalCase(packageName))
+	buf.WriteString("    }\n\n")
+
+	buf.WriteString("    malloc.free(errorPtr);\n")
+	fmt.Fprintf(buf, "    return %s._(handle);\n", className)
+	buf.WriteString("  }\n\n")
+
+	// Encode method
+	buf.WriteString("  Uint8List encode() {\n")
+	buf.WriteString("    if (_disposed) {\n")
+	buf.WriteString("      throw StateError('Message has been disposed');\n")
+	buf.WriteString("    }\n\n")
+
+	buf.WriteString("    final outDataPtr = malloc.allocate<Pointer<Uint8>>(sizeOf<Pointer<Uint8>>());\n")
+	buf.WriteString("    outDataPtr.value = nullptr;\n")
+	buf.WriteString("    final errorPtr = malloc.allocate<Pointer<Utf8>>(sizeOf<Pointer<Utf8>>());\n")
+	buf.WriteString("    errorPtr.value = nullptr;\n\n")
+
+	fmt.Fprintf(buf, "    final size = _%sFunctions.%s_encode(_handle!, outDataPtr, errorPtr);\n", className, baseName)
+
+	buf.WriteString("    if (size == 0) {\n")
+	buf.WriteString("      final errMsg = errorPtr.value.address != 0 \n")
+	buf.WriteString("        ? errorPtr.value.toDartString() \n")
+	buf.WriteString("        : 'Unknown error';\n")
+	buf.WriteString("      if (errorPtr.value.address != 0) {\n")
+	fmt.Fprintf(buf, "        _%sFunctions.%s_free_error(errorPtr.value);\n", className, baseName)
+	buf.WriteString("      }\n")
+	buf.WriteString("      malloc.free(outDataPtr);\n")
+	buf.WriteString("      malloc.free(errorPtr);\n")
+	buf.WriteString("      throw ")
+	fmt.Fprintf(buf, "%sException('Encode failed: $errMsg');\n", ToPascalCase(packageName))
+	buf.WriteString("    }\n\n")
+
+	buf.WriteString("    // Copy data to Dart\n")
+	buf.WriteString("    final result = Uint8List.fromList(outDataPtr.value.asTypedList(size));\n")
+	fmt.Fprintf(buf, "    _%sFunctions.%s_free_data(outDataPtr.value);\n", className, baseName)
+	buf.WriteString("    malloc.free(outDataPtr);\n")
+	buf.WriteString("    malloc.free(errorPtr);\n\n")
+
+	buf.WriteString("    return result;\n")
+	buf.WriteString("  }\n\n")
+
+	// Dispose method
+	buf.WriteString("  void dispose() {\n")
+	buf.WriteString("    if (!_disposed && _handle != null) {\n")
+	fmt.Fprintf(buf, "      _%sFunctions.%s_free(_handle!);\n", className, baseName)
+	buf.WriteString("      _handle = null;\n")
+	buf.WriteString("      _disposed = true;\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("  }\n")
+	buf.WriteString("}\n\n")
+
+	return nil
+}
+
 func generateDartPubspec(config *PackageConfig, dartDir string) error {
 	buf := &bytes.Buffer{}
 	packageName := config.Namespace
-	
+
 	fmt.Fprintf(buf, "name: %s\n", packageName)
 	buf.WriteString("description: Dart FFI bindings for ffire schema\n")
 	buf.WriteString("version: 1.0.0\n\n")
-	
+
 	buf.WriteString("environment:\n")
 	buf.WriteString("  sdk: '>=2.17.0 <4.0.0'\n\n")
-	
+
 	buf.WriteString("dependencies:\n")
 	buf.WriteString("  ffi: ^2.0.0\n")
 
@@ -196,63 +247,63 @@ func generateDartPubspec(config *PackageConfig, dartDir string) error {
 func generateDartReadme(config *PackageConfig, dartDir string) error {
 	buf := &bytes.Buffer{}
 	packageName := config.Namespace
-	
+
 	fmt.Fprintf(buf, "# %s - Dart FFI Bindings\n\n", packageName)
 	buf.WriteString("Dart package with FFI bindings for native library interop.\n\n")
-	
+
 	buf.WriteString("## Installation\n\n")
 	buf.WriteString("Add to your `pubspec.yaml`:\n\n")
 	buf.WriteString("```yaml\n")
-buf.WriteString("dependencies:\n")
-fmt.Fprintf(buf, "  %s:\n", packageName)
-buf.WriteString("    path: ../path/to/package\n")
-buf.WriteString("```\n\n")
-	
+	buf.WriteString("dependencies:\n")
+	fmt.Fprintf(buf, "  %s:\n", packageName)
+	buf.WriteString("    path: ../path/to/package\n")
+	buf.WriteString("```\n\n")
+
 	buf.WriteString("Then run:\n\n")
 	buf.WriteString("```bash\n")
-buf.WriteString("dart pub get\n")
-buf.WriteString("```\n\n")
-	
+	buf.WriteString("dart pub get\n")
+	buf.WriteString("```\n\n")
+
 	buf.WriteString("## Requirements\n\n")
 	buf.WriteString("- Dart SDK 2.17.0 or higher\n")
 	buf.WriteString("- Native library (libffire.dylib/.so/.dll) must be in library search path\n\n")
-	
+
 	buf.WriteString("## Usage\n\n")
 	buf.WriteString("```dart\n")
-fmt.Fprintf(buf, "import 'package:%s/%s.dart';\n", packageName, packageName)
-buf.WriteString("import 'dart:io';\n\n")
+	fmt.Fprintf(buf, "import 'package:%s/%s.dart';\n", packageName, packageName)
+	buf.WriteString("import 'dart:io';\n\n")
 
-buf.WriteString("void main() async {\n")
-buf.WriteString("  // Read binary data\n")
-buf.WriteString("  final data = await File('data.bin').readAsBytes();\n\n")
+	buf.WriteString("void main() async {\n")
+	buf.WriteString("  // Read binary data\n")
+	buf.WriteString("  final data = await File('data.bin').readAsBytes();\n\n")
 
-buf.WriteString("  try {\n")
-buf.WriteString("    // Decode message\n")
-buf.WriteString("    final msg = Message.decode(data);\n\n")
+	buf.WriteString("  try {\n")
+	buf.WriteString("    // Decode message\n")
+	buf.WriteString("    final msg = Message.decode(data);\n\n")
 
-buf.WriteString("    // Encode back\n")
-buf.WriteString("    final encoded = msg.encode();\n")
-buf.WriteString("    await File('output.bin').writeAsBytes(encoded);\n\n")
+	buf.WriteString("    // Encode back\n")
+	buf.WriteString("    final encoded = msg.encode();\n")
+	buf.WriteString("    await File('output.bin').writeAsBytes(encoded);\n\n")
 
-buf.WriteString("    // Clean up\n")
-buf.WriteString("    msg.dispose();\n")
-buf.WriteString("  } catch (e) {\n")
-buf.WriteString("    print('Error: $e');\n")
-buf.WriteString("  }\n")
-buf.WriteString("}\n")
-buf.WriteString("```\n\n")
-	
+	buf.WriteString("    // Clean up\n")
+	buf.WriteString("    msg.dispose();\n")
+	buf.WriteString("  } catch (e) {\n")
+	buf.WriteString("    print('Error: $e');\n")
+	buf.WriteString("  }\n")
+	buf.WriteString("}\n")
+	buf.WriteString("```\n\n")
+
 	buf.WriteString("## API\n\n")
 	buf.WriteString("### Message Class\n\n")
 	buf.WriteString("- **`static Message decode(Uint8List data)`**  \n")
 	buf.WriteString("  Decode binary data into a Message.\n\n")
-	
+
 	buf.WriteString("- **`Uint8List encode()`**  \n")
 	buf.WriteString("  Encode the message back to binary.\n\n")
-	
+
 	buf.WriteString("- **`void dispose()`**  \n")
 	buf.WriteString("  Free native resources. Always call when done.\n\n")
-	
+
 	buf.WriteString("## License\n\n")
 	buf.WriteString("Generated by FFireGenerator\n")
 

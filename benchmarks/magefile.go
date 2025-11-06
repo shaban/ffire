@@ -173,6 +173,21 @@ func GenAll() error {
 		}
 	}
 
+	// Generate ffire Dart benchmarks
+	for _, suite := range suites {
+		fmt.Printf("🎯 Generating ffire Dart benchmark: %s\n", suite.Name)
+		if err := sh.Run("ffire", "bench",
+			"--lang", "dart",
+			"--schema", suite.SchemaFile,
+			"--json", suite.JSONFile,
+			"--output", filepath.Join(genDir, "ffire_dart_"+suite.Name),
+			"--iterations", "10000",
+		); err != nil {
+			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
+			continue
+		}
+	}
+
 	// Generate protobuf benchmarks (only for those with .proto files)
 	for _, suite := range suites {
 		if _, err := os.Stat(suite.ProtoFile); err == nil {
@@ -220,11 +235,13 @@ func RunGo() error {
 		return err
 	}
 
-	// Filter to only pure Go benchmarks (exclude ffire_cpp_* and ffire_python_*)
+	// Filter to only pure Go benchmarks (exclude ffire_cpp_*, ffire_python_*, ffire_dart_*)
 	var dirs []string
 	for _, dir := range allDirs {
 		base := filepath.Base(dir)
-		if !strings.HasPrefix(base, "ffire_cpp_") && !strings.HasPrefix(base, "ffire_python_") {
+		if !strings.HasPrefix(base, "ffire_cpp_") &&
+			!strings.HasPrefix(base, "ffire_python_") &&
+			!strings.HasPrefix(base, "ffire_dart_") {
 			dirs = append(dirs, dir)
 		}
 	}
@@ -384,6 +401,52 @@ func RunPython() error {
 	return saveResults(allResults, "ffire_python")
 }
 
+// RunDart runs the Dart benchmarks
+func RunDart() error {
+	fmt.Println("\n🏃 Running ffire Dart benchmarks...")
+
+	// Check if dart is available
+	if _, err := exec.LookPath("dart"); err != nil {
+		fmt.Println("  ⚠️  dart not found (skipping)")
+		return nil
+	}
+
+	// Find all Dart benchmark directories
+	pattern := filepath.Join(genDir, "ffire_dart_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Dart benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_dart_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runDartBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_dart")
+}
+
 // Compare generates comparison table from all results
 func Compare() error {
 	fmt.Println("\n📊 Generating comparison table...")
@@ -449,6 +512,10 @@ func Bench() error {
 		return err
 	}
 
+	if err := RunDart(); err != nil {
+		return err
+	}
+
 	if err := RunProto(); err != nil {
 		return err
 	}
@@ -509,6 +576,39 @@ func runPythonBench(dir string) (BenchResult, error) {
 	// Run benchmark with JSON output
 	cmd := exec.Command("python3", "bench.py")
 	cmd.Dir = pythonDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	return result, nil
+}
+
+func runDartBench(dir string) (BenchResult, error) {
+	// Dart benchmarks are in the dart/ subdirectory
+	dartDir := filepath.Join(dir, "dart")
+
+	// Install dependencies if not already done
+	pubspecLock := filepath.Join(dartDir, ".dart_tool")
+	if _, err := os.Stat(pubspecLock); os.IsNotExist(err) {
+		fmt.Printf("    Installing Dart dependencies...\n")
+		cmd := exec.Command("dart", "pub", "get")
+		cmd.Dir = dartDir
+		if err := cmd.Run(); err != nil {
+			return BenchResult{}, fmt.Errorf("dart pub get failed: %w", err)
+		}
+	}
+
+	// Run benchmark with JSON output
+	cmd := exec.Command("dart", "run", "bench.dart")
+	cmd.Dir = dartDir
 	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
 
 	output, err := cmd.Output()
