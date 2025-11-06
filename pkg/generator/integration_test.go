@@ -308,6 +308,83 @@ func TestSwiftPackageIntegration(t *testing.T) {
 	}
 }
 
+// TestPHPPackageIntegration generates a PHP package and validates it
+func TestPHPPackageIntegration(t *testing.T) {
+	// Create temporary directory for test output
+	tmpDir, err := os.MkdirTemp("", "ffire-test-php-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing PHP package generation in: %s", tmpDir)
+
+	// Parse a test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate PHP package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "php",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate PHP package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"php/lib/libffire.dylib", // or .so on Linux
+		"php/src/Test.php",
+		"php/composer.json",
+		"php/README.md",
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Skip dylib check on non-macOS (would be .so or .dll)
+		if strings.Contains(file, ".dylib") && !fileExists(fullPath) {
+			// Try .so for Linux
+			fullPath = strings.ReplaceAll(fullPath, ".dylib", ".so")
+			if !fileExists(fullPath) {
+				// Try .dll for Windows
+				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
+			}
+		}
+
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that PHP can parse the generated code (syntax check)
+	if hasPHP() {
+		t.Log("PHP found, testing syntax...")
+		testPHPSyntax(t, tmpDir)
+
+		// Check if FFI extension is available
+		if hasPHPFFI() {
+			t.Log("PHP FFI extension found")
+		} else {
+			t.Log("PHP FFI extension not available, cannot test FFI loading")
+		}
+	} else {
+		t.Log("PHP not installed, skipping PHP-specific tests")
+	}
+}
+
 // Helper: Check if file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -347,6 +424,22 @@ func hasNode() bool {
 func hasSwift() bool {
 	_, err := exec.LookPath("swiftc")
 	return err == nil
+}
+
+// Helper: Check if PHP is installed
+func hasPHP() bool {
+	_, err := exec.LookPath("php")
+	return err == nil
+}
+
+// Helper: Check if PHP FFI extension is available
+func hasPHPFFI() bool {
+	cmd := exec.Command("php", "-m")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(output), "FFI")
 }
 
 // Helper: Test Ruby syntax of generated files
@@ -531,6 +624,26 @@ func testSwiftSyntax(t *testing.T, tmpDir string) {
 			t.Errorf("Swift syntax error in %s: %v\nOutput: %s", file, err, output)
 		} else if testing.Verbose() {
 			t.Logf("✓ Swift syntax OK: %s", file)
+		}
+	}
+}
+
+// Helper: Test PHP syntax of generated files
+func testPHPSyntax(t *testing.T, tmpDir string) {
+	phpFiles := []string{
+		"php/src/Test.php",
+	}
+
+	for _, file := range phpFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Use php -l to validate syntax
+		cmd := exec.Command("php", "-l", fullPath)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			t.Errorf("PHP syntax error in %s: %v\nOutput: %s", file, err, output)
+		} else if testing.Verbose() {
+			t.Logf("✓ PHP syntax OK: %s", file)
 		}
 	}
 }

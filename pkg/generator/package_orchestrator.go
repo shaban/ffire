@@ -44,6 +44,11 @@ var (
 		Name:         "swift",
 		LibInPackage: false, // Swift: lib/libffire.dylib
 	}
+
+	PHPLayout = DirectoryLayout{
+		Name:         "php",
+		LibInPackage: false, // PHP: lib/libffire.so
+	}
 )
 
 // setupPackageDirectories creates the standard directory structure
