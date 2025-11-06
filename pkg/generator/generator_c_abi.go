@@ -145,7 +145,7 @@ func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_decode"
-	
+
 	// Determine the C++ function name based on the target type
 	var cppFuncName string
 	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
@@ -196,7 +196,7 @@ func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_encode"
-	
+
 	// Determine the C++ function name based on the target type
 	var cppFuncName string
 	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {

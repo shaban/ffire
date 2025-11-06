@@ -170,7 +170,7 @@ func generateCABI(config *PackageConfig, includeDir, srcDir string) error {
 // compileDylib compiles the C++ code into a dynamic library
 func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 	if config.Verbose {
-		fmt.Printf("Compiling dylib for platform=%s arch=%s optimize=%d\n", 
+		fmt.Printf("Compiling dylib for platform=%s arch=%s optimize=%d\n",
 			config.Platform, config.Arch, config.Optimize)
 	}
 
@@ -191,7 +191,7 @@ func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 			"-Wall",
 			"-Wextra",
 		}
-		
+
 		// Add architecture flag for macOS
 		if config.Arch == "arm64" {
 			compileFlags = append(compileFlags, "-arch", "arm64")
@@ -256,7 +256,7 @@ func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 	// Execute compilation
 	cmd := exec.Command(compiler, args...)
 	// Don't set cmd.Dir - we're using absolute paths
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("compilation failed: %w\nOutput: %s", err, string(output))
@@ -296,7 +296,7 @@ func generatePythonPackage(config *PackageConfig) error {
 	// Create directory structure
 	langDir := filepath.Join(config.OutputDir, "python")
 	packageDir := filepath.Join(langDir, config.Namespace)
-	
+
 	for _, dir := range []string{langDir, packageDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
@@ -306,8 +306,8 @@ func generatePythonPackage(config *PackageConfig) error {
 	// Generate C++ code and C ABI (we need the dylib)
 	includeDir := filepath.Join(langDir, "include")
 	srcDir := filepath.Join(langDir, "src")
-	libDir := filepath.Join(packageDir)  // Put dylib in package dir
-	
+	libDir := filepath.Join(packageDir) // Put dylib in package dir
+
 	for _, dir := range []string{includeDir, srcDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
@@ -319,7 +319,7 @@ func generatePythonPackage(config *PackageConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate C++ code: %w", err)
 	}
-	
+
 	headerPath := filepath.Join(includeDir, "generated.hpp")
 	if err := os.WriteFile(headerPath, cppCode, 0644); err != nil {
 		return fmt.Errorf("failed to write C++ header: %w", err)
@@ -352,8 +352,29 @@ func generatePythonPackage(config *PackageConfig) error {
 		return fmt.Errorf("failed to generate __init__.py: %w", err)
 	}
 
-	fmt.Printf("\n✅ Python package ready at: %s\n", langDir)
-	fmt.Printf("Install with: cd %s && pip install .\n", langDir)
+	// Generate README.md
+	if err := generatePythonReadme(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate README.md: %w", err)
+	}
+
+	// Print installation instructions
+	fmt.Printf("\n✅ Python package ready at: %s\n\n", langDir)
+	fmt.Println("Installation:")
+	fmt.Printf("  cd %s\n\n", langDir)
+	fmt.Println("  # Recommended: Use a virtual environment")
+	fmt.Println("  python3 -m venv venv")
+	fmt.Println("  source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
+	fmt.Println("  pip install .")
+	fmt.Println()
+	fmt.Println("  # Alternative: Install for current user only")
+	fmt.Println("  pip install --user .")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Printf("  from %s import Message\n", config.Namespace)
+	fmt.Println("  msg = Message.decode(data)")
+	fmt.Println("  encoded = msg.encode()")
+	fmt.Println()
+	
 	return nil
 }
 
