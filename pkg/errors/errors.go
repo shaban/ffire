@@ -50,6 +50,24 @@ const (
 	ErrFileCreate ErrorCode = "E032" // Failed to create file or directory
 )
 
+// errorHints provides helpful hints for each error code
+var errorHints = map[ErrorCode]string{
+	ErrEmptyPackage:      "Add a package declaration at the top of your schema file, e.g., 'package myapp'",
+	ErrNoMessages:        "Define at least one message type, e.g., 'type Message = YourType'",
+	ErrEmptyMessageName:  "Message type must have a name, e.g., 'type Message = ...'",
+	ErrUndefinedType:     "Make sure the type is defined before using it, or use a built-in type (string, int32, float32, etc.)",
+	ErrEmptyStruct:       "Structs must have at least one field",
+	ErrCircularReference: "Types cannot reference themselves directly or indirectly",
+	ErrMaxNestingDepth:   "Reduce nesting depth by flattening your data structure or using separate types",
+	ErrMessageNotFound:   "Check that the message name matches one defined in your schema",
+	ErrInvalidJSON:       "Ensure your JSON is well-formed (use a JSON validator)",
+	ErrInt8OutOfRange:    "int8 values must be between -128 and 127",
+	ErrInt16OutOfRange:   "int16 values must be between -32768 and 32767",
+	ErrInt32OutOfRange:   "int32 values must be between -2147483648 and 2147483647",
+	ErrStringTooLong:     "Strings are limited to 65,535 bytes in the wire format",
+	ErrArrayTooLong:      "Arrays are limited to 65,535 elements in the wire format",
+}
+
 // Error represents a structured error with code and context.
 type Error struct {
 	Code    ErrorCode
@@ -96,6 +114,23 @@ func Newf(code ErrorCode, format string, args ...interface{}) *Error {
 func (e *Error) WithContext(key string, value interface{}) *Error {
 	e.Context[key] = value
 	return e
+}
+
+// Hint returns a helpful hint for the error, if available.
+func (e *Error) Hint() string {
+	if hint, ok := errorHints[e.Code]; ok {
+		return hint
+	}
+	return ""
+}
+
+// ErrorWithHint returns the error message with an optional hint.
+func (e *Error) ErrorWithHint() string {
+	msg := e.Error()
+	if hint := e.Hint(); hint != "" {
+		return fmt.Sprintf("%s\n💡 Hint: %s", msg, hint)
+	}
+	return msg
 }
 
 // IsCode checks if an error has a specific error code.

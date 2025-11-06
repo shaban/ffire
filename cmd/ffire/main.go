@@ -4,9 +4,29 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+
+	"github.com/shaban/ffire/pkg/errors"
 )
 
 func main() {
+	// Panic recovery to provide clean error messages
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "\n❌ Unexpected error occurred:\n")
+			fmt.Fprintf(os.Stderr, "%v\n\n", r)
+			
+			// Print stack trace in verbose mode or if FFIRE_DEBUG is set
+			if os.Getenv("FFIRE_DEBUG") == "1" {
+				fmt.Fprintf(os.Stderr, "Stack trace:\n%s\n", debug.Stack())
+			} else {
+				fmt.Fprintf(os.Stderr, "Run with FFIRE_DEBUG=1 for stack trace\n")
+			}
+			
+			os.Exit(2)
+		}
+	}()
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -30,6 +50,20 @@ func main() {
 		printUsage()
 		os.Exit(1)
 	}
+}
+
+// formatError formats an error with helpful hints if available
+func formatError(err error) string {
+	if ffErr, ok := err.(*errors.Error); ok {
+		return ffErr.ErrorWithHint()
+	}
+	// Try to unwrap and check again
+	if ffErr := errors.Unwrap(err); ffErr != nil {
+		if e, ok := ffErr.(*errors.Error); ok {
+			return e.ErrorWithHint()
+		}
+	}
+	return err.Error()
 }
 
 func printUsage() {

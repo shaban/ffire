@@ -148,7 +148,7 @@ func TestValidateSchema_ErrorCodes(t *testing.T) {
 			}
 
 			if !errors.IsCode(err, tt.wantCode) {
-				t.Errorf("expected error code %s, got %s (error: %v)", 
+				t.Errorf("expected error code %s, got %s (error: %v)",
 					tt.wantCode, errors.GetCode(err), err)
 			}
 		})
@@ -202,7 +202,7 @@ func TestValidateJSON_ErrorCodes(t *testing.T) {
 			}
 
 			if !errors.IsCode(err, tt.wantCode) {
-				t.Errorf("expected error code %s, got %s (error: %v)", 
+				t.Errorf("expected error code %s, got %s (error: %v)",
 					tt.wantCode, errors.GetCode(err), err)
 			}
 		})

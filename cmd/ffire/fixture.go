@@ -45,13 +45,13 @@ Examples:
 	// Parse schema
 	schema, err := parser.Parse(*schemaFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing schema: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing schema: %s\n", formatError(err))
 		os.Exit(1)
 	}
 
 	// Validate schema
 	if err := validator.ValidateSchema(schema); err != nil {
-		fmt.Fprintf(os.Stderr, "Error validating schema: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error validating schema: %s\n", formatError(err))
 		os.Exit(1)
 	}
 
@@ -64,7 +64,7 @@ Examples:
 
 	// Validate JSON against schema
 	if err := validator.ValidateJSON(schema, *messageName, jsonData); err != nil {
-		fmt.Fprintf(os.Stderr, "Error validating JSON: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error validating JSON: %s\n", formatError(err))
 		os.Exit(1)
 	}
 

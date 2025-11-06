@@ -53,7 +53,7 @@ func TestIsCode(t *testing.T) {
 
 func TestGetCode(t *testing.T) {
 	err := New(ErrCircularReference, "test")
-	
+
 	if got := GetCode(err); got != ErrCircularReference {
 		t.Errorf("GetCode() = %v, want %v", got, ErrCircularReference)
 	}
@@ -65,8 +65,8 @@ func TestErrorWithContext(t *testing.T) {
 		WithContext("line", 42)
 
 	errStr := err.Error()
-	if errStr != "[E005] undefined type: Foo (type=Foo, line=42)" && 
-	   errStr != "[E005] undefined type: Foo (line=42, type=Foo)" {
+	if errStr != "[E005] undefined type: Foo (type=Foo, line=42)" &&
+		errStr != "[E005] undefined type: Foo (line=42, type=Foo)" {
 		t.Errorf("Error() = %q, want context in output", errStr)
 	}
 }
