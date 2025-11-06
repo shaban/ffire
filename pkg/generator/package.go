@@ -374,12 +374,97 @@ func generatePythonPackage(config *PackageConfig) error {
 	fmt.Println("  msg = Message.decode(data)")
 	fmt.Println("  encoded = msg.encode()")
 	fmt.Println()
-	
+
 	return nil
 }
 
 func generateJavaScriptPackage(config *PackageConfig) error {
-	return fmt.Errorf("JavaScript package generation not yet implemented")
+	if config.Verbose {
+		fmt.Println("Generating JavaScript/Node.js package")
+	}
+
+	// Create directory structure
+	langDir := filepath.Join(config.OutputDir, "javascript")
+	libDir := filepath.Join(langDir, "lib")
+
+	for _, dir := range []string{langDir, libDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ code and C ABI (we need the dylib)
+	includeDir := filepath.Join(langDir, "include")
+	srcDir := filepath.Join(langDir, "src")
+
+	for _, dir := range []string{includeDir, srcDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ header
+	cppCode, err := GenerateCpp(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate C++ code: %w", err)
+	}
+
+	headerPath := filepath.Join(includeDir, "generated.hpp")
+	if err := os.WriteFile(headerPath, cppCode, 0644); err != nil {
+		return fmt.Errorf("failed to write C++ header: %w", err)
+	}
+
+	// Generate C ABI wrapper
+	if err := generateCABI(config, includeDir, srcDir); err != nil {
+		return fmt.Errorf("failed to generate C ABI: %w", err)
+	}
+
+	// Compile dylib
+	if !config.NoCompile {
+		if err := compileDylib(config, srcDir, libDir); err != nil {
+			return fmt.Errorf("failed to compile dylib: %w", err)
+		}
+	}
+
+	// Generate JavaScript wrapper
+	if err := generateJavaScriptWrapper(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate JavaScript wrapper: %w", err)
+	}
+
+	// Generate TypeScript definitions
+	if err := generateTypeScriptDefinitions(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate TypeScript definitions: %w", err)
+	}
+
+	// Generate package.json
+	if err := generateJavaScriptPackageJson(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate package.json: %w", err)
+	}
+
+	// Generate README.md
+	if err := generateJavaScriptReadme(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate README.md: %w", err)
+	}
+
+	// Print installation instructions
+	fmt.Printf("\n✅ JavaScript/Node.js package ready at: %s\n\n", langDir)
+	fmt.Println("Installation:")
+	fmt.Printf("  cd %s\n", langDir)
+	fmt.Println("  npm install")
+	fmt.Println()
+	fmt.Println("Usage (JavaScript):")
+	fmt.Printf("  const { Message } = require('%s');\n", config.Namespace)
+	fmt.Println("  const msg = Message.decode(data);")
+	fmt.Println("  const encoded = msg.encode();")
+	fmt.Println("  msg.free();")
+	fmt.Println()
+	fmt.Println("Usage (TypeScript):")
+	fmt.Printf("  import { Message } from '%s';\n", config.Namespace)
+	fmt.Println("  const msg: Message = Message.decode(data);")
+	fmt.Println("  const encoded: Buffer = msg.encode();")
+	fmt.Println()
+
+	return nil
 }
 
 func generateSwiftPackage(config *PackageConfig) error {
