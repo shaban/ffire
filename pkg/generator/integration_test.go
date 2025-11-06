@@ -385,6 +385,78 @@ func TestPHPPackageIntegration(t *testing.T) {
 	}
 }
 
+// TestJavaPackageIntegration generates a Java package and validates it
+func TestJavaPackageIntegration(t *testing.T) {
+	// Create temporary directory for test output
+	tmpDir, err := os.MkdirTemp("", "ffire-test-java-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing Java package generation in: %s", tmpDir)
+
+	// Parse a test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate Java package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "java",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate Java package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"java/lib/libffire.dylib", // or .so on Linux
+		"java/src/main/java/com/ffire/test/Message.java",
+		"java/src/main/java/com/ffire/test/FFireException.java",
+		"java/src/main/java/com/ffire/test/NativeLibrary.java",
+		"java/pom.xml",
+		"java/README.md",
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Skip dylib check on non-macOS (would be .so or .dll)
+		if strings.Contains(file, ".dylib") && !fileExists(fullPath) {
+			// Try .so for Linux
+			fullPath = strings.ReplaceAll(fullPath, ".dylib", ".so")
+			if !fileExists(fullPath) {
+				// Try .dll for Windows
+				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
+			}
+		}
+
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that Java can compile the generated code
+	if hasJava() {
+		t.Log("Java found, testing compilation...")
+		testJavaCompilation(t, tmpDir)
+	} else {
+		t.Log("Java not installed, skipping Java-specific tests")
+	}
+}
+
 // Helper: Check if file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -440,6 +512,56 @@ func hasPHPFFI() bool {
 		return false
 	}
 	return strings.Contains(string(output), "FFI")
+}
+
+// Helper: Check if Java is installed
+func hasJava() bool {
+	_, err := exec.LookPath("javac")
+	return err == nil
+}
+
+// Helper: Test Java compilation of generated files
+func testJavaCompilation(t *testing.T, tmpDir string) {
+	javaDir := filepath.Join(tmpDir, "java")
+	srcDir := filepath.Join(javaDir, "src", "main", "java", "com", "ffire", "test")
+	targetDir := filepath.Join(javaDir, "target", "classes")
+
+	// Create target directory
+	err := os.MkdirAll(targetDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create target directory: %v", err)
+	}
+
+	// Compile all Java files
+	javaFiles := []string{
+		filepath.Join(srcDir, "Message.java"),
+		filepath.Join(srcDir, "FFireException.java"),
+		filepath.Join(srcDir, "NativeLibrary.java"),
+	}
+
+	args := []string{"-d", targetDir}
+	args = append(args, javaFiles...)
+	
+	cmd := exec.Command("javac", args...)
+	cmd.Dir = javaDir
+	output, err := cmd.CombinedOutput()
+	
+	if err != nil {
+		t.Fatalf("Java compilation failed: %v\nOutput: %s", err, string(output))
+	}
+	
+	// Verify class files were created
+	classFiles := []string{
+		filepath.Join(targetDir, "com", "ffire", "test", "Message.class"),
+		filepath.Join(targetDir, "com", "ffire", "test", "FFireException.class"),
+		filepath.Join(targetDir, "com", "ffire", "test", "NativeLibrary.class"),
+	}
+	
+	for _, classFile := range classFiles {
+		if _, err := os.Stat(classFile); os.IsNotExist(err) {
+			t.Errorf("Expected class file not found: %s", classFile)
+		}
+	}
 }
 
 // Helper: Test Ruby syntax of generated files

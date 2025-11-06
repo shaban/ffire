@@ -49,6 +49,11 @@ var (
 		Name:         "php",
 		LibInPackage: false, // PHP: lib/libffire.so
 	}
+
+	JavaLayout = DirectoryLayout{
+		Name:         "java",
+		LibInPackage: false, // Java: lib/libffire.so
+	}
 )
 
 // setupPackageDirectories creates the standard directory structure

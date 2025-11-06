@@ -134,6 +134,8 @@ func generateTierBPackage(config *PackageConfig) error {
 		return generateRubyPackage(config)
 	case "php":
 		return generatePHPPackage(config)
+	case "java":
+		return generateJavaPackage(config)
 	default:
 		return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
 	}
@@ -308,4 +310,8 @@ func generateRubyPackage(config *PackageConfig) error {
 
 func generatePHPPackage(config *PackageConfig) error {
 	return GeneratePHPPackage(config)
+}
+
+func generateJavaPackage(config *PackageConfig) error {
+	return GenerateJavaPackage(config)
 }
