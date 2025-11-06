@@ -25,7 +25,7 @@ MessageHandle message_decode(const uint8_t* data, size_t len, char** error_msg) 
     }
     
     try {
-        auto result = test::decode_message_message(data, len);
+        auto result = test::decode_plugin_message(data, len);
         
         if (result.empty()) {
             if (error_msg) *error_msg = make_error_msg("No items in message");
@@ -50,7 +50,7 @@ size_t message_encode(MessageHandle handle, uint8_t** out_data, char** error_msg
     try {
         MessageHandleImpl* impl = static_cast<MessageHandleImpl*>(handle);
         
-        impl->encoded_data = test::encode_message_message(impl->items);
+        impl->encoded_data = test::encode_plugin_message(impl->items);
         
         // Allocate new buffer for caller
         *out_data = new uint8_t[impl->encoded_data.size()];

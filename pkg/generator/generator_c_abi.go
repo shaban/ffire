@@ -145,7 +145,20 @@ func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_decode"
-	encodeFuncName := fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
+	
+	// Determine the C++ function name based on the target type
+	var cppFuncName string
+	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+		if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
+			cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(structType.Name))
+		} else {
+			cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
+		}
+	} else if structType, ok := msg.TargetType.(*schema.StructType); ok {
+		cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(structType.Name))
+	} else {
+		cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
+	}
 
 	fmt.Fprintf(buf, "%s %s(const uint8_t* data, size_t len, char** error_msg) {\n", handleName, funcName)
 	buf.WriteString("    if (!data || len == 0) {\n")
@@ -154,7 +167,7 @@ func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	buf.WriteString("    }\n")
 	buf.WriteString("    \n")
 	buf.WriteString("    try {\n")
-	fmt.Fprintf(buf, "        auto result = %s::%s(data, len);\n", s.Package, encodeFuncName)
+	fmt.Fprintf(buf, "        auto result = %s::%s(data, len);\n", s.Package, cppFuncName)
 	buf.WriteString("        \n")
 
 	// Check if result is array or single item
@@ -183,7 +196,20 @@ func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_encode"
-	encodeFuncName := fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
+	
+	// Determine the C++ function name based on the target type
+	var cppFuncName string
+	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+		if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
+			cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(structType.Name))
+		} else {
+			cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
+		}
+	} else if structType, ok := msg.TargetType.(*schema.StructType); ok {
+		cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(structType.Name))
+	} else {
+		cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
+	}
 
 	fmt.Fprintf(buf, "size_t %s(%s handle, uint8_t** out_data, char** error_msg) {\n", funcName, handleName)
 	buf.WriteString("    if (!handle) {\n")
@@ -197,9 +223,9 @@ func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 
 	// Encode based on type
 	if _, ok := msg.TargetType.(*schema.ArrayType); ok {
-		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->items);\n", s.Package, encodeFuncName)
+		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->items);\n", s.Package, cppFuncName)
 	} else {
-		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->item);\n", s.Package, encodeFuncName)
+		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->item);\n", s.Package, cppFuncName)
 	}
 
 	buf.WriteString("        \n")

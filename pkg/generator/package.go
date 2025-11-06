@@ -3,8 +3,10 @@ package generator
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/shaban/ffire/pkg/schema"
 )
@@ -158,10 +160,104 @@ func generateCABI(config *PackageConfig, includeDir, srcDir string) error {
 
 // compileDylib compiles the C++ code into a dynamic library
 func compileDylib(config *PackageConfig, srcDir, libDir string) error {
-	// TODO: Implement cross-platform compilation
-	// For now, just return placeholder
-	fmt.Printf("TODO: Compile dylib for platform=%s arch=%s\n", config.Platform, config.Arch)
+	if config.Verbose {
+		fmt.Printf("Compiling dylib for platform=%s arch=%s optimize=%d\n", 
+			config.Platform, config.Arch, config.Optimize)
+	}
 
+	// Determine compiler and flags based on platform
+	var compiler string
+	var outputFile string
+	var compileFlags []string
+
+	switch config.Platform {
+	case "darwin":
+		compiler = "clang++"
+		outputFile = filepath.Join(libDir, "libffire.dylib")
+		compileFlags = []string{
+			"-std=c++17",
+			"-dynamiclib",
+			"-fPIC",
+			fmt.Sprintf("-O%d", config.Optimize),
+			"-Wall",
+			"-Wextra",
+		}
+		
+		// Add architecture flag for macOS
+		if config.Arch == "arm64" {
+			compileFlags = append(compileFlags, "-arch", "arm64")
+		} else if config.Arch == "x86_64" {
+			compileFlags = append(compileFlags, "-arch", "x86_64")
+		}
+
+	case "linux":
+		compiler = "g++"
+		outputFile = filepath.Join(libDir, "libffire.so")
+		compileFlags = []string{
+			"-std=c++17",
+			"-shared",
+			"-fPIC",
+			fmt.Sprintf("-O%d", config.Optimize),
+			"-Wall",
+			"-Wextra",
+		}
+
+	case "windows":
+		compiler = "x86_64-w64-mingw32-g++"
+		outputFile = filepath.Join(libDir, "ffire.dll")
+		compileFlags = []string{
+			"-std=c++17",
+			"-shared",
+			fmt.Sprintf("-O%d", config.Optimize),
+			"-Wall",
+			"-Wextra",
+		}
+
+	default:
+		return fmt.Errorf("unsupported platform: %s", config.Platform)
+	}
+
+	// Build the command
+	includeDir := filepath.Join(filepath.Dir(srcDir), "include")
+	srcFile := filepath.Join(srcDir, "generated_c.cpp")
+
+	// Convert to absolute paths
+	absIncludeDir, err := filepath.Abs(includeDir)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for include dir: %w", err)
+	}
+	absSrcFile, err := filepath.Abs(srcFile)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for source file: %w", err)
+	}
+	absOutputFile, err := filepath.Abs(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for output file: %w", err)
+	}
+
+	args := compileFlags
+	args = append(args, "-I"+absIncludeDir)
+	args = append(args, "-o", absOutputFile)
+	args = append(args, absSrcFile)
+
+	if config.Verbose {
+		fmt.Printf("Running: %s %s\n", compiler, strings.Join(args, " "))
+	}
+
+	// Execute compilation
+	cmd := exec.Command(compiler, args...)
+	// Don't set cmd.Dir - we're using absolute paths
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("compilation failed: %w\nOutput: %s", err, string(output))
+	}
+
+	if len(output) > 0 && config.Verbose {
+		fmt.Printf("Compiler output:\n%s\n", string(output))
+	}
+
+	fmt.Printf("✓ Compiled dylib: %s\n", outputFile)
 	return nil
 }
 
