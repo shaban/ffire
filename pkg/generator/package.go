@@ -48,11 +48,16 @@ func GeneratePackage(config *PackageConfig) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
+	// Handle Go as Tier 0 (native reference implementation)
+	if config.Language == "go" {
+		return generateGoPackage(config)
+	}
+
 	// Determine package type (Tier A vs Tier B)
 	switch config.Language {
 	case "c", "cpp", "c++", "rust", "zig", "d", "nim", "crystal", "odin", "v":
 		return generateTierAPackage(config)
-	case "python", "javascript", "js", "node", "swift", "ruby", "java", "csharp", "cs", "c#", "go", "dart", "php", "perl", "lua", "r":
+	case "python", "javascript", "js", "node", "swift", "ruby", "java", "csharp", "cs", "c#", "dart", "php", "perl", "lua", "r":
 		return generateTierBPackage(config)
 	default:
 		return fmt.Errorf("unsupported language: %s", config.Language)
@@ -292,6 +297,28 @@ func generateREADME(config *PackageConfig, langDir string) error {
 	readmePath := filepath.Join(langDir, "README.md")
 	fmt.Printf("TODO: Generate README at %s\n", readmePath)
 
+	return nil
+}
+
+// generateGoPackage generates a native Go package (Tier 0 reference implementation)
+func generateGoPackage(config *PackageConfig) error {
+	if config.Verbose {
+		fmt.Println("Generating Go package (native implementation)")
+	}
+
+	// Generate Go code for all message types
+	code, err := GenerateGo(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate Go code: %w", err)
+	}
+
+	// Write to output file
+	outputPath := filepath.Join(config.OutputDir, config.Namespace+".go")
+	if err := os.WriteFile(outputPath, code, 0644); err != nil {
+		return fmt.Errorf("failed to write Go code: %w", err)
+	}
+
+	fmt.Printf("✓ Generated Go package: %s\n", outputPath)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/shaban/ffire/pkg/generator"
 	"github.com/shaban/ffire/pkg/parser"
 	"github.com/shaban/ffire/pkg/schema"
+	"github.com/shaban/ffire/pkg/validator"
 )
 
 func runGenerate(args []string) {
@@ -65,6 +66,12 @@ Examples:
 	schema, err := parser.Parse(*schemaFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing schema: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate schema
+	if err := validator.ValidateSchema(schema); err != nil {
+		fmt.Fprintf(os.Stderr, "Error validating schema: %v\n", err)
 		os.Exit(1)
 	}
 

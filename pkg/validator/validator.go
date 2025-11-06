@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/shaban/ffire/pkg/errors"
 	"github.com/shaban/ffire/pkg/schema"
 )
 
@@ -13,20 +14,20 @@ const maxNestingDepth = 32
 // ValidateSchema checks if a schema is well-formed.
 func ValidateSchema(s *schema.Schema) error {
 	if s.Package == "" {
-		return fmt.Errorf("package name is required")
+		return errors.New(errors.ErrEmptyPackage, "package name is required")
 	}
 
 	if len(s.Messages) == 0 {
-		return fmt.Errorf("at least one message type is required")
+		return errors.New(errors.ErrNoMessages, "at least one message type is required")
 	}
 
 	// Check all message types reference valid types
 	for _, msg := range s.Messages {
 		if msg.Name == "" {
-			return fmt.Errorf("message type name cannot be empty")
+			return errors.New(errors.ErrEmptyMessageName, "message type name cannot be empty")
 		}
 		if msg.TargetType == nil {
-			return fmt.Errorf("message %s: target type cannot be nil", msg.Name)
+			return errors.Newf(errors.ErrNilTargetType, "message %s: target type cannot be nil", msg.Name)
 		}
 		if err := validateType(s, msg.TargetType, 0); err != nil {
 			return fmt.Errorf("message %s: %w", msg.Name, err)
@@ -51,7 +52,7 @@ func ValidateSchema(s *schema.Schema) error {
 // validateType recursively validates a type and its nesting depth.
 func validateType(s *schema.Schema, typ schema.Type, depth int) error {
 	if depth > maxNestingDepth {
-		return fmt.Errorf("nesting depth exceeds maximum of %d", maxNestingDepth)
+		return errors.Newf(errors.ErrMaxNestingDepth, "nesting depth exceeds maximum of %d", maxNestingDepth)
 	}
 
 	switch t := typ.(type) {
@@ -59,20 +60,20 @@ func validateType(s *schema.Schema, typ schema.Type, depth int) error {
 		if !schema.IsPrimitive(t.Name) {
 			// Check if it's a defined type
 			if s.FindType(t.Name) == nil {
-				return fmt.Errorf("undefined type: %s", t.Name)
+				return errors.Newf(errors.ErrUndefinedType, "undefined type: %s", t.Name)
 			}
 		}
 
 	case *schema.StructType:
 		if len(t.Fields) == 0 {
-			return fmt.Errorf("struct %s has no fields", t.Name)
+			return errors.Newf(errors.ErrEmptyStruct, "struct %s has no fields", t.Name)
 		}
 		for _, field := range t.Fields {
 			if field.Name == "" {
-				return fmt.Errorf("struct %s: field name cannot be empty", t.Name)
+				return errors.Newf(errors.ErrEmptyFieldName, "struct %s: field name cannot be empty", t.Name)
 			}
 			if field.Type == nil {
-				return fmt.Errorf("struct %s: field %s has nil type", t.Name, field.Name)
+				return errors.Newf(errors.ErrNilFieldType, "struct %s: field %s has nil type", t.Name, field.Name)
 			}
 			if err := validateType(s, field.Type, depth+1); err != nil {
 				return fmt.Errorf("struct %s: field %s: %w", t.Name, field.Name, err)
@@ -81,14 +82,14 @@ func validateType(s *schema.Schema, typ schema.Type, depth int) error {
 
 	case *schema.ArrayType:
 		if t.ElementType == nil {
-			return fmt.Errorf("array element type cannot be nil")
+			return errors.New(errors.ErrNilArrayElement, "array element type cannot be nil")
 		}
 		if err := validateType(s, t.ElementType, depth+1); err != nil {
 			return fmt.Errorf("array element: %w", err)
 		}
 
 	default:
-		return fmt.Errorf("unknown type: %T", typ)
+		return errors.Newf(errors.ErrUnknownType, "unknown type: %T", typ)
 	}
 
 	return nil
@@ -116,7 +117,7 @@ func detectCycle(s *schema.Schema, typ schema.Type, visited map[string]bool) err
 
 	// Check for cycle
 	if visited[name] {
-		return fmt.Errorf("circular reference detected: %s", name)
+		return errors.Newf(errors.ErrCircularReference, "circular reference detected: %s", name)
 	}
 
 	visited[name] = true
@@ -151,13 +152,13 @@ func ValidateJSON(s *schema.Schema, messageName string, jsonData []byte) error {
 	}
 
 	if messageType == nil {
-		return fmt.Errorf("message type %s not found in schema", messageName)
+		return errors.Newf(errors.ErrMessageNotFound, "message type %s not found in schema", messageName)
 	}
 
 	// Parse JSON
 	var data interface{}
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return fmt.Errorf("invalid JSON: %w", err)
+		return errors.Newf(errors.ErrInvalidJSON, "invalid JSON: %v", err)
 	}
 
 	// Validate against type
@@ -173,7 +174,7 @@ func validateJSONValue(s *schema.Schema, typ schema.Type, value interface{}, pat
 		}
 	} else {
 		if value == nil {
-			return fmt.Errorf("%s: required field is null", path)
+			return errors.Newf(errors.ErrRequiredField, "%s: required field is null", path)
 		}
 	}
 
@@ -201,7 +202,7 @@ func validatePrimitive(typ *schema.PrimitiveType, value interface{}, path string
 	switch typ.Name {
 	case "bool":
 		if _, ok := value.(bool); !ok {
-			return fmt.Errorf("%s: expected bool, got %T", path, value)
+			return errors.Newf(errors.ErrBoolExpected, "%s: expected bool, got %T", path, value)
 		}
 
 	case "int8", "int16", "int32", "int64":
@@ -209,44 +210,44 @@ func validatePrimitive(typ *schema.PrimitiveType, value interface{}, path string
 		if num, ok := value.(float64); ok {
 			// Check if it's an integer
 			if num != float64(int64(num)) {
-				return fmt.Errorf("%s: expected integer, got %v", path, num)
+				return errors.Newf(errors.ErrIntegerExpected, "%s: expected integer, got %v", path, num)
 			}
 			// Check range for specific types
 			switch typ.Name {
 			case "int8":
 				if num < -128 || num > 127 {
-					return fmt.Errorf("%s: value %v out of range for int8", path, num)
+					return errors.Newf(errors.ErrInt8OutOfRange, "%s: value %v out of range for int8", path, num)
 				}
 			case "int16":
 				if num < -32768 || num > 32767 {
-					return fmt.Errorf("%s: value %v out of range for int16", path, num)
+					return errors.Newf(errors.ErrInt16OutOfRange, "%s: value %v out of range for int16", path, num)
 				}
 			case "int32":
 				if num < -2147483648 || num > 2147483647 {
-					return fmt.Errorf("%s: value %v out of range for int32", path, num)
+					return errors.Newf(errors.ErrInt32OutOfRange, "%s: value %v out of range for int32", path, num)
 				}
 			}
 		} else {
-			return fmt.Errorf("%s: expected number, got %T", path, value)
+			return errors.Newf(errors.ErrNumberExpected, "%s: expected number, got %T", path, value)
 		}
 
 	case "float32", "float64":
 		if _, ok := value.(float64); !ok {
-			return fmt.Errorf("%s: expected number, got %T", path, value)
+			return errors.Newf(errors.ErrNumberExpected, "%s: expected number, got %T", path, value)
 		}
 
 	case "string":
 		str, ok := value.(string)
 		if !ok {
-			return fmt.Errorf("%s: expected string, got %T", path, value)
+			return errors.Newf(errors.ErrStringExpected, "%s: expected string, got %T", path, value)
 		}
 		// Validate string length (uint16 wire format limit)
 		if len(str) > 65535 {
-			return fmt.Errorf("%s: string length %d exceeds maximum of 65,535 bytes", path, len(str))
+			return errors.Newf(errors.ErrStringTooLong, "%s: string length %d exceeds maximum of 65,535 bytes", path, len(str))
 		}
 
 	default:
-		return fmt.Errorf("%s: unknown primitive type: %s", path, typ.Name)
+		return errors.Newf(errors.ErrUnknownPrimitive, "%s: unknown primitive type: %s", path, typ.Name)
 	}
 
 	return nil
@@ -260,7 +261,7 @@ func validateStruct(s *schema.Schema, typ *schema.StructType, value interface{},
 
 	obj, ok := value.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("%s: expected object, got %T", path, value)
+		return errors.Newf(errors.ErrObjectExpected, "%s: expected object, got %T", path, value)
 	}
 
 	// Check all required fields are present
@@ -274,7 +275,7 @@ func validateStruct(s *schema.Schema, typ *schema.StructType, value interface{},
 		fieldValue, exists := obj[jsonName]
 		if !exists {
 			if !field.Type.IsOptional() {
-				return fmt.Errorf("%s: required field missing", fieldPath)
+				return errors.Newf(errors.ErrRequiredField, "%s: required field missing", fieldPath)
 			}
 			continue
 		}
@@ -295,12 +296,12 @@ func validateArray(s *schema.Schema, typ *schema.ArrayType, value interface{}, p
 
 	arr, ok := value.([]interface{})
 	if !ok {
-		return fmt.Errorf("%s: expected array, got %T", path, value)
+		return errors.Newf(errors.ErrArrayExpected, "%s: expected array, got %T", path, value)
 	}
 
 	// Validate array length (uint16 wire format limit)
 	if len(arr) > 65535 {
-		return fmt.Errorf("%s: array length %d exceeds maximum of 65,535 elements", path, len(arr))
+		return errors.Newf(errors.ErrArrayTooLong, "%s: array length %d exceeds maximum of 65,535 elements", path, len(arr))
 	}
 
 	// Validate each element

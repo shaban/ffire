@@ -30,7 +30,13 @@ func (g *goGenerator) schemaHasStrings() bool {
 	if len(g.schema.Messages) == 0 {
 		return false
 	}
-	return g.typeContainsString(g.schema.Messages[0].TargetType)
+	// Check all message types for strings
+	for _, msg := range g.schema.Messages {
+		if g.typeContainsString(msg.TargetType) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *goGenerator) typeContainsString(typ schema.Type) bool {
@@ -55,7 +61,13 @@ func (g *goGenerator) schemaHasFloats() bool {
 	if len(g.schema.Messages) == 0 {
 		return false
 	}
-	return g.typeContainsFloat(g.schema.Messages[0].TargetType)
+	// Check all message types for floats
+	for _, msg := range g.schema.Messages {
+		if g.typeContainsFloat(msg.TargetType) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *goGenerator) isRootPrimitiveArray() bool {
@@ -90,7 +102,16 @@ func (g *goGenerator) typeContainsFloat(typ schema.Type) bool {
 }
 
 func (g *goGenerator) schemaHasPrimitiveArrays() bool {
-	return g.typeContainsPrimitiveArray(g.schema.Messages[0].TargetType)
+	if len(g.schema.Messages) == 0 {
+		return false
+	}
+	// Check all message types for primitive arrays
+	for _, msg := range g.schema.Messages {
+		if g.typeContainsPrimitiveArray(msg.TargetType) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *goGenerator) typeContainsPrimitiveArray(typ schema.Type) bool {
@@ -667,7 +688,7 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 		case "int8", "bool":
 			// 1-byte types: direct unsafe.Slice copy
 			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
-			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n", 
+			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
 				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s)\n", posVar, lenVar)
 			fmt.Fprintf(g.buf, "}\n")
