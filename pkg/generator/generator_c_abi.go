@@ -1,0 +1,283 @@
+package generator
+
+import (
+	"bytes"
+	"fmt"
+	"strings"
+
+	"github.com/shaban/ffire/pkg/schema"
+)
+
+// GenerateCABIHeader generates the C ABI header file
+func GenerateCABIHeader(s *schema.Schema) ([]byte, error) {
+	buf := &bytes.Buffer{}
+
+	// Header guard
+	guardName := strings.ToUpper(s.Package) + "_C_H"
+	fmt.Fprintf(buf, "#ifndef %s\n", guardName)
+	fmt.Fprintf(buf, "#define %s\n\n", guardName)
+
+	buf.WriteString("#ifdef __cplusplus\n")
+	buf.WriteString("extern \"C\" {\n")
+	buf.WriteString("#endif\n\n")
+
+	buf.WriteString("#include <stddef.h>\n")
+	buf.WriteString("#include <stdint.h>\n\n")
+
+	buf.WriteString("// Opaque handle types\n")
+
+	// Generate handle type for each message type
+	for _, msg := range s.Messages {
+		handleName := msg.Name + "Handle"
+		fmt.Fprintf(buf, "typedef void* %s;\n", handleName)
+	}
+
+	// Generate handle types for nested structs if needed
+	for _, typ := range s.Types {
+		if structType, ok := typ.(*schema.StructType); ok {
+			handleName := structType.Name + "Handle"
+			fmt.Fprintf(buf, "typedef void* %s;\n", handleName)
+		}
+	}
+
+	// Generate functions for each message type
+	for _, msg := range s.Messages {
+		handleName := msg.Name + "Handle"
+		baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+
+		buf.WriteString("\n// Decode function\n")
+		funcName := baseName + "_decode"
+		fmt.Fprintf(buf, "%s %s(const uint8_t* data, size_t len, char** error_msg);\n", handleName, funcName)
+
+		buf.WriteString("\n// Encode function\n")
+		funcName = baseName + "_encode"
+		fmt.Fprintf(buf, "size_t %s(%s handle, uint8_t** out_data, char** error_msg);\n", funcName, handleName)
+
+		buf.WriteString("\n// Memory management functions\n")
+		fmt.Fprintf(buf, "void %s_free(%s handle);\n", baseName, handleName)
+		fmt.Fprintf(buf, "void %s_free_data(uint8_t* data);\n", baseName)
+		fmt.Fprintf(buf, "void %s_free_error(char* error_msg);\n", baseName)
+
+		// Generate getters for message fields
+		buf.WriteString("\n// Getter functions\n")
+		if structType, ok := msg.TargetType.(*schema.StructType); ok {
+			for _, field := range structType.Fields {
+				funcName := fmt.Sprintf("%s_get_%s", baseName, strings.ToLower(field.Name))
+				returnType := cTypeForField(&field)
+				fmt.Fprintf(buf, "%s %s(%s handle);\n", returnType, funcName, handleName)
+			}
+		} else if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+			// For array messages, add count and index access
+			fmt.Fprintf(buf, "size_t %s_get_count(%s handle);\n", baseName, handleName)
+			if elemStruct, ok := arrayType.ElementType.(*schema.StructType); ok {
+				elemHandleName := elemStruct.Name + "Handle"
+				fmt.Fprintf(buf, "%s %s_get_at(%s handle, size_t index);\n", elemHandleName, baseName, handleName)
+			}
+		}
+	}
+
+	buf.WriteString("\n#ifdef __cplusplus\n")
+	buf.WriteString("}\n")
+	buf.WriteString("#endif\n\n")
+
+	fmt.Fprintf(buf, "#endif // %s\n", guardName)
+
+	return buf.Bytes(), nil
+}
+
+// GenerateCABIImpl generates the C ABI implementation file
+func GenerateCABIImpl(s *schema.Schema) ([]byte, error) {
+	buf := &bytes.Buffer{}
+
+	// Includes
+	buf.WriteString("#include \"generated_c.h\"\n")
+	buf.WriteString("#include \"generated.hpp\"\n")
+	buf.WriteString("#include <cstring>\n\n")
+
+	// Internal wrapper structs for each message
+	buf.WriteString("// Internal wrapper structs\n")
+	for _, msg := range s.Messages {
+		handleImplName := msg.Name + "HandleImpl"
+		fmt.Fprintf(buf, "struct %s {\n", handleImplName)
+
+		// Determine if message is array or single struct
+		if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+			// Array of structs
+			if elemStruct, ok := arrayType.ElementType.(*schema.StructType); ok {
+				fmt.Fprintf(buf, "    std::vector<%s::%s> items;  // Store full vector\n", s.Package, elemStruct.Name)
+			}
+		} else {
+			// Single struct
+			if structType, ok := msg.TargetType.(*schema.StructType); ok {
+				fmt.Fprintf(buf, "    %s::%s item;\n", s.Package, structType.Name)
+			}
+		}
+
+		buf.WriteString("    std::string error;\n")
+		buf.WriteString("    std::vector<uint8_t> encoded_data;\n")
+		buf.WriteString("};\n\n")
+	}
+
+	// Helper to create error message
+	buf.WriteString("// Helper to create error message\n")
+	buf.WriteString("static char* make_error_msg(const std::string& msg) {\n")
+	buf.WriteString("    char* error = new char[msg.size() + 1];\n")
+	buf.WriteString("    std::strcpy(error, msg.c_str());\n")
+	buf.WriteString("    return error;\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("extern \"C\" {\n\n")
+
+	// Generate functions for each message
+	for _, msg := range s.Messages {
+		generateDecodeFunction(buf, s, &msg)
+		generateEncodeFunction(buf, s, &msg)
+		generateFreeFunctions(buf, &msg)
+		generateGetterFunctions(buf, s, &msg)
+	}
+
+	buf.WriteString("} // extern \"C\"\n")
+
+	return buf.Bytes(), nil
+}
+
+func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
+	handleName := msg.Name + "Handle"
+	handleImplName := msg.Name + "HandleImpl"
+	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_decode"
+	encodeFuncName := fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
+
+	fmt.Fprintf(buf, "%s %s(const uint8_t* data, size_t len, char** error_msg) {\n", handleName, funcName)
+	buf.WriteString("    if (!data || len == 0) {\n")
+	buf.WriteString("        if (error_msg) *error_msg = make_error_msg(\"Invalid input data\");\n")
+	buf.WriteString("        return nullptr;\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("    \n")
+	buf.WriteString("    try {\n")
+	fmt.Fprintf(buf, "        auto result = %s::%s(data, len);\n", s.Package, encodeFuncName)
+	buf.WriteString("        \n")
+
+	// Check if result is array or single item
+	if _, ok := msg.TargetType.(*schema.ArrayType); ok {
+		buf.WriteString("        if (result.empty()) {\n")
+		buf.WriteString("            if (error_msg) *error_msg = make_error_msg(\"No items in message\");\n")
+		buf.WriteString("            return nullptr;\n")
+		buf.WriteString("        }\n")
+		buf.WriteString("        \n")
+		fmt.Fprintf(buf, "        %s* handle = new %s;\n", handleImplName, handleImplName)
+		buf.WriteString("        handle->items = std::move(result);\n")
+	} else {
+		fmt.Fprintf(buf, "        %s* handle = new %s;\n", handleImplName, handleImplName)
+		buf.WriteString("        handle->item = std::move(result);\n")
+	}
+
+	buf.WriteString("        return static_cast<" + handleName + ">(handle);\n")
+	buf.WriteString("    } catch (const std::exception& e) {\n")
+	buf.WriteString("        if (error_msg) *error_msg = make_error_msg(e.what());\n")
+	buf.WriteString("        return nullptr;\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("}\n\n")
+}
+
+func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
+	handleName := msg.Name + "Handle"
+	handleImplName := msg.Name + "HandleImpl"
+	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_encode"
+	encodeFuncName := fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
+
+	fmt.Fprintf(buf, "size_t %s(%s handle, uint8_t** out_data, char** error_msg) {\n", funcName, handleName)
+	buf.WriteString("    if (!handle) {\n")
+	buf.WriteString("        if (error_msg) *error_msg = make_error_msg(\"Invalid handle\");\n")
+	buf.WriteString("        return 0;\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("    \n")
+	buf.WriteString("    try {\n")
+	fmt.Fprintf(buf, "        %s* impl = static_cast<%s*>(handle);\n", handleImplName, handleImplName)
+	buf.WriteString("        \n")
+
+	// Encode based on type
+	if _, ok := msg.TargetType.(*schema.ArrayType); ok {
+		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->items);\n", s.Package, encodeFuncName)
+	} else {
+		fmt.Fprintf(buf, "        impl->encoded_data = %s::%s(impl->item);\n", s.Package, encodeFuncName)
+	}
+
+	buf.WriteString("        \n")
+	buf.WriteString("        // Allocate new buffer for caller\n")
+	buf.WriteString("        *out_data = new uint8_t[impl->encoded_data.size()];\n")
+	buf.WriteString("        std::memcpy(*out_data, impl->encoded_data.data(), impl->encoded_data.size());\n")
+	buf.WriteString("        \n")
+	buf.WriteString("        return impl->encoded_data.size();\n")
+	buf.WriteString("    } catch (const std::exception& e) {\n")
+	buf.WriteString("        if (error_msg) *error_msg = make_error_msg(e.what());\n")
+	buf.WriteString("        return 0;\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("}\n\n")
+}
+
+func generateFreeFunctions(buf *bytes.Buffer, msg *schema.MessageType) {
+	handleName := msg.Name + "Handle"
+	handleImplName := msg.Name + "HandleImpl"
+	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+
+	fmt.Fprintf(buf, "void %s_free(%s handle) {\n", baseName, handleName)
+	fmt.Fprintf(buf, "    delete static_cast<%s*>(handle);\n", handleImplName)
+	buf.WriteString("}\n\n")
+
+	fmt.Fprintf(buf, "void %s_free_data(uint8_t* data) {\n", baseName)
+	buf.WriteString("    delete[] data;\n")
+	buf.WriteString("}\n\n")
+
+	fmt.Fprintf(buf, "void %s_free_error(char* error_msg) {\n", baseName)
+	buf.WriteString("    delete[] error_msg;\n")
+	buf.WriteString("}\n\n")
+}
+
+func generateGetterFunctions(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
+	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+
+	// Get the struct type to generate getters for
+	var structType *schema.StructType
+	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+		structType, _ = arrayType.ElementType.(*schema.StructType)
+	} else {
+		structType, _ = msg.TargetType.(*schema.StructType)
+	}
+
+	if structType == nil {
+		return
+	}
+
+	// Generate getters for each field
+	for _, field := range structType.Fields {
+		// TODO: Implement full getter generation
+		// For now, just add placeholder comments
+		funcName := fmt.Sprintf("%s_get_%s", baseName, strings.ToLower(field.Name))
+		fmt.Fprintf(buf, "// TODO: Implement %s\n", funcName)
+	}
+	buf.WriteString("\n")
+}
+
+func cTypeForField(field *schema.Field) string {
+	if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+		switch primType.Name {
+		case "string":
+			return "const char*"
+		case "bool":
+			return "int"
+		case "int8":
+			return "int8_t"
+		case "int16":
+			return "int16_t"
+		case "int32":
+			return "int32_t"
+		case "int64":
+			return "int64_t"
+		case "float32":
+			return "float"
+		case "float64":
+			return "double"
+		}
+	}
+	return "void*"
+}
