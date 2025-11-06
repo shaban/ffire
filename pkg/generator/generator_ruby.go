@@ -70,13 +70,13 @@ func generateRubyBindings(config *PackageConfig, libDir string) error {
 	buf.WriteString("               end\n\n")
 
 	buf.WriteString("    # Load the native library\n")
-	buf.WriteString("    lib_path = File.expand_path(File.join('..', '..', 'lib', LIB_NAME), __FILE__)\n")
+	buf.WriteString("    lib_path = File.expand_path(File.join(File.dirname(__FILE__), '..', LIB_NAME))\n")
 	buf.WriteString("    ffi_lib lib_path\n\n")
 
 	// Generate FFI function declarations for each message type
 	for _, msg := range config.Schema.Messages {
 		msgName := strings.ToLower(msg.Name)
-		
+
 		buf.WriteString(fmt.Sprintf("    # FFI declarations for %s\n", msg.Name))
 		buf.WriteString(fmt.Sprintf("    attach_function :%s_decode, [:pointer, :size_t, :pointer], :pointer\n", msgName))
 		buf.WriteString(fmt.Sprintf("    attach_function :%s_encode, [:pointer, :pointer, :pointer], :size_t\n", msgName))
@@ -99,7 +99,7 @@ func generateRubyMessageClasses(config *PackageConfig, libDir string) error {
 
 	for _, msg := range config.Schema.Messages {
 		buf := &bytes.Buffer{}
-		
+
 		msgClassName := toRubyClassName(msg.Name)
 		msgName := strings.ToLower(msg.Name)
 
@@ -362,7 +362,7 @@ func generateRubyReadme(config *PackageConfig, gemDir string) error {
 	if len(config.Schema.Messages) > 0 {
 		msg := config.Schema.Messages[0]
 		msgClassName := toRubyClassName(msg.Name)
-		
+
 		buf.WriteString("# Decode from binary data\n")
 		buf.WriteString("data = File.binread('data.bin')\n")
 		fmt.Fprintf(buf, "msg = %s::%s.decode(data)\n\n", className, msgClassName)
@@ -381,9 +381,9 @@ func generateRubyReadme(config *PackageConfig, gemDir string) error {
 	// Document each message type
 	for _, msg := range config.Schema.Messages {
 		msgClassName := toRubyClassName(msg.Name)
-		
+
 		fmt.Fprintf(buf, "### `%s::%s`\n\n", className, msgClassName)
-		
+
 		buf.WriteString("**`.decode(data)` → `#{msgClassName}`**\n\n")
 		buf.WriteString("Decode a message from binary data.\n\n")
 		buf.WriteString("- **Parameters:**\n")
@@ -435,12 +435,12 @@ func toRubyClassName(s string) string {
 	// Handle snake_case and kebab-case
 	s = strings.ReplaceAll(s, "-", "_")
 	parts := strings.Split(s, "_")
-	
+
 	for i, part := range parts {
 		if part != "" {
 			parts[i] = strings.ToUpper(part[:1]) + part[1:]
 		}
 	}
-	
+
 	return strings.Join(parts, "")
 }
