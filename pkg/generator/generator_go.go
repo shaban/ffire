@@ -118,7 +118,8 @@ func (g *goGenerator) typeContainsPrimitiveArray(typ schema.Type) bool {
 	switch t := typ.(type) {
 	case *schema.ArrayType:
 		// Check if this is an array of non-optional, non-string primitives (uses unsafe)
-		if primType, ok := t.ElementType.(*schema.PrimitiveType); ok && !primType.Optional && primType.Name != "string" && primType.Name != "bool" {
+		// Bool arrays CAN use unsafe bulk copy since Go's bool memory layout (0x00/0x01) matches wire format
+		if primType, ok := t.ElementType.(*schema.PrimitiveType); ok && !primType.Optional && primType.Name != "string" {
 			return true
 		}
 		// Recursively check element type

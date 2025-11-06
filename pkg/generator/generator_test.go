@@ -667,7 +667,7 @@ func TestBulkArrayEncodingAllNumericTypes(t *testing.T) {
 	}
 }
 
-func TestBoolArrayUsesLoop(t *testing.T) {
+func TestBoolArrayUsesBulkCopy(t *testing.T) {
 	s := &schema.Schema{
 		Package: "testpkg",
 		Messages: []schema.MessageType{
@@ -684,14 +684,14 @@ func TestBoolArrayUsesLoop(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Bool arrays should NOT use unsafe (1 bit logically but 1 byte in Go)
-	if strings.Contains(codeStr, "unsafe.Slice") && strings.Contains(codeStr, "bool") {
-		t.Errorf("Bool arrays should not use unsafe bulk encoding")
+	// Bool arrays SHOULD use unsafe bulk copy (Go's bool is 1 byte: 0x00/0x01, matching wire format)
+	if !strings.Contains(codeStr, "unsafe.Slice") {
+		t.Errorf("Bool arrays should use unsafe bulk copy optimization")
 	}
 
-	// Should use element-by-element loop
-	if !strings.Contains(codeStr, "for _, elem := range") {
-		t.Errorf("Bool arrays should use element-by-element encoding")
+	// Should have unsafe import
+	if !strings.Contains(codeStr, `"unsafe"`) {
+		t.Errorf("Bool arrays should include unsafe import")
 	}
 }
 
