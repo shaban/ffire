@@ -38,7 +38,7 @@ func ToCamelCase(s string) string {
 // Examples: "MyMessage" -> "my_message", "userProfile" -> "user_profile"
 func ToSnakeCase(s string) string {
 	var result strings.Builder
-	
+
 	for i, r := range s {
 		if unicode.IsUpper(r) {
 			if i > 0 {
@@ -49,7 +49,7 @@ func ToSnakeCase(s string) string {
 			result.WriteRune(r)
 		}
 	}
-	
+
 	return result.String()
 }
 

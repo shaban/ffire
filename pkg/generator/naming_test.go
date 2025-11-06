@@ -108,13 +108,13 @@ func TestLanguageSpecificClassNames(t *testing.T) {
 	expected := "MyMessage"
 
 	funcs := map[string]func(string) string{
-		"ToRubyClassName":      ToRubyClassName,
-		"ToPythonClassName":    ToPythonClassName,
+		"ToRubyClassName":       ToRubyClassName,
+		"ToPythonClassName":     ToPythonClassName,
 		"ToJavaScriptClassName": ToJavaScriptClassName,
-		"ToSwiftClassName":     ToSwiftClassName,
-		"ToGoTypeName":         ToGoTypeName,
-		"ToRustTypeName":       ToRustTypeName,
-		"ToCppClassName":       ToCppClassName,
+		"ToSwiftClassName":      ToSwiftClassName,
+		"ToGoTypeName":          ToGoTypeName,
+		"ToRustTypeName":        ToRustTypeName,
+		"ToCppClassName":        ToCppClassName,
 	}
 
 	for name, fn := range funcs {

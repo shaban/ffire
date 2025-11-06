@@ -8,19 +8,19 @@ import (
 
 // PackagePaths holds all the directory paths for a package
 type PackagePaths struct {
-	Root       string // Root package directory (e.g., dist/python/)
-	Lib        string // Library directory (where dylib goes)
-	Include    string // C++ headers directory
-	Src        string // C++ source directory
-	Package    string // Language package directory (for Python, Ruby modules)
-	Examples   string // Examples directory
+	Root     string // Root package directory (e.g., dist/python/)
+	Lib      string // Library directory (where dylib goes)
+	Include  string // C++ headers directory
+	Src      string // C++ source directory
+	Package  string // Language package directory (for Python, Ruby modules)
+	Examples string // Examples directory
 }
 
 // DirectoryLayout defines the directory structure for a language package
 type DirectoryLayout struct {
-	Name          string   // Language name (python, javascript, ruby, etc.)
-	LibInPackage  bool     // Whether dylib goes in package dir (Python) or separate lib/ (JS, Ruby)
-	ExtraDirs     []string // Any additional directories needed
+	Name         string   // Language name (python, javascript, ruby, etc.)
+	LibInPackage bool     // Whether dylib goes in package dir (Python) or separate lib/ (JS, Ruby)
+	ExtraDirs    []string // Any additional directories needed
 }
 
 // Common directory layouts for different languages
