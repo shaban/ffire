@@ -472,5 +472,87 @@ func generateSwiftPackage(config *PackageConfig) error {
 }
 
 func generateRubyPackage(config *PackageConfig) error {
-	return fmt.Errorf("Ruby package generation not yet implemented")
+	if config.Verbose {
+		fmt.Println("Generating Ruby gem package")
+	}
+
+	// Create directory structure
+	gemDir := filepath.Join(config.OutputDir, "ruby")
+	libDir := filepath.Join(gemDir, "lib")
+
+	for _, dir := range []string{gemDir, libDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ code and C ABI (we need the dylib)
+	includeDir := filepath.Join(gemDir, "include")
+	srcDir := filepath.Join(gemDir, "src")
+
+	for _, dir := range []string{includeDir, srcDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ header
+	cppCode, err := GenerateCpp(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate C++ code: %w", err)
+	}
+
+	headerPath := filepath.Join(includeDir, "generated.hpp")
+	if err := os.WriteFile(headerPath, cppCode, 0644); err != nil {
+		return fmt.Errorf("failed to write C++ header: %w", err)
+	}
+
+	// Generate C ABI wrapper
+	if err := generateCABI(config, includeDir, srcDir); err != nil {
+		return fmt.Errorf("failed to generate C ABI: %w", err)
+	}
+
+	// Compile dylib
+	if !config.NoCompile {
+		if err := compileDylib(config, srcDir, libDir); err != nil {
+			return fmt.Errorf("failed to compile dylib: %w", err)
+		}
+	}
+
+	// Generate Ruby FFI wrapper
+	if err := generateRubyWrapper(config, gemDir); err != nil {
+		return fmt.Errorf("failed to generate Ruby wrapper: %w", err)
+	}
+
+	// Generate gemspec
+	if err := generateRubyGemspec(config, gemDir); err != nil {
+		return fmt.Errorf("failed to generate gemspec: %w", err)
+	}
+
+	// Generate Gemfile
+	if err := generateRubyGemfile(config, gemDir); err != nil {
+		return fmt.Errorf("failed to generate Gemfile: %w", err)
+	}
+
+	// Generate README.md
+	if err := generateRubyReadme(config, gemDir); err != nil {
+		return fmt.Errorf("failed to generate README.md: %w", err)
+	}
+
+	// Print installation instructions
+	fmt.Printf("\n✅ Ruby gem package ready at: %s\n\n", gemDir)
+	fmt.Println("Installation:")
+	fmt.Printf("  cd %s\n", gemDir)
+	fmt.Println("  bundle install")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Printf("  require '%s'\n", config.Namespace)
+	if len(config.Schema.Messages) > 0 {
+		msgClassName := toRubyClassName(config.Namespace) + "::" + toRubyClassName(config.Schema.Messages[0].Name)
+		fmt.Printf("  msg = %s.decode(data)\n", msgClassName)
+		fmt.Println("  encoded = msg.encode")
+	}
+	fmt.Println()
+
+	return nil
 }

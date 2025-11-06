@@ -64,6 +64,16 @@ Languages that use FFI to call into native libraries.
 - [x] Platform detection (darwin/linux/win32)
 - [x] Cross-compile-to-JS support (TypeScript, CoffeeScript, etc.)
 
+#### Ruby Package (Tier B)
+- [x] Ruby-FFI wrapper generation
+- [x] Gemspec generation
+- [x] Gemfile generation
+- [x] Automatic memory management (finalizers)
+- [x] README.md with examples
+- [x] Multi-file module structure (bindings.rb, message classes, version.rb)
+- [x] Platform detection (darwin/linux/windows)
+- [x] Idiomatic Ruby API
+
 ### 🚧 In Progress
 
 None currently.
@@ -75,11 +85,6 @@ None currently.
 - [ ] Package.swift generation
 - [ ] README.md with examples
 - [ ] iOS/macOS support
-
-#### Ruby Package (Tier B)
-- [ ] FFI gem wrapper
-- [ ] Gemspec generation
-- [ ] README.md with examples
 
 #### Template System
 - [ ] Generic template engine
@@ -125,6 +130,21 @@ javascript/
 └── README.md                   # Documentation
 ```
 
+### Ruby Package
+```
+ruby/
+├── lib/
+│   ├── libffire.dylib          # Compiled dylib
+│   ├── test.rb                 # Main module file
+│   └── test/
+│       ├── version.rb          # Version constant
+│       ├── bindings.rb         # FFI declarations
+│       └── message.rb          # Message wrapper class
+├── test.gemspec                # Gem specification
+├── Gemfile                     # Bundler dependencies
+└── README.md                   # Documentation
+```
+
 ## CLI Usage
 
 ### Generate Python Package
@@ -142,6 +162,14 @@ ffire generate -lang javascript -schema audio.ffi -out ./dist
 cd dist/javascript
 npm install
 node test.js
+```
+
+### Generate Ruby Package
+```bash
+ffire generate -lang ruby -schema audio.ffi -out ./dist
+cd dist/ruby
+bundle install
+ruby test_example.rb
 ```
 
 ### Generate C++ Package
@@ -181,6 +209,13 @@ python -c "from test import Message; print('✅ Import successful')"
 cd test-dist/javascript
 npm install
 node test.js
+```
+
+### Ruby
+```bash
+cd test-dist/ruby
+bundle install  # Install ffi gem
+ruby test_example.rb
 ```
 
 ## Technical Details
@@ -250,8 +285,8 @@ $ nm -gU lib/libffire.dylib | grep message
 | Python     | B    | ✅ Complete | ctypes         | pip/setuptools  |
 | JavaScript | B    | ✅ Complete | ffi-napi       | npm             |
 | TypeScript | B    | ✅ Complete | ffi-napi + .d.ts | npm         |
+| Ruby       | B    | ✅ Complete | ruby-ffi       | gem/bundler     |
 | Swift      | B    | 📋 Planned  | Swift FFI      | SPM             |
-| Ruby       | B    | 📋 Planned  | FFI gem        | gem             |
 | Rust       | A    | 📋 Planned  | bindgen        | cargo           |
 | Zig        | A    | 📋 Planned  | @cImport       | zig build       |
 
@@ -274,6 +309,12 @@ $ nm -gU lib/libffire.dylib | grep message
 - **Import:** `import { Message } from 'test'`
 - **Type safety:** Full .d.ts definitions
 - **Documentation:** Inline JSDoc + types
+
+### Ruby
+- **Installation:** Standard gem/bundler
+- **Import:** `require 'test'`
+- **API:** Idiomatic Ruby with automatic GC
+- **Documentation:** YARD-style comments
 
 ## Performance
 
@@ -300,14 +341,18 @@ All packages use the same compiled C++ dylib, so performance is identical:
 - Platforms: macOS, Linux, Windows
 - Dependencies: Same as JavaScript
 
+### Ruby
+- Requires: Ruby 2.6.0+
+- Platforms: macOS, Linux, Windows
+- Dependencies: ffi gem (~> 1.15)
+
 ## Next Steps
 
 1. **Swift Package** - Implement Swift wrapper for iOS/macOS development
-2. **Ruby Package** - Implement FFI gem for Ruby ecosystem
-3. **Multi-platform Builds** - Support cross-compilation and fat binaries
-4. **Template System** - Make it easy to add new language generators
-5. **Example Gallery** - Create comprehensive examples for each language
-6. **CI/CD Integration** - Automated multi-platform builds
+2. **Multi-platform Builds** - Support cross-compilation and fat binaries
+3. **Template System** - Make it easy to add new language generators
+4. **Example Gallery** - Create comprehensive examples for each language
+5. **CI/CD Integration** - Automated multi-platform builds
 
 ## Contributing
 
