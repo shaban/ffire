@@ -122,10 +122,19 @@ func generateTierBPackage(config *PackageConfig) error {
 		fmt.Println("Generating Tier B package (with language wrapper)")
 	}
 
-	// TODO: Implement Tier B package generation
-	// This will include language-specific wrappers, package metadata, etc.
-
-	return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
+	// Route to language-specific generator
+	switch config.Language {
+	case "python", "py":
+		return generatePythonPackage(config)
+	case "javascript", "js", "node", "nodejs":
+		return generateJavaScriptPackage(config)
+	case "swift":
+		return generateSwiftPackage(config)
+	case "ruby", "rb":
+		return generateRubyPackage(config)
+	default:
+		return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
+	}
 }
 
 // generateCABI generates C ABI wrapper files
@@ -276,4 +285,86 @@ func generateREADME(config *PackageConfig, langDir string) error {
 	fmt.Printf("TODO: Generate README at %s\n", readmePath)
 
 	return nil
+}
+
+// generatePythonPackage generates a complete Python package with ctypes wrapper
+func generatePythonPackage(config *PackageConfig) error {
+	if config.Verbose {
+		fmt.Println("Generating Python package")
+	}
+
+	// Create directory structure
+	langDir := filepath.Join(config.OutputDir, "python")
+	packageDir := filepath.Join(langDir, config.Namespace)
+	
+	for _, dir := range []string{langDir, packageDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ code and C ABI (we need the dylib)
+	includeDir := filepath.Join(langDir, "include")
+	srcDir := filepath.Join(langDir, "src")
+	libDir := filepath.Join(packageDir)  // Put dylib in package dir
+	
+	for _, dir := range []string{includeDir, srcDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Generate C++ header
+	cppCode, err := GenerateCpp(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate C++ code: %w", err)
+	}
+	
+	headerPath := filepath.Join(includeDir, "generated.hpp")
+	if err := os.WriteFile(headerPath, cppCode, 0644); err != nil {
+		return fmt.Errorf("failed to write C++ header: %w", err)
+	}
+
+	// Generate C ABI wrapper
+	if err := generateCABI(config, includeDir, srcDir); err != nil {
+		return fmt.Errorf("failed to generate C ABI: %w", err)
+	}
+
+	// Compile dylib
+	if !config.NoCompile {
+		if err := compileDylib(config, srcDir, libDir); err != nil {
+			return fmt.Errorf("failed to compile dylib: %w", err)
+		}
+	}
+
+	// Generate Python wrapper
+	if err := generatePythonWrapper(config, packageDir); err != nil {
+		return fmt.Errorf("failed to generate Python wrapper: %w", err)
+	}
+
+	// Generate setup.py
+	if err := generatePythonSetup(config, langDir); err != nil {
+		return fmt.Errorf("failed to generate setup.py: %w", err)
+	}
+
+	// Generate __init__.py
+	if err := generatePythonInit(config, packageDir); err != nil {
+		return fmt.Errorf("failed to generate __init__.py: %w", err)
+	}
+
+	fmt.Printf("\n✅ Python package ready at: %s\n", langDir)
+	fmt.Printf("Install with: cd %s && pip install .\n", langDir)
+	return nil
+}
+
+func generateJavaScriptPackage(config *PackageConfig) error {
+	return fmt.Errorf("JavaScript package generation not yet implemented")
+}
+
+func generateSwiftPackage(config *PackageConfig) error {
+	return fmt.Errorf("Swift package generation not yet implemented")
+}
+
+func generateRubyPackage(config *PackageConfig) error {
+	return fmt.Errorf("Ruby package generation not yet implemented")
 }
