@@ -297,7 +297,7 @@ func generateJavaScriptPackage(config *PackageConfig) error {
 }
 
 func generateSwiftPackage(config *PackageConfig) error {
-	return fmt.Errorf("Swift package generation not yet implemented")
+	return GenerateSwiftPackage(config)
 }
 
 func generateRubyPackage(config *PackageConfig) error {

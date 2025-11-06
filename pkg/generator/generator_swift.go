@@ -1,0 +1,388 @@
+package generator
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/shaban/ffire/pkg/schema"
+)
+
+// GenerateSwiftPackage generates a complete Swift package using the orchestrator
+func GenerateSwiftPackage(config *PackageConfig) error {
+	return orchestrateTierBPackage(
+		config,
+		SwiftLayout,
+		generateSwiftWrapperOrchestrated,
+		generateSwiftMetadataOrchestrated,
+		printSwiftInstructions,
+	)
+}
+
+func generateSwiftWrapperOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Create Sources directory structure
+	sourcesDir := filepath.Join(paths.Root, "Sources", config.Namespace)
+	if err := os.MkdirAll(sourcesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create Sources directory: %w", err)
+	}
+
+	// Generate Swift wrapper
+	if err := generateSwiftWrapper(config, sourcesDir, paths.Lib); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func generateSwiftMetadataOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Generate Package.swift
+	if err := generateSwiftPackageManifest(config, paths.Root); err != nil {
+		return err
+	}
+
+	// Generate README.md
+	if err := generateSwiftReadme(config, paths.Root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func printSwiftInstructions(config *PackageConfig, paths *PackagePaths) {
+	fmt.Printf("\n✅ Swift Package Manager package ready at: %s\n\n", paths.Root)
+	fmt.Println("Build:")
+	fmt.Printf("  cd %s\n", paths.Root)
+	fmt.Println("  swift build")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Printf("  import %s\n", config.Namespace)
+	fmt.Println()
+	fmt.Println("  let data = Data(/* binary data */)")
+	fmt.Println("  do {")
+	fmt.Println("      let msg = try Message.decode(data)")
+	fmt.Println("      let encoded = try msg.encode()")
+	fmt.Println("  } catch {")
+	fmt.Println("      print(\"Error: \\(error)\")")
+	fmt.Println("  }")
+	fmt.Println()
+}
+
+// generateSwiftWrapper generates the Swift wrapper with C interop
+func generateSwiftWrapper(config *PackageConfig, sourcesDir string, libDir string) error {
+	buf := &bytes.Buffer{}
+
+	// Module header
+	fmt.Fprintf(buf, `//
+// FFire %s Swift bindings
+//
+// This module provides Swift bindings to the FFire binary serialization library
+// via a C ABI dynamic library.
+//
+
+import Foundation
+
+`, config.Schema.Package)
+
+	// Determine library name based on platform
+	buf.WriteString("// Load the C library\n")
+	buf.WriteString("#if os(macOS)\n")
+	buf.WriteString("private let libName = \"libffire.dylib\"\n")
+	buf.WriteString("#elseif os(Linux)\n")
+	buf.WriteString("private let libName = \"libffire.so\"\n")
+	buf.WriteString("#elseif os(Windows)\n")
+	buf.WriteString("private let libName = \"ffire.dll\"\n")
+	buf.WriteString("#endif\n\n")
+
+	// Load the library
+	buf.WriteString("// Library handle\n")
+	buf.WriteString("private let libraryPath: String = {\n")
+	buf.WriteString("    let bundlePath = Bundle.main.bundlePath\n")
+	buf.WriteString("    return \"\\(bundlePath)/lib/\\(libName)\"\n")
+	buf.WriteString("}()\n\n")
+
+	// Error type
+	buf.WriteString("/// FFire error type\n")
+	buf.WriteString("public enum FFireError: Error {\n")
+	buf.WriteString("    case decodeFailed(String)\n")
+	buf.WriteString("    case encodeFailed(String)\n")
+	buf.WriteString("    case libraryError(String)\n")
+	buf.WriteString("}\n\n")
+
+	// Generate Swift wrapper for each message type
+	for _, msg := range config.Schema.Messages {
+		if err := generateSwiftMessageBindings(buf, config.Schema, &msg); err != nil {
+			return err
+		}
+	}
+
+	// Write to file
+	wrapperPath := filepath.Join(sourcesDir, config.Namespace+".swift")
+	if err := os.WriteFile(wrapperPath, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to write Swift wrapper: %w", err)
+	}
+
+	fmt.Printf("✓ Generated Swift bindings: %s\n", wrapperPath)
+	return nil
+}
+
+func generateSwiftMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) error {
+	className := msg.Name
+	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+
+	// C function declarations
+	fmt.Fprintf(buf, "// C function declarations for %s\n", className)
+	fmt.Fprintf(buf, "@_silgen_name(\"%s_decode\")\n", baseName)
+	buf.WriteString("private func c_" + baseName + "_decode(\n")
+	buf.WriteString("    _ data: UnsafePointer<UInt8>,\n")
+	buf.WriteString("    _ size: Int,\n")
+	buf.WriteString("    _ error: UnsafeMutablePointer<UnsafePointer<CChar>?>\n")
+	buf.WriteString(") -> OpaquePointer?\n\n")
+
+	fmt.Fprintf(buf, "@_silgen_name(\"%s_encode\")\n", baseName)
+	buf.WriteString("private func c_" + baseName + "_encode(\n")
+	buf.WriteString("    _ handle: OpaquePointer,\n")
+	buf.WriteString("    _ data: UnsafeMutablePointer<UnsafePointer<UInt8>?>,\n")
+	buf.WriteString("    _ error: UnsafeMutablePointer<UnsafePointer<CChar>?>\n")
+	buf.WriteString(") -> Int\n\n")
+
+	fmt.Fprintf(buf, "@_silgen_name(\"%s_free\")\n", baseName)
+	buf.WriteString("private func c_" + baseName + "_free(_ handle: OpaquePointer)\n\n")
+
+	fmt.Fprintf(buf, "@_silgen_name(\"%s_free_data\")\n", baseName)
+	buf.WriteString("private func c_" + baseName + "_free_data(_ data: UnsafePointer<UInt8>)\n\n")
+
+	fmt.Fprintf(buf, "@_silgen_name(\"%s_free_error\")\n", baseName)
+	buf.WriteString("private func c_" + baseName + "_free_error(_ error: UnsafePointer<CChar>)\n\n")
+
+	// Swift class wrapper
+	fmt.Fprintf(buf, "/// %s message type\n", className)
+	fmt.Fprintf(buf, "public class %s {\n", className)
+	buf.WriteString("    private var handle: OpaquePointer\n")
+	buf.WriteString("    private var freed = false\n\n")
+
+	// Private initializer
+	buf.WriteString("    private init(handle: OpaquePointer) {\n")
+	buf.WriteString("        self.handle = handle\n")
+	buf.WriteString("    }\n\n")
+
+	// Deinitializer
+	buf.WriteString("    deinit {\n")
+	buf.WriteString("        free()\n")
+	buf.WriteString("    }\n\n")
+
+	// Decode method
+	fmt.Fprintf(buf, `    /// Decode a %s from binary data
+    /// - Parameter data: Binary data to decode
+    /// - Returns: Decoded %s object
+    /// - Throws: FFireError if decoding fails
+    public static func decode(_ data: Data) throws -> %s {
+        var errorPtr: UnsafePointer<CChar>? = nil
+        
+        let handle = data.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) -> OpaquePointer? in
+            guard let baseAddress = ptr.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                return nil
+            }
+            return c_%s_decode(baseAddress, data.count, &errorPtr)
+        }
+        
+        if let handle = handle {
+            return %s(handle: handle)
+        } else {
+            let errorMsg: String
+            if let errorPtr = errorPtr {
+                errorMsg = String(cString: errorPtr)
+                c_%s_free_error(errorPtr)
+            } else {
+                errorMsg = "Unknown error"
+            }
+            throw FFireError.decodeFailed(errorMsg)
+        }
+    }
+    
+`, className, className, className, baseName, className, baseName)
+
+	// Encode method
+	fmt.Fprintf(buf, `    /// Encode this %s to binary data
+    /// - Returns: Encoded binary data
+    /// - Throws: FFireError if encoding fails
+    public func encode() throws -> Data {
+        guard !freed else {
+            throw FFireError.encodeFailed("%s already freed")
+        }
+        
+        var dataPtr: UnsafePointer<UInt8>? = nil
+        var errorPtr: UnsafePointer<CChar>? = nil
+        
+        let size = c_%s_encode(handle, &dataPtr, &errorPtr)
+        
+        if size > 0, let dataPtr = dataPtr {
+            let data = Data(bytes: dataPtr, count: size)
+            c_%s_free_data(dataPtr)
+            return data
+        } else {
+            let errorMsg: String
+            if let errorPtr = errorPtr {
+                errorMsg = String(cString: errorPtr)
+                c_%s_free_error(errorPtr)
+            } else {
+                errorMsg = "Unknown error"
+            }
+            throw FFireError.encodeFailed(errorMsg)
+        }
+    }
+    
+`, className, className, baseName, baseName, baseName)
+
+	// Free method
+	buf.WriteString("    /// Free the native resources\n")
+	buf.WriteString("    public func free() {\n")
+	buf.WriteString("        if !freed {\n")
+	fmt.Fprintf(buf, "            c_%s_free(handle)\n", baseName)
+	buf.WriteString("            freed = true\n")
+	buf.WriteString("        }\n")
+	buf.WriteString("    }\n")
+	buf.WriteString("}\n\n")
+
+	return nil
+}
+
+// generateSwiftPackageManifest generates Package.swift
+func generateSwiftPackageManifest(config *PackageConfig, packageDir string) error {
+	buf := &bytes.Buffer{}
+
+	fmt.Fprintf(buf, `// swift-tools-version:5.5
+import PackageDescription
+
+let package = Package(
+    name: "%s",
+    platforms: [
+        .macOS(.v10_15),
+        .iOS(.v13),
+        .tvOS(.v13),
+        .watchOS(.v6)
+    ],
+    products: [
+        .library(
+            name: "%s",
+            targets: ["%s"]
+        ),
+    ],
+    dependencies: [],
+    targets: [
+        .target(
+            name: "%s",
+            dependencies: [],
+            path: "Sources/%s",
+            linkerSettings: [
+                .unsafeFlags(["-L", "lib"]),
+                .linkedLibrary("ffire")
+            ]
+        ),
+    ]
+)
+`, config.Namespace, config.Namespace, config.Namespace, config.Namespace, config.Namespace)
+
+	manifestPath := filepath.Join(packageDir, "Package.swift")
+	if err := os.WriteFile(manifestPath, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to write Package.swift: %w", err)
+	}
+
+	fmt.Printf("✓ Generated Package.swift: %s\n", manifestPath)
+	return nil
+}
+
+// generateSwiftReadme generates README.md
+func generateSwiftReadme(config *PackageConfig, packageDir string) error {
+	buf := &bytes.Buffer{}
+
+	fmt.Fprintf(buf, `# %s - FFire Swift Bindings
+
+Swift bindings for the %s schema, generated by [FFire](https://github.com/shaban/ffire).
+
+## Installation
+
+### Swift Package Manager
+
+Add this package as a dependency in your Package.swift:
+
+`, config.Namespace, config.Schema.Package)
+
+	buf.WriteString("```swift\n")
+	buf.WriteString("dependencies: [\n")
+	fmt.Fprintf(buf, "    .package(path: \"%s\")\n", packageDir)
+	buf.WriteString("]\n")
+	buf.WriteString("```\n\n")
+
+	buf.WriteString("## Usage\n\n")
+	buf.WriteString("```swift\n")
+	fmt.Fprintf(buf, "import %s\n", config.Namespace)
+	buf.WriteString("import Foundation\n\n")
+	buf.WriteString("// Decode from binary data\n")
+	buf.WriteString("let data = Data(/* your binary data */)\n\n")
+	buf.WriteString("do {\n")
+	buf.WriteString("    let msg = try Message.decode(data)\n")
+	buf.WriteString("    \n")
+	buf.WriteString("    // Encode back to binary\n")
+	buf.WriteString("    let encoded = try msg.encode()\n")
+	buf.WriteString("    \n")
+	buf.WriteString("    // Resources are automatically freed when msg goes out of scope\n")
+	buf.WriteString("} catch let error as FFireError {\n")
+	buf.WriteString("    print(\"FFire error: \\(error)\")\n")
+	buf.WriteString("} catch {\n")
+	buf.WriteString("    print(\"Unexpected error: \\(error)\")\n")
+	buf.WriteString("}\n")
+	buf.WriteString("```\n\n")
+
+	buf.WriteString("## API\n\n")
+
+	for _, msg := range config.Schema.Messages {
+		fmt.Fprintf(buf, "### `%s`\n\n", msg.Name)
+		fmt.Fprintf(buf, "**`static func decode(_ data: Data) throws -> %s`**\n\n", msg.Name)
+		fmt.Fprintf(buf, "Decode a `%s` from binary data.\n\n", msg.Name)
+		buf.WriteString("- **Parameter data:** Binary data (Data)\n")
+		fmt.Fprintf(buf, "- **Returns:** `%s` object\n", msg.Name)
+		buf.WriteString("- **Throws:** `FFireError` if decoding fails\n\n")
+
+		fmt.Fprintf(buf, "**`func encode() throws -> Data`**\n\n")
+		fmt.Fprintf(buf, "Encode this `%s` to binary data.\n\n", msg.Name)
+		buf.WriteString("- **Returns:** Binary data (Data)\n")
+		buf.WriteString("- **Throws:** `FFireError` if encoding fails\n\n")
+
+		buf.WriteString("**`func free()`**\n\n")
+		buf.WriteString("Manually free the native resources. Called automatically by `deinit`.\n\n")
+	}
+
+	buf.WriteString("## Error Handling\n\n")
+	buf.WriteString("The library uses Swift's error handling with the `FFireError` enum:\n\n")
+	buf.WriteString("- `FFireError.decodeFailed(String)` - Decoding failed with error message\n")
+	buf.WriteString("- `FFireError.encodeFailed(String)` - Encoding failed with error message\n")
+	buf.WriteString("- `FFireError.libraryError(String)` - General library error\n\n")
+
+	buf.WriteString("## Platform Support\n\n")
+	buf.WriteString("This package supports:\n\n")
+	buf.WriteString("- macOS 10.15+\n")
+	buf.WriteString("- iOS 13+\n")
+	buf.WriteString("- tvOS 13+\n")
+	buf.WriteString("- watchOS 6+\n\n")
+
+	buf.WriteString("The correct library is automatically loaded based on your platform:\n\n")
+	buf.WriteString("- macOS: `libffire.dylib`\n")
+	buf.WriteString("- Linux: `libffire.so`\n")
+	buf.WriteString("- Windows: `ffire.dll`\n\n")
+
+	buf.WriteString("## Memory Management\n\n")
+	buf.WriteString("Resources are automatically freed when objects are deallocated thanks to Swift's ARC and the `deinit` method. You can also manually call `free()` if needed.\n\n")
+
+	buf.WriteString("## License\n\n")
+	buf.WriteString("Generated by FFire. See your schema's license for terms.\n")
+
+	readmePath := filepath.Join(packageDir, "README.md")
+	if err := os.WriteFile(readmePath, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to write README.md: %w", err)
+	}
+
+	fmt.Printf("✓ Generated README.md: %s\n", readmePath)
+	return nil
+}

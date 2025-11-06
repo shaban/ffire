@@ -238,6 +238,76 @@ func TestJavaScriptPackageIntegration(t *testing.T) {
 	}
 }
 
+// TestSwiftPackageIntegration generates a Swift package and validates it
+func TestSwiftPackageIntegration(t *testing.T) {
+	// Create temporary directory for test output
+	tmpDir, err := os.MkdirTemp("", "ffire-test-swift-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing Swift package generation in: %s", tmpDir)
+
+	// Parse a test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate Swift package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "swift",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate Swift package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"swift/lib/libffire.dylib", // or .so on Linux
+		"swift/Sources/test/test.swift",
+		"swift/Package.swift",
+		"swift/README.md",
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Skip dylib check on non-macOS (would be .so or .dll)
+		if strings.Contains(file, ".dylib") && !fileExists(fullPath) {
+			// Try .so for Linux
+			fullPath = strings.ReplaceAll(fullPath, ".dylib", ".so")
+			if !fileExists(fullPath) {
+				// Try .dll for Windows
+				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
+			}
+		}
+
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that Swift can parse the generated code (syntax check)
+	if hasSwift() {
+		t.Log("Swift found, testing syntax...")
+		testSwiftSyntax(t, tmpDir)
+	} else {
+		t.Log("Swift not installed, skipping Swift-specific tests")
+	}
+}
+
 // Helper: Check if file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -270,6 +340,12 @@ func hasPython() bool {
 // Helper: Check if Node.js is installed
 func hasNode() bool {
 	_, err := exec.LookPath("node")
+	return err == nil
+}
+
+// Helper: Check if Swift is installed
+func hasSwift() bool {
+	_, err := exec.LookPath("swiftc")
 	return err == nil
 }
 
@@ -435,6 +511,26 @@ func testJavaScriptSyntax(t *testing.T, tmpDir string) {
 			t.Errorf("JavaScript syntax error in %s: %v\nOutput: %s", file, err, output)
 		} else if testing.Verbose() {
 			t.Logf("✓ JavaScript syntax OK: %s", file)
+		}
+	}
+}
+
+// Helper: Test Swift syntax of generated files
+func testSwiftSyntax(t *testing.T, tmpDir string) {
+	swiftFiles := []string{
+		"swift/Sources/test/test.swift",
+	}
+
+	for _, file := range swiftFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Use swiftc -parse to validate syntax without compiling
+		cmd := exec.Command("swiftc", "-parse", fullPath)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			t.Errorf("Swift syntax error in %s: %v\nOutput: %s", file, err, output)
+		} else if testing.Verbose() {
+			t.Logf("✓ Swift syntax OK: %s", file)
 		}
 	}
 }
