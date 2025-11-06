@@ -8,6 +8,25 @@ import (
 	"github.com/shaban/ffire/pkg/schema"
 )
 
+// rootTypeName extracts the type name for function naming - matches C++ generator logic
+func rootTypeName(typ schema.Type) string {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		// Capitalize first letter to match C++ generator
+		name := t.Name
+		if len(name) > 0 {
+			return strings.ToUpper(name[:1]) + name[1:]
+		}
+		return name
+	case *schema.StructType:
+		return t.Name
+	case *schema.ArrayType:
+		return rootTypeName(t.ElementType)
+	default:
+		return "Unknown"
+	}
+}
+
 // GenerateCABIHeader generates the C ABI header file
 func GenerateCABIHeader(s *schema.Schema) ([]byte, error) {
 	buf := &bytes.Buffer{}
@@ -101,11 +120,10 @@ func GenerateCABIImpl(s *schema.Schema) ([]byte, error) {
 		fmt.Fprintf(buf, "struct %s {\n", handleImplName)
 
 		// Determine if message is array or single struct
-		if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
-			// Array of structs
-			if elemStruct, ok := arrayType.ElementType.(*schema.StructType); ok {
-				fmt.Fprintf(buf, "    std::vector<%s::%s> items;  // Store full vector\n", s.Package, elemStruct.Name)
-			}
+		if _, ok := msg.TargetType.(*schema.ArrayType); ok {
+			// Array type - get the C++ return type
+			cppType := cppTypeForType(s.Package, msg.TargetType)
+			fmt.Fprintf(buf, "    %s items;  // Store full vector\n", cppType)
 		} else {
 			// Single struct
 			if structType, ok := msg.TargetType.(*schema.StructType); ok {
@@ -146,19 +164,9 @@ func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_decode"
 
-	// Determine the C++ function name based on the target type
-	var cppFuncName string
-	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
-		if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
-			cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(structType.Name))
-		} else {
-			cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
-		}
-	} else if structType, ok := msg.TargetType.(*schema.StructType); ok {
-		cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(structType.Name))
-	} else {
-		cppFuncName = fmt.Sprintf("decode_%s_message", strings.ToLower(msg.Name))
-	}
+	// Determine the C++ function name based on the target type - must match C++ generator logic
+	typeName := rootTypeName(msg.TargetType)
+	cppFuncName := fmt.Sprintf("decode_%s_message", strings.ToLower(typeName))
 
 	fmt.Fprintf(buf, "%s %s(const uint8_t* data, size_t len, char** error_msg) {\n", handleName, funcName)
 	buf.WriteString("    if (!data || len == 0) {\n")
@@ -197,19 +205,9 @@ func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 	handleImplName := msg.Name + "HandleImpl"
 	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_encode"
 
-	// Determine the C++ function name based on the target type
-	var cppFuncName string
-	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
-		if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
-			cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(structType.Name))
-		} else {
-			cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
-		}
-	} else if structType, ok := msg.TargetType.(*schema.StructType); ok {
-		cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(structType.Name))
-	} else {
-		cppFuncName = fmt.Sprintf("encode_%s_message", strings.ToLower(msg.Name))
-	}
+	// Determine the C++ function name based on the target type - must match C++ generator logic
+	typeName := rootTypeName(msg.TargetType)
+	cppFuncName := fmt.Sprintf("encode_%s_message", strings.ToLower(typeName))
 
 	fmt.Fprintf(buf, "size_t %s(%s handle, uint8_t** out_data, char** error_msg) {\n", funcName, handleName)
 	buf.WriteString("    if (!handle) {\n")
@@ -282,6 +280,48 @@ func generateGetterFunctions(buf *bytes.Buffer, s *schema.Schema, msg *schema.Me
 		fmt.Fprintf(buf, "// TODO: Implement %s\n", funcName)
 	}
 	buf.WriteString("\n")
+}
+
+// cppTypeForType returns the C++ type string for a schema type
+func cppTypeForType(packageName string, typ schema.Type) string {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		switch t.Name {
+		case "bool":
+			return "bool"
+		case "uint8":
+			return "uint8_t"
+		case "uint16":
+			return "uint16_t"
+		case "uint32":
+			return "uint32_t"
+		case "uint64":
+			return "uint64_t"
+		case "int8":
+			return "int8_t"
+		case "int16":
+			return "int16_t"
+		case "int32":
+			return "int32_t"
+		case "int64":
+			return "int64_t"
+		case "float32":
+			return "float"
+		case "float64":
+			return "double"
+		case "string":
+			return "std::string"
+		default:
+			return "void"
+		}
+	case *schema.StructType:
+		return fmt.Sprintf("%s::%s", packageName, t.Name)
+	case *schema.ArrayType:
+		elemType := cppTypeForType(packageName, t.ElementType)
+		return fmt.Sprintf("std::vector<%s>", elemType)
+	default:
+		return "void"
+	}
 }
 
 func cTypeForField(field *schema.Field) string {
