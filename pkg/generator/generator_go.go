@@ -27,6 +27,9 @@ func (g *goGenerator) uniqueVar(prefix string) string {
 }
 
 func (g *goGenerator) schemaHasStrings() bool {
+	if len(g.schema.Messages) == 0 {
+		return false
+	}
 	return g.typeContainsString(g.schema.Messages[0].TargetType)
 }
 
@@ -49,7 +52,23 @@ func (g *goGenerator) typeContainsString(typ schema.Type) bool {
 }
 
 func (g *goGenerator) schemaHasFloats() bool {
+	if len(g.schema.Messages) == 0 {
+		return false
+	}
 	return g.typeContainsFloat(g.schema.Messages[0].TargetType)
+}
+
+func (g *goGenerator) isRootPrimitiveArray() bool {
+	// Check if the root message type is []primitive (no math needed, uses unsafe bulk copy)
+	if len(g.schema.Messages) == 0 {
+		return false
+	}
+	arrType, ok := g.schema.Messages[0].TargetType.(*schema.ArrayType)
+	if !ok {
+		return false
+	}
+	_, isPrim := arrType.ElementType.(*schema.PrimitiveType)
+	return isPrim
 }
 
 func (g *goGenerator) typeContainsFloat(typ schema.Type) bool {
@@ -102,8 +121,9 @@ func (g *goGenerator) generate() ([]byte, error) {
 	// Imports
 	g.buf.WriteString("import (\n")
 	g.buf.WriteString("\"bytes\"\n")
-	// Only import math if schema contains floats (needed for Float32bits/Float64bits)
-	if g.schemaHasFloats() {
+	// Only import math if schema contains floats that need math.Float*bits
+	// (not needed for root-level primitive arrays which use unsafe bulk copy)
+	if g.schemaHasFloats() && !g.isRootPrimitiveArray() {
 		g.buf.WriteString("\"math\"\n")
 	}
 	// Import unsafe for zero-copy array encoding (reinterpret []T as []byte)
@@ -640,9 +660,50 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 	// Allocate slice
 	sliceVar := g.uniqueVar("tmpSlice")
 	fmt.Fprintf(g.buf, "%s := make([]%s, %s)\n", sliceVar, elemTypeStr, lenVar)
-	fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
-	g.generateDecodeValueDirect(dataVar, posVar, sliceVar+"[i]", typ.ElementType, false)
-	g.buf.WriteString("}\n")
+
+	// Optimization: use bulk copy for fixed-size primitive arrays
+	if primType, ok := typ.ElementType.(*schema.PrimitiveType); ok && !primType.Optional {
+		switch primType.Name {
+		case "int8", "bool":
+			// 1-byte types: direct unsafe.Slice copy
+			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
+			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n", 
+				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s += int(%s)\n", posVar, lenVar)
+			fmt.Fprintf(g.buf, "}\n")
+		case "int16":
+			// 2-byte types
+			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
+			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
+				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s += int(%s) * 2\n", posVar, lenVar)
+			fmt.Fprintf(g.buf, "}\n")
+		case "int32", "float32":
+			// 4-byte types
+			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
+			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
+				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s += int(%s) * 4\n", posVar, lenVar)
+			fmt.Fprintf(g.buf, "}\n")
+		case "int64", "float64":
+			// 8-byte types
+			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
+			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
+				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s += int(%s) * 8\n", posVar, lenVar)
+			fmt.Fprintf(g.buf, "}\n")
+		default:
+			// Fallback for unknown primitives (shouldn't happen)
+			fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
+			g.generateDecodeValueDirect(dataVar, posVar, sliceVar+"[i]", typ.ElementType, false)
+			g.buf.WriteString("}\n")
+		}
+	} else {
+		// Non-primitive or optional element: use element-by-element decode
+		fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
+		g.generateDecodeValueDirect(dataVar, posVar, sliceVar+"[i]", typ.ElementType, false)
+		g.buf.WriteString("}\n")
+	}
 
 	if typ.Optional {
 		fmt.Fprintf(g.buf, "%s = &%s\n", resultVar, sliceVar)
