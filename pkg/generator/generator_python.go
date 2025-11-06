@@ -224,6 +224,64 @@ from .bindings import (
 	return nil
 }
 
+// GeneratePythonPackage generates a complete Python package using the orchestrator
+func GeneratePythonPackage(config *PackageConfig) error {
+	return orchestrateTierBPackage(
+		config,
+		PythonLayout,
+		generatePythonWrapperOrchestrated,
+		generatePythonMetadataOrchestrated,
+		printPythonInstructions,
+	)
+}
+
+func generatePythonWrapperOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Generate Python bindings
+	if err := generatePythonWrapper(config, paths.Package); err != nil {
+		return err
+	}
+
+	// Generate __init__.py
+	if err := generatePythonInit(config, paths.Package); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func generatePythonMetadataOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Generate setup.py
+	if err := generatePythonSetup(config, paths.Root); err != nil {
+		return err
+	}
+
+	// Generate README.md
+	if err := generatePythonReadme(config, paths.Root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func printPythonInstructions(config *PackageConfig, paths *PackagePaths) {
+	fmt.Printf("\n✅ Python package ready at: %s\n\n", paths.Root)
+	fmt.Println("Installation:")
+	fmt.Printf("  cd %s\n\n", paths.Root)
+	fmt.Println("  # Recommended: Use a virtual environment")
+	fmt.Println("  python3 -m venv venv")
+	fmt.Println("  source venv/bin/activate  # On Windows: venv\\Scripts\\activate")
+	fmt.Println("  pip install .")
+	fmt.Println()
+	fmt.Println("  # Alternative: Install for current user only")
+	fmt.Println("  pip install --user .")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Printf("  from %s import Message\n", config.Namespace)
+	fmt.Println("  msg = Message.decode(data)")
+	fmt.Println("  encoded = msg.encode()")
+	fmt.Println()
+}
+
 // generatePythonReadme generates a comprehensive README for the Python package
 func generatePythonReadme(config *PackageConfig, langDir string) error {
 	buf := &bytes.Buffer{}

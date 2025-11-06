@@ -48,7 +48,7 @@ func TestRubyPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"ruby/lib/libffire.dylib",     // or .so on Linux
+		"ruby/lib/libffire.dylib", // or .so on Linux
 		"ruby/lib/test.rb",
 		"ruby/lib/test/bindings.rb",
 		"ruby/lib/test/message.rb",
@@ -69,7 +69,7 @@ func TestRubyPackageIntegration(t *testing.T) {
 				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
 			}
 		}
-		
+
 		if !fileExists(fullPath) {
 			t.Errorf("Expected file not found: %s", file)
 		}
@@ -79,7 +79,7 @@ func TestRubyPackageIntegration(t *testing.T) {
 	if hasRuby() {
 		t.Log("Ruby found, testing syntax...")
 		testRubySyntax(t, tmpDir)
-		
+
 		// If FFI gem is available, test actual loading
 		if hasFFIGem() {
 			t.Log("FFI gem found, testing library loading...")
@@ -94,12 +94,148 @@ func TestRubyPackageIntegration(t *testing.T) {
 
 // TestPythonPackageIntegration generates a Python package and validates it
 func TestPythonPackageIntegration(t *testing.T) {
-	t.Skip("TODO: Implement after Python generator refactoring")
+	// Create temporary directory for test output
+	tmpDir, err := os.MkdirTemp("", "ffire-test-python-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing Python package generation in: %s", tmpDir)
+
+	// Parse a test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate Python package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "python",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate Python package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"python/test/libffire.dylib", // or .so on Linux (in package dir for Python)
+		"python/test/__init__.py",
+		"python/test/bindings.py",
+		"python/setup.py",
+		"python/README.md",
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Skip dylib check on non-macOS (would be .so or .dll)
+		if strings.Contains(file, ".dylib") && !fileExists(fullPath) {
+			// Try .so for Linux
+			fullPath = strings.ReplaceAll(fullPath, ".dylib", ".so")
+			if !fileExists(fullPath) {
+				// Try .dll for Windows
+				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
+			}
+		}
+
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that Python can parse the generated code (syntax check)
+	if hasPython() {
+		t.Log("Python found, testing syntax...")
+		testPythonSyntax(t, tmpDir)
+
+		// Test that Python can import the module
+		t.Log("Testing Python module import...")
+		testPythonImport(t, tmpDir)
+	} else {
+		t.Log("Python not installed, skipping Python-specific tests")
+	}
 }
 
 // TestJavaScriptPackageIntegration generates a JavaScript package and validates it
 func TestJavaScriptPackageIntegration(t *testing.T) {
-	t.Skip("TODO: Implement after JavaScript generator refactoring")
+	// Create temporary directory for test output
+	tmpDir, err := os.MkdirTemp("", "ffire-test-javascript-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing JavaScript package generation in: %s", tmpDir)
+
+	// Parse a test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate JavaScript package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "javascript",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate JavaScript package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"javascript/lib/libffire.dylib", // or .so on Linux
+		"javascript/index.js",
+		"javascript/index.d.ts",
+		"javascript/package.json",
+		"javascript/README.md",
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Skip dylib check on non-macOS (would be .so or .dll)
+		if strings.Contains(file, ".dylib") && !fileExists(fullPath) {
+			// Try .so for Linux
+			fullPath = strings.ReplaceAll(fullPath, ".dylib", ".so")
+			if !fileExists(fullPath) {
+				// Try .dll for Windows
+				fullPath = strings.ReplaceAll(fullPath, ".so", ".dll")
+			}
+		}
+
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that Node.js can parse the generated code (syntax check)
+	if hasNode() {
+		t.Log("Node.js found, testing syntax...")
+		testJavaScriptSyntax(t, tmpDir)
+	} else {
+		t.Log("Node.js not installed, skipping JavaScript-specific tests")
+	}
 }
 
 // Helper: Check if file exists
@@ -121,6 +257,22 @@ func hasFFIGem() bool {
 	return err == nil && strings.Contains(string(output), "ok")
 }
 
+// Helper: Check if Python is installed
+func hasPython() bool {
+	_, err := exec.LookPath("python3")
+	if err == nil {
+		return true
+	}
+	_, err = exec.LookPath("python")
+	return err == nil
+}
+
+// Helper: Check if Node.js is installed
+func hasNode() bool {
+	_, err := exec.LookPath("node")
+	return err == nil
+}
+
 // Helper: Test Ruby syntax of generated files
 func testRubySyntax(t *testing.T, tmpDir string) {
 	rubyFiles := []string{
@@ -134,7 +286,7 @@ func testRubySyntax(t *testing.T, tmpDir string) {
 		fullPath := filepath.Join(tmpDir, file)
 		cmd := exec.Command("ruby", "-c", fullPath)
 		output, err := cmd.CombinedOutput()
-		
+
 		if err != nil {
 			t.Errorf("Ruby syntax error in %s: %v\nOutput: %s", file, err, output)
 		} else if testing.Verbose() {
@@ -176,7 +328,7 @@ end
 
 	cmd := exec.Command("ruby", scriptPath, tmpDir)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		t.Errorf("Failed to load Ruby module: %v\nOutput: %s", err, output)
 	} else if strings.Contains(string(output), "OK:") {
@@ -185,6 +337,105 @@ end
 		}
 	} else {
 		t.Errorf("Unexpected output from Ruby test: %s", output)
+	}
+}
+
+// Helper: Test Python syntax of generated files
+func testPythonSyntax(t *testing.T, tmpDir string) {
+	pythonFiles := []string{
+		"python/test/__init__.py",
+		"python/test/bindings.py",
+	}
+
+	pythonCmd := "python3"
+	if !hasPython() {
+		return
+	}
+	// Check if python3 exists, otherwise use python
+	if _, err := exec.LookPath("python3"); err != nil {
+		pythonCmd = "python"
+	}
+
+	for _, file := range pythonFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		cmd := exec.Command(pythonCmd, "-m", "py_compile", fullPath)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			t.Errorf("Python syntax error in %s: %v\nOutput: %s", file, err, output)
+		} else if testing.Verbose() {
+			t.Logf("✓ Python syntax OK: %s", file)
+		}
+	}
+}
+
+// Helper: Test that Python can import the module
+func testPythonImport(t *testing.T, tmpDir string) {
+	pythonCmd := "python3"
+	if _, err := exec.LookPath("python3"); err != nil {
+		pythonCmd = "python"
+	}
+
+	// Create a test script that tries to import the module
+	testScript := `
+import sys
+import os
+sys.path.insert(0, os.path.join(sys.argv[1], 'python'))
+try:
+    import test
+    
+    # Check that the module and class exist
+    if hasattr(test, 'Message'):
+        print("OK: Module imported successfully")
+        sys.exit(0)
+    else:
+        print("ERROR: Module imported but classes not defined")
+        sys.exit(1)
+except ImportError as e:
+    print(f"ERROR: Failed to import module: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+`
+
+	scriptPath := filepath.Join(tmpDir, "test_import.py")
+	err := os.WriteFile(scriptPath, []byte(testScript), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test script: %v", err)
+	}
+
+	cmd := exec.Command(pythonCmd, scriptPath, tmpDir)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Errorf("Failed to import Python module: %v\nOutput: %s", err, output)
+	} else if strings.Contains(string(output), "OK:") {
+		if testing.Verbose() {
+			t.Logf("✓ Python module imported successfully")
+		}
+	} else {
+		t.Errorf("Unexpected output from Python test: %s", output)
+	}
+}
+
+// Helper: Test JavaScript syntax of generated files
+func testJavaScriptSyntax(t *testing.T, tmpDir string) {
+	jsFiles := []string{
+		"javascript/index.js",
+	}
+
+	for _, file := range jsFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		// Use node --check to validate syntax without executing
+		cmd := exec.Command("node", "--check", fullPath)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			t.Errorf("JavaScript syntax error in %s: %v\nOutput: %s", file, err, output)
+		} else if testing.Verbose() {
+			t.Logf("✓ JavaScript syntax OK: %s", file)
+		}
 	}
 }
 
@@ -266,7 +517,7 @@ func TestPackageNoCompile(t *testing.T) {
 	dylibFile := filepath.Join(tmpDir, "ruby/lib/libffire.dylib")
 	soFile := filepath.Join(tmpDir, "ruby/lib/libffire.so")
 	dllFile := filepath.Join(tmpDir, "ruby/lib/ffire.dll")
-	
+
 	if fileExists(dylibFile) || fileExists(soFile) || fileExists(dllFile) {
 		t.Errorf("Dylib should not exist with --no-compile flag")
 	}

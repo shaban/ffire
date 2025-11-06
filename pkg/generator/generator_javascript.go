@@ -10,6 +10,64 @@ import (
 	"github.com/shaban/ffire/pkg/schema"
 )
 
+// GenerateJavaScriptPackage generates a complete JavaScript/Node.js package using the orchestrator
+func GenerateJavaScriptPackage(config *PackageConfig) error {
+	return orchestrateTierBPackage(
+		config,
+		JavaScriptLayout,
+		generateJavaScriptWrapperOrchestrated,
+		generateJavaScriptMetadataOrchestrated,
+		printJavaScriptInstructions,
+	)
+}
+
+func generateJavaScriptWrapperOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Generate JavaScript wrapper
+	if err := generateJavaScriptWrapper(config, paths.Root); err != nil {
+		return err
+	}
+
+	// Generate TypeScript definitions
+	if err := generateTypeScriptDefinitions(config, paths.Root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func generateJavaScriptMetadataOrchestrated(config *PackageConfig, paths *PackagePaths) error {
+	// Generate package.json
+	if err := generateJavaScriptPackageJson(config, paths.Root); err != nil {
+		return err
+	}
+
+	// Generate README.md
+	if err := generateJavaScriptReadme(config, paths.Root); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func printJavaScriptInstructions(config *PackageConfig, paths *PackagePaths) {
+	fmt.Printf("\n✅ JavaScript/Node.js package ready at: %s\n\n", paths.Root)
+	fmt.Println("Installation:")
+	fmt.Printf("  cd %s\n", paths.Root)
+	fmt.Println("  npm install")
+	fmt.Println()
+	fmt.Println("Usage (JavaScript):")
+	fmt.Printf("  const { Message } = require('%s');\n", config.Namespace)
+	fmt.Println("  const msg = Message.decode(data);")
+	fmt.Println("  const encoded = msg.encode();")
+	fmt.Println("  msg.free();")
+	fmt.Println()
+	fmt.Println("Usage (TypeScript):")
+	fmt.Printf("  import { Message } from '%s';\n", config.Namespace)
+	fmt.Println("  const msg: Message = Message.decode(data);")
+	fmt.Println("  const encoded: Buffer = msg.encode();")
+	fmt.Println()
+}
+
 // generateJavaScriptWrapper generates the FFI wrapper with JSDoc
 func generateJavaScriptWrapper(config *PackageConfig, packageDir string) error {
 	buf := &bytes.Buffer{}
