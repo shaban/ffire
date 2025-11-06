@@ -138,6 +138,8 @@ func generateTierBPackage(config *PackageConfig) error {
 		return generateJavaPackage(config)
 	case "csharp":
 		return generateCSharpPackage(config)
+	case "dart":
+		return generateDartPackage(config)
 	default:
 		return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
 	}
@@ -320,4 +322,8 @@ func generateJavaPackage(config *PackageConfig) error {
 
 func generateCSharpPackage(config *PackageConfig) error {
 	return GenerateCSharpPackage(config)
+}
+
+func generateDartPackage(config *PackageConfig) error {
+	return GenerateDartPackage(config)
 }

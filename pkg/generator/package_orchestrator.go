@@ -59,6 +59,11 @@ var (
 		Name:         "csharp",
 		LibInPackage: false, // C#: lib/libffire.dll
 	}
+
+	DartLayout = DirectoryLayout{
+		Name:         "dart",
+		LibInPackage: false, // Dart: lib/libffire.dylib
+	}
 )
 
 // setupPackageDirectories creates the standard directory structure

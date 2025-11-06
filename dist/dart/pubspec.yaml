@@ -1,0 +1,9 @@
+name: test
+description: Dart FFI bindings for ffire schema
+version: 1.0.0
+
+environment:
+  sdk: '>=2.17.0 <4.0.0'
+
+dependencies:
+  ffi: ^2.0.0
