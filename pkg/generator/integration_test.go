@@ -457,6 +457,67 @@ func TestJavaPackageIntegration(t *testing.T) {
 	}
 }
 
+// TestCSharpPackageIntegration tests C# package generation
+func TestCSharpPackageIntegration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "ffire-test-csharp-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Logf("Testing C# package generation in: %s", tmpDir)
+
+	// Parse test schema
+	schemaPath := "../../testdata/schema/complex.ffi"
+	schema, err := parser.Parse(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed to parse schema: %v", err)
+	}
+
+	// Generate package
+	config := &PackageConfig{
+		Schema:    schema,
+		Language:  "csharp",
+		OutputDir: tmpDir,
+		Optimize:  2,
+		Platform:  "current",
+		Arch:      "current",
+		Namespace: schema.Package,
+		NoCompile: false,
+		Verbose:   testing.Verbose(),
+	}
+
+	err = GeneratePackage(config)
+	if err != nil {
+		t.Fatalf("Failed to generate C# package: %v", err)
+	}
+
+	// Verify expected files exist
+	expectedFiles := []string{
+		"csharp/src/Test/Message.cs",
+		"csharp/src/Test/TestException.cs",
+		"csharp/src/Test/NativeLibrary.cs",
+		"csharp/src/Test/Test.csproj",
+		"csharp/README.md",
+		"csharp/lib/libffire.dylib", // or .so on Linux
+	}
+
+	for _, file := range expectedFiles {
+		fullPath := filepath.Join(tmpDir, file)
+		if !fileExists(fullPath) {
+			t.Errorf("Expected file not found: %s", file)
+		}
+	}
+
+	// Test that C# can compile the generated code
+	if hasDotNet() {
+		t.Log(".NET found, testing compilation...")
+		testCSharpCompilation(t, tmpDir)
+	} else {
+		t.Log(".NET not installed, skipping C#-specific tests")
+	}
+}
+
 // Helper: Check if file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -541,26 +602,53 @@ func testJavaCompilation(t *testing.T, tmpDir string) {
 
 	args := []string{"-d", targetDir}
 	args = append(args, javaFiles...)
-	
+
 	cmd := exec.Command("javac", args...)
 	cmd.Dir = javaDir
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		t.Fatalf("Java compilation failed: %v\nOutput: %s", err, string(output))
 	}
-	
+
 	// Verify class files were created
 	classFiles := []string{
 		filepath.Join(targetDir, "com", "ffire", "test", "Message.class"),
 		filepath.Join(targetDir, "com", "ffire", "test", "FFireException.class"),
 		filepath.Join(targetDir, "com", "ffire", "test", "NativeLibrary.class"),
 	}
-	
+
 	for _, classFile := range classFiles {
 		if _, err := os.Stat(classFile); os.IsNotExist(err) {
 			t.Errorf("Expected class file not found: %s", classFile)
 		}
+	}
+}
+
+// Helper: Check if .NET is installed
+func hasDotNet() bool {
+	_, err := exec.LookPath("dotnet")
+	return err == nil
+}
+
+// Helper: Test C# compilation of generated files
+func testCSharpCompilation(t *testing.T, tmpDir string) {
+	csharpDir := filepath.Join(tmpDir, "csharp")
+	projectDir := filepath.Join(csharpDir, "src", "Test")
+	
+	// Build the C# project
+	cmd := exec.Command("dotnet", "build")
+	cmd.Dir = projectDir
+	output, err := cmd.CombinedOutput()
+	
+	if err != nil {
+		t.Fatalf("C# compilation failed: %v\nOutput: %s", err, string(output))
+	}
+	
+	// Verify DLL was created
+	dllPath := filepath.Join(projectDir, "bin", "Debug", "net6.0", "Test.dll")
+	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
+		t.Errorf("Expected DLL not found: %s", dllPath)
 	}
 }
 

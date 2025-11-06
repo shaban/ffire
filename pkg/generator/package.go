@@ -136,6 +136,8 @@ func generateTierBPackage(config *PackageConfig) error {
 		return generatePHPPackage(config)
 	case "java":
 		return generateJavaPackage(config)
+	case "csharp":
+		return generateCSharpPackage(config)
 	default:
 		return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
 	}
@@ -314,4 +316,8 @@ func generatePHPPackage(config *PackageConfig) error {
 
 func generateJavaPackage(config *PackageConfig) error {
 	return GenerateJavaPackage(config)
+}
+
+func generateCSharpPackage(config *PackageConfig) error {
+	return GenerateCSharpPackage(config)
 }

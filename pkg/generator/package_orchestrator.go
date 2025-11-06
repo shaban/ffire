@@ -54,6 +54,11 @@ var (
 		Name:         "java",
 		LibInPackage: false, // Java: lib/libffire.so
 	}
+
+	CSharpLayout = DirectoryLayout{
+		Name:         "csharp",
+		LibInPackage: false, // C#: lib/libffire.dll
+	}
 )
 
 // setupPackageDirectories creates the standard directory structure

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>Test</RootNamespace>
+    <AssemblyName>Test</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>FFireGenerator</Authors>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+</Project>
