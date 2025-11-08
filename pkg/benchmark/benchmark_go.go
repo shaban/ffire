@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/shaban/ffire/pkg/fixture"
@@ -28,7 +29,14 @@ func GenerateGo(s *schema.Schema, schemaName string, messageName string, jsonDat
 
 	// Rewrite package declaration to "main" for single-directory benchmark
 	generatedCodeStr := string(generatedCode)
-	generatedCodeStr = "package main\n" + generatedCodeStr[len("package ")+len(s.Package)+2:] // Skip original package line
+	// Find the package line (after the generated comment)
+	packageLine := "package " + s.Package + "\n"
+	packageIdx := strings.Index(generatedCodeStr, packageLine)
+	if packageIdx == -1 {
+		return fmt.Errorf("could not find package declaration in generated code")
+	}
+	// Keep everything before the package line, replace it with "package main", then add the rest
+	generatedCodeStr = generatedCodeStr[:packageIdx] + "package main\n" + generatedCodeStr[packageIdx+len(packageLine):]
 
 	// Write generated code
 	generatedFile := filepath.Join(outputDir, "generated.go")
