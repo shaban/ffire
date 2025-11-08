@@ -48,6 +48,22 @@ func TestValidateSchemaNoMessages(t *testing.T) {
 	}
 }
 
+func TestValidateSchemaRootTypeNotExported(t *testing.T) {
+	s := &schema.Schema{
+		Package: "test",
+		Messages: []schema.MessageType{
+			{
+				Name:       "message", // lowercase - not exported
+				TargetType: &schema.PrimitiveType{Name: "int32"},
+			},
+		},
+	}
+
+	if err := ValidateSchema(s); err == nil {
+		t.Error("Expected error for non-exported root type")
+	}
+}
+
 func TestValidateSchemaEmptyStruct(t *testing.T) {
 	s := &schema.Schema{
 		Package: "test",

@@ -26,6 +26,10 @@ func ValidateSchema(s *schema.Schema) error {
 		if msg.Name == "" {
 			return errors.New(errors.ErrEmptyMessageName, "message type name cannot be empty")
 		}
+		// Root types must be exported (start with uppercase letter)
+		if len(msg.Name) > 0 && msg.Name[0] >= 'a' && msg.Name[0] <= 'z' {
+			return errors.Newf(errors.ErrEmptyMessageName, "root type %s must be exported (start with uppercase letter)", msg.Name)
+		}
 		if msg.TargetType == nil {
 			return errors.Newf(errors.ErrNilTargetType, "message %s: target type cannot be nil", msg.Name)
 		}
