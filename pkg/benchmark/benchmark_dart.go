@@ -81,20 +81,20 @@ void main() async {
   
   // Warmup
   for (var i = 0; i < 1000; i++) {
-    final msg = Message.decode(fixtureData);
+    final msg = %s.decode(fixtureData);
     final encoded = msg.encode();
   }
   
   // Benchmark decode
   final decodeStart = DateTime.now();
   for (var i = 0; i < iterations; i++) {
-    final msg = Message.decode(fixtureData);
+    final msg = %s.decode(fixtureData);
   }
   final decodeEnd = DateTime.now();
   final decodeTime = decodeEnd.difference(decodeStart);
   
   // Benchmark encode (decode once, then encode many times)
-  final msg = Message.decode(fixtureData);
+  final msg = %s.decode(fixtureData);
   final encodeStart = DateTime.now();
   var encoded;
   for (var i = 0; i < iterations; i++) {
@@ -135,7 +135,7 @@ void main() async {
     print('Total time:  ${(encodeTime.inMilliseconds + decodeTime.inMilliseconds) / 1000}s');
   }
 }
-`, schemaName, schemaName, iterations, schemaName, schemaName)
+`, schemaName, schemaName, iterations, messageName, messageName, messageName, messageName, messageName)
 
 	return buf.String()
 }

@@ -97,7 +97,7 @@ spec = importlib.util.spec_from_file_location('ffire_generated_pkg', pkg_init)
 pkg = importlib.util.module_from_spec(spec)
 sys.modules['ffire_generated_pkg'] = pkg
 spec.loader.exec_module(pkg)
-Message = pkg.Message
+Message = pkg.%s
 
 # Restore original sys.path for any future imports
 if original_path0 is not None and (not sys.path or sys.path[0] != original_path0):
@@ -166,7 +166,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-`, schemaName, schemaName, iterations, schemaName, schemaName)
+`, schemaName, schemaName, messageName, iterations, messageName, messageName)
 
 	return buf.String()
 }
