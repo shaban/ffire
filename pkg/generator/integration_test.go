@@ -48,10 +48,10 @@ func TestRubyPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"ruby/lib/libffire.dylib", // or .so on Linux
+		"ruby/lib/libtest.dylib", // or .so on Linux (package name is "test")
 		"ruby/lib/test.rb",
 		"ruby/lib/test/bindings.rb",
-		"ruby/lib/test/message.rb",
+		"ruby/lib/test/pluginlist.rb", // Root type is PluginList
 		"ruby/lib/test/version.rb",
 		"ruby/test.gemspec",
 		"ruby/Gemfile",
@@ -130,7 +130,7 @@ func TestPythonPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"python/test/libffire.dylib", // or .so on Linux (in package dir for Python)
+		"python/test/libtest.dylib", // or .so on Linux (package name is "test")
 		"python/test/__init__.py",
 		"python/test/bindings.py",
 		"python/setup.py",
@@ -205,7 +205,7 @@ func TestJavaScriptPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"javascript/lib/libffire.dylib", // or .so on Linux
+		"javascript/lib/libtest.dylib", // or .so on Linux (package name is "test")
 		"javascript/index.js",
 		"javascript/index.d.ts",
 		"javascript/package.json",
@@ -276,7 +276,7 @@ func TestSwiftPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"swift/lib/libffire.dylib", // or .so on Linux
+		"swift/lib/libtest.dylib", // or .so on Linux (package name is "test")
 		"swift/Sources/test/test.swift",
 		"swift/Package.swift",
 		"swift/README.md",
@@ -346,7 +346,7 @@ func TestPHPPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"php/lib/libffire.dylib", // or .so on Linux
+		"php/lib/libtest.dylib", // or .so on Linux (package name is "test")
 		"php/src/Test.php",
 		"php/composer.json",
 		"php/README.md",
@@ -423,8 +423,8 @@ func TestJavaPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"java/lib/libffire.dylib", // or .so on Linux
-		"java/src/main/java/com/ffire/test/Message.java",
+		"java/lib/libtest.dylib", // or .so on Linux (package name is "test")
+		"java/src/main/java/com/ffire/test/PluginList.java", // Root type is PluginList
 		"java/src/main/java/com/ffire/test/FFireException.java",
 		"java/src/main/java/com/ffire/test/NativeLibrary.java",
 		"java/pom.xml",
@@ -494,12 +494,12 @@ func TestCSharpPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"csharp/src/Test/Message.cs",
+		"csharp/src/Test/Message.cs", // C# generator still uses hardcoded Message.cs (needs update)
 		"csharp/src/Test/TestException.cs",
 		"csharp/src/Test/NativeLibrary.cs",
 		"csharp/src/Test/Test.csproj",
 		"csharp/README.md",
-		"csharp/lib/libffire.dylib", // or .so on Linux
+		"csharp/lib/libtest.dylib", // or .so on Linux (package name is "test")
 	}
 
 	for _, file := range expectedFiles {
@@ -558,7 +558,7 @@ func TestDartPackageIntegration(t *testing.T) {
 		"dart/lib/test.dart",
 		"dart/pubspec.yaml",
 		"dart/README.md",
-		"dart/lib/libffire.dylib", // or .so on Linux
+		"dart/lib/libtest.dylib", // or .so on Linux (package name is "test")
 	}
 
 	for _, file := range expectedFiles {
@@ -654,7 +654,7 @@ func testJavaCompilation(t *testing.T, tmpDir string) {
 
 	// Compile all Java files
 	javaFiles := []string{
-		filepath.Join(srcDir, "Message.java"),
+		filepath.Join(srcDir, "PluginList.java"), // Root type is PluginList
 		filepath.Join(srcDir, "FFireException.java"),
 		filepath.Join(srcDir, "NativeLibrary.java"),
 	}
@@ -672,7 +672,7 @@ func testJavaCompilation(t *testing.T, tmpDir string) {
 
 	// Verify class files were created
 	classFiles := []string{
-		filepath.Join(targetDir, "com", "ffire", "test", "Message.class"),
+		filepath.Join(targetDir, "com", "ffire", "test", "PluginList.class"), // Root type is PluginList
 		filepath.Join(targetDir, "com", "ffire", "test", "FFireException.class"),
 		filepath.Join(targetDir, "com", "ffire", "test", "NativeLibrary.class"),
 	}
@@ -747,7 +747,7 @@ func testRubySyntax(t *testing.T, tmpDir string) {
 	rubyFiles := []string{
 		"ruby/lib/test.rb",
 		"ruby/lib/test/bindings.rb",
-		"ruby/lib/test/message.rb",
+		"ruby/lib/test/pluginlist.rb", // Root type is PluginList
 		"ruby/lib/test/version.rb",
 	}
 
@@ -773,7 +773,7 @@ begin
   require 'test'
   
   # Check that the module and class exist
-  if defined?(Test) && defined?(Test::Message)
+  if defined?(Test) && defined?(Test::PluginList)
     puts "OK: Module loaded successfully"
     exit 0
   else
@@ -854,7 +854,7 @@ try:
     import test
     
     # Check that the module and class exist
-    if hasattr(test, 'Message'):
+    if hasattr(test, 'PluginList'):
         print("OK: Module imported successfully")
         sys.exit(0)
     else:
@@ -1023,9 +1023,9 @@ func TestPackageNoCompile(t *testing.T) {
 	}
 
 	// Dylib should NOT exist (because we didn't compile)
-	dylibFile := filepath.Join(tmpDir, "ruby/lib/libffire.dylib")
-	soFile := filepath.Join(tmpDir, "ruby/lib/libffire.so")
-	dllFile := filepath.Join(tmpDir, "ruby/lib/ffire.dll")
+	dylibFile := filepath.Join(tmpDir, "ruby/lib/libtest.dylib")
+	soFile := filepath.Join(tmpDir, "ruby/lib/libtest.so")
+	dllFile := filepath.Join(tmpDir, "ruby/lib/test.dll")
 
 	if fileExists(dylibFile) || fileExists(soFile) || fileExists(dllFile) {
 		t.Errorf("Dylib should not exist with --no-compile flag")
