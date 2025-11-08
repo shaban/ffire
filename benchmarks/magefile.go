@@ -203,6 +203,21 @@ func GenAll() error {
 		}
 	}
 
+	// Generate ffire JavaScript benchmarks
+	for _, suite := range suites {
+		fmt.Printf("🟨 Generating ffire JavaScript benchmark: %s\n", suite.Name)
+		if err := sh.Run("ffire", "bench",
+			"--lang", "javascript",
+			"--schema", suite.SchemaFile,
+			"--json", suite.JSONFile,
+			"--output", filepath.Join(genDir, "ffire_javascript_"+suite.Name),
+			"--iterations", "10000",
+		); err != nil {
+			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
+			continue
+		}
+	}
+
 	// Generate protobuf benchmarks (only for those with .proto files)
 	for _, suite := range suites {
 		if _, err := os.Stat(suite.ProtoFile); err == nil {
@@ -517,6 +532,55 @@ func RunSwift() error {
 	return saveResults(allResults, "ffire_swift")
 }
 
+// RunJavaScript runs the JavaScript (Node.js) benchmarks
+func RunJavaScript() error {
+	fmt.Println("\n🏃 Running ffire JavaScript benchmarks...")
+
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		fmt.Println("  ⚠️  node not found (skipping)")
+		return nil
+	}
+
+	// Find all JavaScript benchmark directories
+	pattern := filepath.Join(genDir, "ffire_javascript_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No JavaScript benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_javascript_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runJavaScriptBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_javascript")
+}
+
 // Compare generates comparison table from all results
 func Compare() error {
 	fmt.Println("\n📊 Generating comparison table...")
@@ -715,30 +779,83 @@ func runSwiftBench(dir string) (BenchResult, error) {
 	// Swift benchmarks are in the swift/ subdirectory
 	swiftDir := filepath.Join(dir, "swift")
 
-	// Build the Swift package if needed
-	buildDir := filepath.Join(swiftDir, ".build")
-	if _, err := os.Stat(buildDir); os.IsNotExist(err) {
-		fmt.Printf("    Building Swift package...\n")
-		cmd := exec.Command("swift", "build", "-c", "release")
-		cmd.Dir = swiftDir
-		if err := cmd.Run(); err != nil {
-			return BenchResult{}, fmt.Errorf("swift build failed: %w", err)
+	// Workaround: ffire bench generates libtest.dylib but bench.swift expects lib{schema}.dylib
+	// Create symlink if needed
+	libDir := filepath.Join(swiftDir, "lib")
+	testLib := filepath.Join(libDir, "libtest.dylib")
+	if _, err := os.Stat(testLib); err == nil {
+		// Extract schema name from directory
+		schemaName := strings.TrimPrefix(filepath.Base(dir), "ffire_swift_")
+		expectedLib := filepath.Join(libDir, fmt.Sprintf("lib%s.dylib", schemaName))
+		if _, err := os.Stat(expectedLib); os.IsNotExist(err) {
+			// Create symlink
+			os.Symlink("libtest.dylib", expectedLib)
 		}
 	}
 
-	// Run benchmark with JSON output
+	// Build and run benchmark using Swift Package Manager
+	// The benchmark is an executable target that imports the generated package
+	absLibDir, err := filepath.Abs(filepath.Join(swiftDir, "lib"))
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("failed to get absolute lib path: %w", err)
+	}
+
+	fmt.Printf("    Building and running Swift benchmark...\n")
 	cmd := exec.Command("swift", "run", "-c", "release", "bench")
 	cmd.Dir = swiftDir
-	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+	cmd.Env = append(os.Environ(),
+		"BENCH_JSON=1",
+		"DYLD_LIBRARY_PATH="+absLibDir,
+	)
 
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
+		}
 		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
 	}
 
 	var result BenchResult
 	if err := json.Unmarshal(output, &result); err != nil {
-		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w", err)
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
+	}
+
+	return result, nil
+}
+
+func runJavaScriptBench(dir string) (BenchResult, error) {
+	// JavaScript benchmarks are in the javascript/ subdirectory
+	jsDir := filepath.Join(dir, "javascript")
+
+	// Check if node_modules exists, if not run npm install
+	nodeModules := filepath.Join(jsDir, "node_modules")
+	if _, err := os.Stat(nodeModules); os.IsNotExist(err) {
+		fmt.Printf("    Installing dependencies...\n")
+		cmd := exec.Command("npm", "install")
+		cmd.Dir = jsDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return BenchResult{}, fmt.Errorf("npm install failed: %w\nOutput: %s", err, output)
+		}
+	}
+
+	// Run benchmark
+	fmt.Printf("    Running JavaScript benchmark...\n")
+	cmd := exec.Command("node", "bench.js")
+	cmd.Dir = jsDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
+		}
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
 	}
 
 	return result, nil
@@ -814,18 +931,19 @@ func saveMarkdownTable(results []BenchResult) error {
 }
 
 func inferMessageType(name string, jsonData []byte) string {
-	// Map schema names to protobuf message types (root message in each .proto)
+	// Map schema names to generated message type names
+	// Note: ffire generators automatically append "Message" suffix to avoid keyword collisions
 	typeMap := map[string]string{
-		"complex":      "PluginList",
-		"array_float":  "FloatList",
-		"array_int":    "IntList",
-		"array_string": "StringList",
-		"array_struct": "DeviceList",
-		"empty":        "EmptyTest",
-		"nested":       "Level1",
-		"optional":     "RecordList",
-		"struct":       "Config",
-		"tags":         "User",
+		"complex":      "PluginListMessage",
+		"array_float":  "FloatListMessage",
+		"array_int":    "IntListMessage",
+		"array_string": "StringListMessage",
+		"array_struct": "DeviceListMessage",
+		"empty":        "EmptyTestMessage",
+		"nested":       "Level1Message",
+		"optional":     "RecordListMessage",
+		"struct":       "ConfigMessage",
+		"tags":         "UserMessage",
 	}
 
 	if typeName, ok := typeMap[name]; ok {

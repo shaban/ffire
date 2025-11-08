@@ -18,11 +18,12 @@ func GenerateJavaScript(schema *schema.Schema, schemaName, messageName string, j
 	}
 
 	// Step 1: Generate the JavaScript package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "javascript",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",
@@ -68,95 +69,39 @@ func GenerateJavaScript(schema *schema.Schema, schemaName, messageName string, j
 func generateJavaScriptBenchmarkCode(schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
 
-	buf.WriteString(`const fs = require('fs');
-const koffi = require('koffi');
-const path = require('path');
-
-// Load the shared library
-const libName = process.platform === 'darwin' ? 'lib/libffire.dylib' : 
-                process.platform === 'win32' ? 'lib/ffire.dll' : 'lib/libffire.so';
-const libPath = path.join(__dirname, libName);
-const lib = koffi.load(libPath);
-
-// Define FFI function signatures using Koffi's syntax
-const message_encode = lib.func('size_t message_encode(void* handle, _Out_ uint8_t** out_data, _Out_ char** error_msg)');
-const message_decode = lib.func('void* message_decode(uint8_t* data, size_t len, _Out_ char** error_msg)');
-const message_free = lib.func('void message_free(void* handle)');
-const message_free_data = lib.func('void message_free_data(uint8_t* data)');
-const message_free_error = lib.func('void message_free_error(char* error_msg)');
-
-function decode(data) {
-  const errorOut = [null]; // Array to hold out parameter
-  const result = message_decode(data, data.length, errorOut);
-  if (koffi.address(result) === 0) {
-    const error = errorOut[0] || 'Unknown error';
-    if (errorOut[0]) {
-      message_free_error(errorOut[0]);
-    }
-    throw new Error('Decode failed: ' + error);
-  }
-  return result;
-}
-
-function encode(msgPtr) {
-  const dataOut = [null]; // Array to hold out parameter
-  const errorOut = [null]; // Array to hold error out parameter
-
-  const size = message_encode(msgPtr, dataOut, errorOut);
-
-  if (size === 0) {
-    const error = errorOut[0] || 'Unknown error';
-    if (errorOut[0]) {
-      message_free_error(errorOut[0]);
-    }
-    throw new Error('Encode failed: ' + error);
-  }
-
-  // dataOut[0] now contains the pointer to the data
-  // Use koffi.decode to read the data into a buffer
-  const encoded = koffi.decode(dataOut[0], koffi.out(koffi.array('uint8_t', size)));
-  message_free_data(dataOut[0]);
-
-  return Buffer.from(encoded);
-}
-
-function freeMessage(msgPtr) {
-  message_free(msgPtr);
-}
+	fmt.Fprintf(buf, `const fs = require('fs');
+const { %sMessage } = require('./index');
 
 function main() {
   // Load fixture
   const fixtureData = fs.readFileSync('fixture.bin');
   
-  const iterations = ` + fmt.Sprintf("%d", iterations) + `;
+  const iterations = %d;
   const jsonOutput = process.env.BENCH_JSON === '1';
   
   // Warmup
   for (let i = 0; i < 1000; i++) {
-    const msgPtr = decode(fixtureData);
-    const encoded = encode(msgPtr);
-    freeMessage(msgPtr);
+    const msg = %sMessage.decode(fixtureData);
+    const encoded = msg.encode();
   }
   
   // Benchmark decode
   const decodeStart = process.hrtime.bigint();
   for (let i = 0; i < iterations; i++) {
-    const msgPtr = decode(fixtureData);
-    freeMessage(msgPtr);
+    const msg = %sMessage.decode(fixtureData);
   }
   const decodeEnd = process.hrtime.bigint();
   const decodeTimeNs = decodeEnd - decodeStart;
   
   // Benchmark encode (decode once, then encode many times)
-  const msgPtr = decode(fixtureData);
+  const msg = %sMessage.decode(fixtureData);
   const encodeStart = process.hrtime.bigint();
   let encoded;
   for (let i = 0; i < iterations; i++) {
-    encoded = encode(msgPtr);
+    encoded = msg.encode();
   }
   const encodeEnd = process.hrtime.bigint();
   const encodeTimeNs = encodeEnd - encodeStart;
-  freeMessage(msgPtr);
   
   // Calculate metrics
   const encodeNs = Math.round(Number(encodeTimeNs) / iterations);
@@ -168,7 +113,7 @@ function main() {
     const result = {
       language: 'JavaScript',
       format: 'ffire',
-      message: '` + messageName + `',
+      message: '%s',
       iterations: iterations,
       encode_ns: encodeNs,
       decode_ns: decodeNs,
@@ -180,7 +125,7 @@ function main() {
     console.log(JSON.stringify(result));
   } else {
     // Print human-readable results
-    console.log('ffire benchmark: ` + messageName + `');
+    console.log('ffire benchmark: %s');
     console.log('Iterations:  ' + iterations);
     console.log('Encode:      ' + encodeNs + ' ns/op');
     console.log('Decode:      ' + decodeNs + ' ns/op');
@@ -192,7 +137,7 @@ function main() {
 }
 
 main();
-`)
+`, messageName, iterations, messageName, messageName, messageName, messageName, messageName)
 
 	return buf.String()
 }
@@ -208,9 +153,9 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-# Install dependencies if needed
+# Install dependencies if needed (npm install builds the N-API addon)
 if [ ! -d "node_modules" ]; then
-    npm install koffi
+    npm install
 fi
 
 # Run benchmark
