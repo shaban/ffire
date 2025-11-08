@@ -184,41 +184,73 @@ func generateNAPIMessageFunctions(buf *bytes.Buffer, msg *schema.MessageType) er
 func generateFieldToJS(buf *bytes.Buffer, field *schema.Field, structVar string) error {
 	jsFieldName := field.Name
 	cppFieldName := field.Name // C++ uses original field names from schema
+	isOptional := field.Type.IsOptional()
+	
+	// For optional fields, wrap in has_value() check
+	if isOptional {
+		fmt.Fprintf(buf, "  if (%s.%s.has_value()) {\n", structVar, cppFieldName)
+	}
+	
+	// Determine the value accessor (use .value() for std::optional)
+	valueAccessor := fmt.Sprintf("%s.%s", structVar, cppFieldName)
+	if isOptional {
+		valueAccessor = fmt.Sprintf("%s.%s.value()", structVar, cppFieldName)
+	}
 
 	switch t := field.Type.(type) {
 	case *schema.PrimitiveType:
 		switch t.Name {
 		case "string":
-			fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::String::New(env, %s.%s));\n", jsFieldName, structVar, cppFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "    obj.Set(\"%s\", Napi::String::New(env, %s));\n", jsFieldName, valueAccessor)
+			} else {
+				fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::String::New(env, %s));\n", jsFieldName, valueAccessor)
+			}
 		case "bool":
-			fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::Boolean::New(env, %s.%s));\n", jsFieldName, structVar, cppFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "    obj.Set(\"%s\", Napi::Boolean::New(env, %s));\n", jsFieldName, valueAccessor)
+			} else {
+				fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::Boolean::New(env, %s));\n", jsFieldName, valueAccessor)
+			}
 		case "int32", "uint32", "float32", "float64":
-			fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::Number::New(env, %s.%s));\n", jsFieldName, structVar, cppFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "    obj.Set(\"%s\", Napi::Number::New(env, %s));\n", jsFieldName, valueAccessor)
+			} else {
+				fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::Number::New(env, %s));\n", jsFieldName, valueAccessor)
+			}
 		case "int64", "uint64":
-			fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::BigInt::New(env, %s.%s));\n", jsFieldName, structVar, cppFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "    obj.Set(\"%s\", Napi::BigInt::New(env, %s));\n", jsFieldName, valueAccessor)
+			} else {
+				fmt.Fprintf(buf, "  obj.Set(\"%s\", Napi::BigInt::New(env, %s));\n", jsFieldName, valueAccessor)
+			}
 		}
 	case *schema.ArrayType:
 		// Generate array conversion
-		fmt.Fprintf(buf, "  {\n")
-		fmt.Fprintf(buf, "    Napi::Array arr = Napi::Array::New(env, %s.%s.size());\n", structVar, cppFieldName)
-		fmt.Fprintf(buf, "    for (size_t i = 0; i < %s.%s.size(); i++) {\n", structVar, cppFieldName)
+		indent := "  "
+		if isOptional {
+			indent = "    "
+		}
+		fmt.Fprintf(buf, "%s{\n", indent)
+		fmt.Fprintf(buf, "%s  Napi::Array arr = Napi::Array::New(env, %s.size());\n", indent, valueAccessor)
+		fmt.Fprintf(buf, "%s  for (size_t i = 0; i < %s.size(); i++) {\n", indent, valueAccessor)
 
 		elemType, ok := t.ElementType.(*schema.PrimitiveType)
 		if ok {
 			switch elemType.Name {
 			case "string":
-				fmt.Fprintf(buf, "      arr[i] = Napi::String::New(env, %s.%s[i]);\n", structVar, cppFieldName)
+				fmt.Fprintf(buf, "%s    arr[i] = Napi::String::New(env, %s[i]);\n", indent, valueAccessor)
 			case "bool":
-				fmt.Fprintf(buf, "      arr[i] = Napi::Boolean::New(env, %s.%s[i]);\n", structVar, cppFieldName)
+				fmt.Fprintf(buf, "%s    arr[i] = Napi::Boolean::New(env, %s[i]);\n", indent, valueAccessor)
 			case "int32", "uint32", "float32", "float64":
-				fmt.Fprintf(buf, "      arr[i] = Napi::Number::New(env, %s.%s[i]);\n", structVar, cppFieldName)
+				fmt.Fprintf(buf, "%s    arr[i] = Napi::Number::New(env, %s[i]);\n", indent, valueAccessor)
 			case "int64", "uint64":
-				fmt.Fprintf(buf, "      arr[i] = Napi::BigInt::New(env, %s.%s[i]);\n", structVar, cppFieldName)
+				fmt.Fprintf(buf, "%s    arr[i] = Napi::BigInt::New(env, %s[i]);\n", indent, valueAccessor)
 			}
 		}
-		fmt.Fprintf(buf, "    }\n")
-		fmt.Fprintf(buf, "    obj.Set(\"%s\", arr);\n", jsFieldName)
-		fmt.Fprintf(buf, "  }\n")
+		fmt.Fprintf(buf, "%s  }\n", indent)
+		fmt.Fprintf(buf, "%s  obj.Set(\"%s\", arr);\n", indent, jsFieldName)
+		fmt.Fprintf(buf, "%s}\n", indent)
 	case *schema.StructType:
 		// Nested struct - create nested object
 		fmt.Fprintf(buf, "  {\n")
@@ -234,17 +266,18 @@ func generateFieldToJS(buf *bytes.Buffer, field *schema.Field, structVar string)
 			nestedCode := strings.ReplaceAll(nestedBuf.String(), "  obj.Set", "    nested.Set")
 			buf.WriteString(nestedCode)
 		}
-		fmt.Fprintf(buf, "    obj.Set(\"%s\", nested);\n", jsFieldName)
+		if isOptional {
+			fmt.Fprintf(buf, "    obj.Set(\"%s\", nested);\n", jsFieldName)
+		} else {
+			fmt.Fprintf(buf, "  obj.Set(\"%s\", nested);\n", jsFieldName)
+		}
 		fmt.Fprintf(buf, "  }\n")
 	}
 
-	// Handle optional types by checking IsOptional on the field's type
-	if field.Type.IsOptional() {
-		// Wrap generated code in optional check
-		fmt.Fprintf(buf, "  if (%s.%s.has_value()) {\n", structVar, cppFieldName)
-		fmt.Fprintf(buf, "    // Generated optional field code here\n")
+	// Close optional check and set undefined for missing values
+	if isOptional {
 		fmt.Fprintf(buf, "  } else {\n")
-		fmt.Fprintf(buf, "    obj.Set(\"%s\", env.Null());\n", jsFieldName)
+		fmt.Fprintf(buf, "    obj.Set(\"%s\", env.Undefined());\n", jsFieldName)
 		fmt.Fprintf(buf, "  }\n")
 	}
 
@@ -255,24 +288,64 @@ func generateFieldToJS(buf *bytes.Buffer, field *schema.Field, structVar string)
 func generateFieldFromJS(buf *bytes.Buffer, field *schema.Field) error {
 	jsFieldName := field.Name
 	cppFieldName := field.Name // C++ uses original field names from schema
+	isOptional := field.Type.IsOptional()
+
+	// For optional fields, check if undefined before converting
+	if isOptional {
+		fmt.Fprintf(buf, "  {\n")
+		fmt.Fprintf(buf, "    Napi::Value val = obj.Get(\"%s\");\n", jsFieldName)
+		fmt.Fprintf(buf, "    if (!val.IsUndefined() && !val.IsNull()) {\n")
+	}
 
 	switch t := field.Type.(type) {
 	case *schema.PrimitiveType:
+		indent := "  "
+		if isOptional {
+			indent = "      "
+		}
 		switch t.Name {
 		case "string":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::String>().Utf8Value();\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::String>().Utf8Value();\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::String>().Utf8Value();\n", indent, cppFieldName, jsFieldName)
+			}
 		case "bool":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::Boolean>().Value();\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::Boolean>().Value();\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::Boolean>().Value();\n", indent, cppFieldName, jsFieldName)
+			}
 		case "int32":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::Number>().Int32Value();\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::Number>().Int32Value();\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::Number>().Int32Value();\n", indent, cppFieldName, jsFieldName)
+			}
 		case "uint32":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::Number>().Uint32Value();\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::Number>().Uint32Value();\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::Number>().Uint32Value();\n", indent, cppFieldName, jsFieldName)
+			}
 		case "float32", "float64":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::Number>().FloatValue();\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::Number>().FloatValue();\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::Number>().FloatValue();\n", indent, cppFieldName, jsFieldName)
+			}
 		case "int64":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::BigInt>().Int64Value(&lossless);\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::BigInt>().Int64Value(&lossless);\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::BigInt>().Int64Value(&lossless);\n", indent, cppFieldName, jsFieldName)
+			}
 		case "uint64":
-			fmt.Fprintf(buf, "  msg.%s = obj.Get(\"%s\").As<Napi::BigInt>().Uint64Value(&lossless);\n", cppFieldName, jsFieldName)
+			if isOptional {
+				fmt.Fprintf(buf, "%smsg.%s = val.As<Napi::BigInt>().Uint64Value(&lossless);\n", indent, cppFieldName)
+			} else {
+				fmt.Fprintf(buf, "%smsg.%s = obj.Get(\"%s\").As<Napi::BigInt>().Uint64Value(&lossless);\n", indent, cppFieldName, jsFieldName)
+			}
 		}
 	case *schema.ArrayType:
 		fmt.Fprintf(buf, "  {\n")
@@ -295,6 +368,12 @@ func generateFieldFromJS(buf *bytes.Buffer, field *schema.Field) error {
 				fmt.Fprintf(buf, "      msg.%s.push_back(arr.Get(i).As<Napi::Number>().FloatValue());\n", cppFieldName)
 			}
 		}
+		fmt.Fprintf(buf, "    }\n")
+		fmt.Fprintf(buf, "  }\n")
+	}
+
+	// Close optional check
+	if isOptional {
 		fmt.Fprintf(buf, "    }\n")
 		fmt.Fprintf(buf, "  }\n")
 	}
@@ -451,20 +530,57 @@ func generateNAPIArrayOrPrimitiveFunctions(buf *bytes.Buffer, msg *schema.Messag
 			for _, field := range structType.Fields {
 				jsFieldName := field.Name
 				cppFieldName := field.Name
+				isOptional := field.Type.IsOptional()
+				
+				if isOptional {
+					fmt.Fprintf(buf, "    {\n")
+					fmt.Fprintf(buf, "      Napi::Value val = obj.Get(\"%s\");\n", jsFieldName)
+					fmt.Fprintf(buf, "      if (!val.IsUndefined() && !val.IsNull()) {\n")
+				}
+				
 				switch t := field.Type.(type) {
 				case *schema.PrimitiveType:
+					indent := "    "
+					if isOptional {
+						indent = "        "
+					}
 					switch t.Name {
 					case "string":
-						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::String>().Utf8Value();\n", cppFieldName, jsFieldName)
+						if isOptional {
+							fmt.Fprintf(buf, "%sitem.%s = val.As<Napi::String>().Utf8Value();\n", indent, cppFieldName)
+						} else {
+							fmt.Fprintf(buf, "%sitem.%s = obj.Get(\"%s\").As<Napi::String>().Utf8Value();\n", indent, cppFieldName, jsFieldName)
+						}
 					case "bool":
-						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Boolean>().Value();\n", cppFieldName, jsFieldName)
+						if isOptional {
+							fmt.Fprintf(buf, "%sitem.%s = val.As<Napi::Boolean>().Value();\n", indent, cppFieldName)
+						} else {
+							fmt.Fprintf(buf, "%sitem.%s = obj.Get(\"%s\").As<Napi::Boolean>().Value();\n", indent, cppFieldName, jsFieldName)
+						}
 					case "int32":
-						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().Int32Value();\n", cppFieldName, jsFieldName)
+						if isOptional {
+							fmt.Fprintf(buf, "%sitem.%s = val.As<Napi::Number>().Int32Value();\n", indent, cppFieldName)
+						} else {
+							fmt.Fprintf(buf, "%sitem.%s = obj.Get(\"%s\").As<Napi::Number>().Int32Value();\n", indent, cppFieldName, jsFieldName)
+						}
 					case "uint32":
-						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().Uint32Value();\n", cppFieldName, jsFieldName)
+						if isOptional {
+							fmt.Fprintf(buf, "%sitem.%s = val.As<Napi::Number>().Uint32Value();\n", indent, cppFieldName)
+						} else {
+							fmt.Fprintf(buf, "%sitem.%s = obj.Get(\"%s\").As<Napi::Number>().Uint32Value();\n", indent, cppFieldName, jsFieldName)
+						}
 					case "float32", "float64":
-						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().FloatValue();\n", cppFieldName, jsFieldName)
+						if isOptional {
+							fmt.Fprintf(buf, "%sitem.%s = val.As<Napi::Number>().FloatValue();\n", indent, cppFieldName)
+						} else {
+							fmt.Fprintf(buf, "%sitem.%s = obj.Get(\"%s\").As<Napi::Number>().FloatValue();\n", indent, cppFieldName, jsFieldName)
+						}
 					}
+				}
+				
+				if isOptional {
+					fmt.Fprintf(buf, "      }\n")
+					fmt.Fprintf(buf, "    }\n")
 				}
 			}
 			buf.WriteString("    vec.push_back(item);\n")
