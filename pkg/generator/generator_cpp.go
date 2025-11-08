@@ -465,6 +465,17 @@ func (g *cppGenerator) generateBulkArrayEncode(encVar, valueVar string, typ *sch
 		bulkMethod = "write_bulk_float32"
 	case "float64":
 		bulkMethod = "write_bulk_float64"
+	case "string":
+		// Optimize string arrays with reserve() to avoid reallocations
+		fmt.Fprintf(g.buf, "%s{\n", indent)
+		fmt.Fprintf(g.buf, "%s    size_t totalSize = %s.size() * 2; // length prefixes\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    for (const auto& s : %s) { totalSize += s.size(); }\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    %s.buffer.reserve(%s.buffer.size() + totalSize);\n", indent, encVar, encVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+		fmt.Fprintf(g.buf, "%sfor (const auto& elem : %s) {\n", indent, valueVar)
+		fmt.Fprintf(g.buf, "%s    %s.write_string(elem);\n", indent, encVar)
+		fmt.Fprintf(g.buf, "%s}\n", indent)
+		return true
 	default:
 		return false // No bulk optimization for this type
 	}

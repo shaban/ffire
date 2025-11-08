@@ -188,6 +188,21 @@ func GenAll() error {
 		}
 	}
 
+	// Generate ffire Swift benchmarks
+	for _, suite := range suites {
+		fmt.Printf("🍎 Generating ffire Swift benchmark: %s\n", suite.Name)
+		if err := sh.Run("ffire", "bench",
+			"--lang", "swift",
+			"--schema", suite.SchemaFile,
+			"--json", suite.JSONFile,
+			"--output", filepath.Join(genDir, "ffire_swift_"+suite.Name),
+			"--iterations", "10000",
+		); err != nil {
+			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
+			continue
+		}
+	}
+
 	// Generate protobuf benchmarks (only for those with .proto files)
 	for _, suite := range suites {
 		if _, err := os.Stat(suite.ProtoFile); err == nil {
@@ -453,6 +468,55 @@ func RunDart() error {
 	return saveResults(allResults, "ffire_dart")
 }
 
+// RunSwift runs the Swift benchmarks
+func RunSwift() error {
+	fmt.Println("\n🏃 Running ffire Swift benchmarks...")
+
+	// Check if swift is available
+	if _, err := exec.LookPath("swift"); err != nil {
+		fmt.Println("  ⚠️  swift not found (skipping)")
+		return nil
+	}
+
+	// Find all Swift benchmark directories
+	pattern := filepath.Join(genDir, "ffire_swift_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Swift benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_swift_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runSwiftBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_swift")
+}
+
 // Compare generates comparison table from all results
 func Compare() error {
 	fmt.Println("\n📊 Generating comparison table...")
@@ -519,6 +583,10 @@ func Bench() error {
 	}
 
 	if err := RunDart(); err != nil {
+		return err
+	}
+
+	if err := RunSwift(); err != nil {
 		return err
 	}
 
@@ -628,6 +696,39 @@ func runDartBench(dir string) (BenchResult, error) {
 	// Run benchmark with JSON output
 	cmd := exec.Command("dart", "run", "bench.dart")
 	cmd.Dir = dartDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	return result, nil
+}
+
+func runSwiftBench(dir string) (BenchResult, error) {
+	// Swift benchmarks are in the swift/ subdirectory
+	swiftDir := filepath.Join(dir, "swift")
+
+	// Build the Swift package if needed
+	buildDir := filepath.Join(swiftDir, ".build")
+	if _, err := os.Stat(buildDir); os.IsNotExist(err) {
+		fmt.Printf("    Building Swift package...\n")
+		cmd := exec.Command("swift", "build", "-c", "release")
+		cmd.Dir = swiftDir
+		if err := cmd.Run(); err != nil {
+			return BenchResult{}, fmt.Errorf("swift build failed: %w", err)
+		}
+	}
+
+	// Run benchmark with JSON output
+	cmd := exec.Command("swift", "run", "-c", "release", "bench")
+	cmd.Dir = swiftDir
 	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
 
 	output, err := cmd.Output()

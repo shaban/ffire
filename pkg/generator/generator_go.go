@@ -406,7 +406,14 @@ func (g *goGenerator) generateBulkArrayEncode(bufVar, valueVar string, primType 
 		g.buf.WriteString("}\n")
 
 	case "string":
-		// Strings need individual length prefixes
+		// Strings need individual length prefixes - optimize with pre-calculated Grow()
+		// Calculate total wire size: all string data + 2 bytes per string for length prefixes
+		totalVar := g.uniqueVar("totalSize")
+		fmt.Fprintf(g.buf, "%s := 2 * len(%s)\n", totalVar, valueVar) // length prefixes
+		fmt.Fprintf(g.buf, "for _, s := range %s { %s += len(s) }\n", valueVar, totalVar) // string data
+		fmt.Fprintf(g.buf, "%s.Grow(%s)\n", bufVar, totalVar)
+		
+		// Now encode normally
 		fmt.Fprintf(g.buf, "for _, elem := range %s {\n", valueVar)
 		fmt.Fprintf(g.buf, "{ l := uint16(len(elem)); %s.WriteByte(byte(l)); %s.WriteByte(byte(l>>8)) }\n", bufVar, bufVar)
 		fmt.Fprintf(g.buf, "%s.WriteString(elem)\n", bufVar)
