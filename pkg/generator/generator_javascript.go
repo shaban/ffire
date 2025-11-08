@@ -122,7 +122,7 @@ const os = require('os');
 }
 
 func generateJavaScriptMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) error {
-	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI
 	className := msg.Name
 
 	// Load library and define FFI functions using Koffi

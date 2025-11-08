@@ -88,11 +88,11 @@ import Foundation
 	// Determine library name based on platform
 	buf.WriteString("// Load the C library\n")
 	buf.WriteString("#if os(macOS)\n")
-	buf.WriteString("private let libName = \"libffire.dylib\"\n")
+	fmt.Fprintf(buf, "private let libName = \"lib%s.dylib\"\n", config.Schema.Package)
 	buf.WriteString("#elseif os(Linux)\n")
-	buf.WriteString("private let libName = \"libffire.so\"\n")
+	fmt.Fprintf(buf, "private let libName = \"lib%s.so\"\n", config.Schema.Package)
 	buf.WriteString("#elseif os(Windows)\n")
-	buf.WriteString("private let libName = \"ffire.dll\"\n")
+	fmt.Fprintf(buf, "private let libName = \"%s.dll\"\n", config.Schema.Package)
 	buf.WriteString("#endif\n\n")
 
 	// Load the library
@@ -129,7 +129,7 @@ import Foundation
 
 func generateSwiftMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) error {
 	className := msg.Name
-	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI
 
 	// C function declarations
 	fmt.Fprintf(buf, "// C function declarations for %s\n", className)
@@ -368,9 +368,9 @@ Add this package as a dependency in your Package.swift:
 	buf.WriteString("- watchOS 6+\n\n")
 
 	buf.WriteString("The correct library is automatically loaded based on your platform:\n\n")
-	buf.WriteString("- macOS: `libffire.dylib`\n")
-	buf.WriteString("- Linux: `libffire.so`\n")
-	buf.WriteString("- Windows: `ffire.dll`\n\n")
+	fmt.Fprintf(buf, "- macOS: `lib%s.dylib`\n", config.Schema.Package)
+	fmt.Fprintf(buf, "- Linux: `lib%s.so`\n", config.Schema.Package)
+	fmt.Fprintf(buf, "- Windows: `%s.dll`\n\n", config.Schema.Package)
 
 	buf.WriteString("## Memory Management\n\n")
 	buf.WriteString("Resources are automatically freed when objects are deallocated thanks to Swift's ARC and the `deinit` method. You can also manually call `free()` if needed.\n\n")

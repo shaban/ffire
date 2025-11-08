@@ -80,11 +80,11 @@ func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error
 	buf.WriteString("  static final DynamicLibrary _lib = _loadLibrary();\n\n")
 	buf.WriteString("  static DynamicLibrary _loadLibrary() {\n")
 	buf.WriteString("    if (Platform.isMacOS) {\n")
-	buf.WriteString("      return DynamicLibrary.open('lib/libffire.dylib');\n")
+	fmt.Fprintf(buf, "      return DynamicLibrary.open('lib/lib%s.dylib');\n", config.Schema.Package)
 	buf.WriteString("    } else if (Platform.isLinux) {\n")
-	buf.WriteString("      return DynamicLibrary.open('lib/libffire.so');\n")
+	fmt.Fprintf(buf, "      return DynamicLibrary.open('lib/lib%s.so');\n", config.Schema.Package)
 	buf.WriteString("    } else if (Platform.isWindows) {\n")
-	buf.WriteString("      return DynamicLibrary.open('lib/ffire.dll');\n")
+	fmt.Fprintf(buf, "      return DynamicLibrary.open('lib/%s.dll');\n", config.Schema.Package)
 	buf.WriteString("    }\n")
 	buf.WriteString("    throw UnsupportedError('Platform not supported');\n")
 	buf.WriteString("  }\n")
@@ -107,7 +107,7 @@ func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error
 }
 
 func generateDartMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType, packageName string) error {
-	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI
 	className := msg.Name
 
 	// Native function references in _NativeLibrary class extension
@@ -266,7 +266,7 @@ func generateDartReadme(config *PackageConfig, dartDir string) error {
 
 	buf.WriteString("## Requirements\n\n")
 	buf.WriteString("- Dart SDK 2.17.0 or higher\n")
-	buf.WriteString("- Native library (libffire.dylib/.so/.dll) must be in library search path\n\n")
+	fmt.Fprintf(buf, "- Native library (lib%s.dylib/.so or %s.dll) must be in library search path\n\n", packageName, packageName)
 
 	buf.WriteString("## Usage\n\n")
 	buf.WriteString("```dart\n")
