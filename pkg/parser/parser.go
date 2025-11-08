@@ -40,10 +40,10 @@ func ParseBytes(src []byte) (*schema.Schema, error) {
 }
 
 type schemaParser struct {
-	fset          *token.FileSet
-	file          *ast.File
-	types         map[string]schema.Type
-	schema        *schema.Schema
+	fset           *token.FileSet
+	file           *ast.File
+	types          map[string]schema.Type
+	schema         *schema.Schema
 	typeReferences map[string]bool // Track which types are referenced by others
 }
 
@@ -231,25 +231,25 @@ func (p *schemaParser) resolveTypeReferences(typ schema.Type) error {
 		}
 		// Resolve field types and track references
 		for i, field := range t.Fields {
+			// Track BEFORE resolving (when it's still a PrimitiveType reference)
+			p.trackTypeReference(field.Type)
+			
 			resolved, err := p.resolveTypeReference(field.Type)
 			if err != nil {
 				return err
 			}
 			t.Fields[i].Type = resolved
-			
-			// Track that this type is referenced
-			p.trackTypeReference(field.Type)
 		}
 
 	case *schema.ArrayType:
+		// Track BEFORE resolving
+		p.trackTypeReference(t.ElementType)
+		
 		resolved, err := p.resolveTypeReference(t.ElementType)
 		if err != nil {
 			return err
 		}
 		t.ElementType = resolved
-		
-		// Track that the element type is referenced
-		p.trackTypeReference(t.ElementType)
 	}
 
 	return nil

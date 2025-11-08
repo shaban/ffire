@@ -66,9 +66,9 @@ func GenerateJavaScript(schema *schema.Schema, schemaName, messageName string, j
 
 // generateJavaScriptBenchmarkCode generates the benchmark harness code
 func generateJavaScriptBenchmarkCode(schemaName, messageName string, iterations int) string {
-	buf := &bytes.Buffer{}
+	buf := &bytes.Buffer()
 
-	fmt.Fprintf(buf, `const fs = require('fs');
+	buf.WriteString(`const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
 

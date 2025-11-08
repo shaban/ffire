@@ -9,7 +9,7 @@ import (
 func TestParseSimpleSchema(t *testing.T) {
 	src := `package test
 
-type Message = []int32
+type IntList []int32
 `
 
 	s, err := ParseBytes([]byte(src))
@@ -26,8 +26,8 @@ type Message = []int32
 	}
 
 	msg := s.Messages[0]
-	if msg.Name != "Message" {
-		t.Errorf("Message name = %q, want %q", msg.Name, "Message")
+	if msg.Name != "IntList" {
+		t.Errorf("Message name = %q, want %q", msg.Name, "IntList")
 	}
 
 	arrayType, ok := msg.TargetType.(*schema.ArrayType)
@@ -48,7 +48,7 @@ type Message = []int32
 func TestParseStructSchema(t *testing.T) {
 	src := `package test
 
-type Message = []Device
+type DeviceList []Device
 
 type Device struct {
 	Name     string
@@ -65,14 +65,21 @@ type Device struct {
 		t.Fatalf("len(Messages) = %d, want 1", len(s.Messages))
 	}
 
-	if len(s.Types) != 1 {
-		t.Fatalf("len(Types) = %d, want 1", len(s.Types))
+	// Now we have 2 types: DeviceList (ArrayType) and Device (StructType)
+	if len(s.Types) != 2 {
+		t.Fatalf("len(Types) = %d, want 2", len(s.Types))
 	}
 
-	// Check struct type
-	structType, ok := s.Types[0].(*schema.StructType)
-	if !ok {
-		t.Fatalf("Type = %T, want *schema.StructType", s.Types[0])
+	// Find the Device struct type
+	var structType *schema.StructType
+	for _, typ := range s.Types {
+		if st, ok := typ.(*schema.StructType); ok {
+			structType = st
+			break
+		}
+	}
+	if structType == nil {
+		t.Fatal("Device struct not found in Types")
 	}
 
 	if structType.Name != "Device" {
@@ -96,8 +103,6 @@ type Device struct {
 func TestParseOptionalFields(t *testing.T) {
 	src := `package test
 
-type Message = Record
-
 type Record struct {
 	Required     string
 	OptionalStr  *string
@@ -110,7 +115,15 @@ type Record struct {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	structType := s.Types[0].(*schema.StructType)
+	// Record is now a root type (unreferenced + exported)
+	if len(s.Messages) != 1 {
+		t.Fatalf("len(Messages) = %d, want 1", len(s.Messages))
+	}
+
+	structType, ok := s.Messages[0].TargetType.(*schema.StructType)
+	if !ok {
+		t.Fatalf("Message type = %T, want *schema.StructType", s.Messages[0].TargetType)
+	}
 
 	// Check required field
 	if structType.Fields[0].Type.IsOptional() {
@@ -130,8 +143,6 @@ type Record struct {
 func TestParseNestedStructs(t *testing.T) {
 	src := `package test
 
-type Message = Plugin
-
 type Plugin struct {
 	Name       string
 	Parameters []Parameter
@@ -148,8 +159,13 @@ type Parameter struct {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
+	// Plugin is root (unreferenced), Parameter is helper (referenced)
 	if len(s.Types) != 2 {
 		t.Fatalf("len(Types) = %d, want 2", len(s.Types))
+	}
+
+	if len(s.Messages) != 1 {
+		t.Fatalf("len(Messages) = %d, want 1 (Plugin should be root)", len(s.Messages))
 	}
 
 	// Find Plugin struct
@@ -185,20 +201,19 @@ type Parameter struct {
 func TestParseComplexSchema(t *testing.T) {
 	src := `package audio
 
-type DeviceList = []Device
-type PluginInfo = Plugin
+type DeviceList []Device
+
+type PluginInfo struct {
+	Name       string
+	Vendor     string
+	Parameters []Parameter
+}
 
 type Device struct {
 	Name      string
 	ID        string
 	Channels  int32
 	IsDefault bool
-}
-
-type Plugin struct {
-	Name       string
-	Vendor     string
-	Parameters []Parameter
 }
 
 type Parameter struct {
@@ -217,12 +232,15 @@ type Parameter struct {
 		t.Errorf("Package = %q, want %q", s.Package, "audio")
 	}
 
+	// DeviceList and PluginInfo are root types (unreferenced + exported)
+	// Device and Parameter are helper types (referenced)
 	if len(s.Messages) != 2 {
 		t.Fatalf("len(Messages) = %d, want 2", len(s.Messages))
 	}
 
-	if len(s.Types) != 3 {
-		t.Fatalf("len(Types) = %d, want 3", len(s.Types))
+	// We now have 4 types: DeviceList, PluginInfo, Device, Parameter
+	if len(s.Types) != 4 {
+		t.Fatalf("len(Types) = %d, want 4", len(s.Types))
 	}
 }
 
@@ -245,7 +263,9 @@ func TestParseFile(t *testing.T) {
 func TestErrorUndefinedType(t *testing.T) {
 	src := `package test
 
-type Message = UndefinedType
+type Config struct {
+	Value UndefinedType
+}
 `
 
 	_, err := ParseBytes([]byte(src))
@@ -256,8 +276,6 @@ type Message = UndefinedType
 
 func TestParseStructTags(t *testing.T) {
 	src := `package test
-
-type Message = User
 
 type User struct {
 	ID    int64  ` + "`json:\"id\" db:\"user_id\" validate:\"required\"`" + `
@@ -271,7 +289,15 @@ type User struct {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	structType := s.Types[0].(*schema.StructType)
+	// User is now a root type
+	if len(s.Messages) != 1 {
+		t.Fatalf("len(Messages) = %d, want 1", len(s.Messages))
+	}
+
+	structType, ok := s.Messages[0].TargetType.(*schema.StructType)
+	if !ok {
+		t.Fatalf("Message type = %T, want *schema.StructType", s.Messages[0].TargetType)
+	}
 
 	// Check first field - full tag preservation
 	if structType.Fields[0].Tag != "`json:\"id\" db:\"user_id\" validate:\"required\"`" {
@@ -302,8 +328,6 @@ type User struct {
 func TestParseFieldWithoutTag(t *testing.T) {
 	src := `package test
 
-type Message = User
-
 type User struct {
 	Name string
 }
@@ -314,7 +338,15 @@ type User struct {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	structType := s.Types[0].(*schema.StructType)
+	// User is now a root type
+	if len(s.Messages) != 1 {
+		t.Fatalf("len(Messages) = %d, want 1", len(s.Messages))
+	}
+
+	structType, ok := s.Messages[0].TargetType.(*schema.StructType)
+	if !ok {
+		t.Fatalf("Message type = %T, want *schema.StructType", s.Messages[0].TargetType)
+	}
 
 	// Field without tag should have empty Tag
 	if structType.Fields[0].Tag != "" {
