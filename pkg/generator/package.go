@@ -195,7 +195,7 @@ func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 	switch config.Platform {
 	case "darwin":
 		compiler = "clang++"
-		outputFile = filepath.Join(libDir, "libffire.dylib")
+		outputFile = filepath.Join(libDir, fmt.Sprintf("lib%s.dylib", config.Schema.Package))
 		compileFlags = []string{
 			"-std=c++17",
 			"-dynamiclib",
@@ -214,7 +214,7 @@ func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 
 	case "linux":
 		compiler = "g++"
-		outputFile = filepath.Join(libDir, "libffire.so")
+		outputFile = filepath.Join(libDir, fmt.Sprintf("lib%s.so", config.Schema.Package))
 		compileFlags = []string{
 			"-std=c++17",
 			"-shared",
@@ -226,7 +226,7 @@ func compileDylib(config *PackageConfig, srcDir, libDir string) error {
 
 	case "windows":
 		compiler = "x86_64-w64-mingw32-g++"
-		outputFile = filepath.Join(libDir, "ffire.dll")
+		outputFile = filepath.Join(libDir, fmt.Sprintf("%s.dll", config.Schema.Package))
 		compileFlags = []string{
 			"-std=c++17",
 			"-shared",

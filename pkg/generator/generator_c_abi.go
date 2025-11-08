@@ -62,7 +62,7 @@ func GenerateCABIHeader(s *schema.Schema) ([]byte, error) {
 	// Generate functions for each message type
 	for _, msg := range s.Messages {
 		handleName := msg.Name + "Handle"
-		baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+		baseName := strings.ToLower(msg.Name) // Lowercase type name for function prefix
 
 		buf.WriteString("\n// Decode function\n")
 		funcName := baseName + "_decode"
@@ -162,7 +162,7 @@ func GenerateCABIImpl(s *schema.Schema) ([]byte, error) {
 func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
-	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_decode"
+	funcName := strings.ToLower(msg.Name) + "_decode"
 
 	// Determine the C++ function name based on the target type - must match C++ generator logic
 	typeName := rootTypeName(msg.TargetType)
@@ -203,7 +203,7 @@ func generateDecodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
-	funcName := strings.ToLower(msg.Name[:1]) + msg.Name[1:] + "_encode"
+	funcName := strings.ToLower(msg.Name) + "_encode"
 
 	// Determine the C++ function name based on the target type - must match C++ generator logic
 	typeName := rootTypeName(msg.TargetType)
@@ -242,7 +242,7 @@ func generateEncodeFunction(buf *bytes.Buffer, s *schema.Schema, msg *schema.Mes
 func generateFreeFunctions(buf *bytes.Buffer, msg *schema.MessageType) {
 	handleName := msg.Name + "Handle"
 	handleImplName := msg.Name + "HandleImpl"
-	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	baseName := strings.ToLower(msg.Name)
 
 	fmt.Fprintf(buf, "void %s_free(%s handle) {\n", baseName, handleName)
 	fmt.Fprintf(buf, "    delete static_cast<%s*>(handle);\n", handleImplName)
@@ -258,7 +258,7 @@ func generateFreeFunctions(buf *bytes.Buffer, msg *schema.MessageType) {
 }
 
 func generateGetterFunctions(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) {
-	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
+	baseName := strings.ToLower(msg.Name)
 
 	// Get the struct type to generate getters for
 	var structType *schema.StructType

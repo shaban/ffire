@@ -15,14 +15,14 @@ func main() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "\n❌ Unexpected error occurred:\n")
 			fmt.Fprintf(os.Stderr, "%v\n\n", r)
-			
+
 			// Print stack trace in verbose mode or if FFIRE_DEBUG is set
 			if os.Getenv("FFIRE_DEBUG") == "1" {
 				fmt.Fprintf(os.Stderr, "Stack trace:\n%s\n", debug.Stack())
 			} else {
 				fmt.Fprintf(os.Stderr, "Run with FFIRE_DEBUG=1 for stack trace\n")
 			}
-			
+
 			os.Exit(2)
 		}
 	}()
@@ -43,6 +43,8 @@ func main() {
 		runGenerate(os.Args[2:])
 	case "bench":
 		runBench(os.Args[2:])
+	case "inspect":
+		runInspect(os.Args[2:])
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -77,12 +79,14 @@ Commands:
   validate    Validate schema and fixture files
   generate    Generate encoder/decoder code (Go, C++, Swift)
   bench       Generate benchmark executables
+  inspect     Inspect and visualize binary wire format
 
 Examples:
   ffire fixture --schema testdata/schema/complex.ffi --json testdata/json/complex.json --output out.bin
   ffire validate --schema testdata/schema/complex.ffi --json testdata/json/complex.json
   ffire generate --schema testdata/schema/complex.ffi --lang go --output generated/
   ffire bench --schema testdata/schema/complex.ffi --output bench/
+  ffire inspect --schema testdata/schema/complex.ffi --binary out.bin
 
 Use "ffire <command> --help" for more information about a command.`)
 }

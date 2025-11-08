@@ -69,53 +69,66 @@ func generateJavaScriptBenchmarkCode(schemaName, messageName string, iterations 
 	buf := &bytes.Buffer{}
 
 	fmt.Fprintf(buf, `const fs = require('fs');
-const ffi = require('ffi-napi');
-const ref = require('ref-napi');
+const koffi = require('koffi');
 const path = require('path');
 
 // Load the shared library
-const libPath = path.join(__dirname, process.platform === 'darwin' ? 'lib%s.dylib' : 
-                          process.platform === 'win32' ? '%s.dll' : 'lib%s.so');
+const libName = process.platform === 'darwin' ? 'lib/libffire.dylib' : 
+                process.platform === 'win32' ? 'lib/ffire.dll' : 'lib/libffire.so';
+const libPath = path.join(__dirname, libName);
+const lib = koffi.load(libPath);
 
-const lib = ffi.Library(libPath, {
-  'ffire_encode_%s': ['pointer', ['pointer', 'int32', 'pointer']],
-  'ffire_decode_%s': ['pointer', ['pointer', 'int32']],
-  'ffire_free_%s': ['void', ['pointer']],
-});
-
-// Buffer type for FFI
-const BufferType = ref.types.void;
-const BufferPtr = ref.refType(BufferType);
+// Define FFI function signatures using Koffi's syntax
+const message_encode = lib.func('size_t message_encode(void* handle, _Out_ uint8_t** out_data, _Out_ char** error_msg)');
+const message_decode = lib.func('void* message_decode(uint8_t* data, size_t len, _Out_ char** error_msg)');
+const message_free = lib.func('void message_free(void* handle)');
+const message_free_data = lib.func('void message_free_data(uint8_t* data)');
+const message_free_error = lib.func('void message_free_error(char* error_msg)');
 
 function decode(data) {
-  const dataPtr = Buffer.from(data);
-  const result = lib.ffire_decode_%s(dataPtr, data.length);
-  if (result.isNull()) {
-    throw new Error('Decode failed');
+  const errorOut = [null]; // Array to hold out parameter
+  const result = message_decode(data, data.length, errorOut);
+  if (koffi.address(result) === 0) {
+    const error = errorOut[0] || 'Unknown error';
+    if (errorOut[0]) {
+      message_free_error(errorOut[0]);
+    }
+    throw new Error('Decode failed: ' + error);
   }
   return result;
 }
 
 function encode(msgPtr) {
-  const sizePtr = ref.alloc('int32');
-  const result = lib.ffire_encode_%s(msgPtr, 0, sizePtr);
-  if (result.isNull()) {
-    throw new Error('Encode failed');
+  const dataOut = [null]; // Array to hold out parameter
+  const errorOut = [null]; // Array to hold error out parameter
+
+  const size = message_encode(msgPtr, dataOut, errorOut);
+
+  if (size === 0) {
+    const error = errorOut[0] || 'Unknown error';
+    if (errorOut[0]) {
+      message_free_error(errorOut[0]);
+    }
+    throw new Error('Encode failed: ' + error);
   }
-  const size = sizePtr.deref();
-  const buffer = ref.reinterpret(result, size);
-  return Buffer.from(buffer);
+
+  // dataOut[0] now contains the pointer to the data
+  // Use koffi.decode to read the data into a buffer
+  const encoded = koffi.decode(dataOut[0], koffi.out(koffi.array('uint8_t', size)));
+  message_free_data(dataOut[0]);
+
+  return Buffer.from(encoded);
 }
 
 function freeMessage(msgPtr) {
-  lib.ffire_free_%s(msgPtr);
+  message_free(msgPtr);
 }
 
 function main() {
   // Load fixture
   const fixtureData = fs.readFileSync('fixture.bin');
   
-  const iterations = %d;
+  const iterations = `+fmt.Sprintf("%d", iterations)+`;
   const jsonOutput = process.env.BENCH_JSON === '1';
   
   // Warmup
@@ -155,7 +168,7 @@ function main() {
     const result = {
       language: 'JavaScript',
       format: 'ffire',
-      message: '%s',
+      message: '`+messageName+`',
       iterations: iterations,
       encode_ns: encodeNs,
       decode_ns: decodeNs,
@@ -167,7 +180,7 @@ function main() {
     console.log(JSON.stringify(result));
   } else {
     // Print human-readable results
-    console.log('ffire benchmark: %s');
+    console.log('ffire benchmark: `+messageName+`');
     console.log('Iterations:  ' + iterations);
     console.log('Encode:      ' + encodeNs + ' ns/op');
     console.log('Decode:      ' + decodeNs + ' ns/op');
@@ -179,7 +192,7 @@ function main() {
 }
 
 main();
-`, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, iterations, schemaName, schemaName)
+`)
 
 	return buf.String()
 }
@@ -197,7 +210,7 @@ fi
 
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
-    npm install ffi-napi ref-napi
+    npm install koffi
 fi
 
 # Run benchmark

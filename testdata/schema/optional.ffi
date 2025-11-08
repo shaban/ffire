@@ -1,8 +1,9 @@
 package test
 
-// Message represents data with optional fields
-type Message = []Record
+// RecordList is a root type (unreferenced + exported)
+type RecordList []Record
 
+// Record is a helper type (referenced by RecordList)
 type Record struct {
 	Required     string  `json:"required"`
 	OptionalStr  *string `json:"optionalStr"`

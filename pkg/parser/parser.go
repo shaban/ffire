@@ -29,20 +29,22 @@ func ParseBytes(src []byte) (*schema.Schema, error) {
 	}
 
 	p := &schemaParser{
-		fset:   fset,
-		file:   file,
-		types:  make(map[string]schema.Type),
-		schema: &schema.Schema{},
+		fset:           fset,
+		file:           file,
+		types:          make(map[string]schema.Type),
+		schema:         &schema.Schema{},
+		typeReferences: make(map[string]bool),
 	}
 
 	return p.parse()
 }
 
 type schemaParser struct {
-	fset   *token.FileSet
-	file   *ast.File
-	types  map[string]schema.Type
-	schema *schema.Schema
+	fset          *token.FileSet
+	file          *ast.File
+	types         map[string]schema.Type
+	schema        *schema.Schema
+	typeReferences map[string]bool // Track which types are referenced by others
 }
 
 func (p *schemaParser) parse() (*schema.Schema, error) {
@@ -64,8 +66,13 @@ func (p *schemaParser) parse() (*schema.Schema, error) {
 		}
 	}
 
-	// Second pass: resolve type references
+	// Second pass: resolve type references and build dependency graph
 	if err := p.resolveTypes(); err != nil {
+		return nil, err
+	}
+
+	// Third pass: infer root types
+	if err := p.inferRootTypes(); err != nil {
 		return nil, err
 	}
 
@@ -75,21 +82,10 @@ func (p *schemaParser) parse() (*schema.Schema, error) {
 func (p *schemaParser) processTypeSpec(spec *ast.TypeSpec) error {
 	name := spec.Name.Name
 
-	// Check if it's a type alias (message type)
-	if spec.Assign != token.NoPos {
-		// type Message = TargetType
-		targetType, err := p.parseType(spec.Type)
-		if err != nil {
-			return fmt.Errorf("parse message type %s: %w", name, err)
-		}
-		p.schema.Messages = append(p.schema.Messages, schema.MessageType{
-			Name:       name,
-			TargetType: targetType,
-		})
-		return nil
-	}
+	// Note: type aliases (type X = Y) are no longer treated as message types
+	// Message types are now inferred based on usage
 
-	// Regular type definition
+	// Parse the type
 	typ, err := p.parseType(spec.Type)
 	if err != nil {
 		return fmt.Errorf("parse type %s: %w", name, err)
@@ -184,20 +180,41 @@ func (p *schemaParser) parseStruct(structType *ast.StructType) (*schema.StructTy
 }
 
 func (p *schemaParser) resolveTypes() error {
-	// Resolve type references in all types
+	// Resolve type references in all types and track dependencies
 	for _, typ := range p.schema.Types {
 		if err := p.resolveTypeReferences(typ); err != nil {
 			return err
 		}
 	}
 
-	// Resolve type references in message types
-	for i, msg := range p.schema.Messages {
-		resolved, err := p.resolveTypeReference(msg.TargetType)
-		if err != nil {
-			return fmt.Errorf("resolve message %s: %w", msg.Name, err)
+	return nil
+}
+
+// inferRootTypes identifies root types based on:
+// 1. Not referenced by any other type
+// 2. Exported (starts with uppercase)
+func (p *schemaParser) inferRootTypes() error {
+	for name, typ := range p.types {
+		// Check if type is exported (starts with uppercase)
+		if len(name) == 0 || (name[0] < 'A' || name[0] > 'Z') {
+			continue // Skip unexported types
 		}
-		p.schema.Messages[i].TargetType = resolved
+
+		// Check if type is referenced by other types
+		if p.typeReferences[name] {
+			continue // Skip referenced types
+		}
+
+		// This is a root type - add to messages
+		p.schema.Messages = append(p.schema.Messages, schema.MessageType{
+			Name:       name,
+			TargetType: typ,
+		})
+	}
+
+	// Validate at least one root type exists
+	if len(p.schema.Messages) == 0 {
+		return fmt.Errorf("no root types found: at least one exported, unreferenced type required")
 	}
 
 	return nil
@@ -212,13 +229,16 @@ func (p *schemaParser) resolveTypeReferences(typ schema.Type) error {
 				t.Name = name
 			}
 		}
-		// Resolve field types
+		// Resolve field types and track references
 		for i, field := range t.Fields {
 			resolved, err := p.resolveTypeReference(field.Type)
 			if err != nil {
 				return err
 			}
 			t.Fields[i].Type = resolved
+			
+			// Track that this type is referenced
+			p.trackTypeReference(field.Type)
 		}
 
 	case *schema.ArrayType:
@@ -227,9 +247,30 @@ func (p *schemaParser) resolveTypeReferences(typ schema.Type) error {
 			return err
 		}
 		t.ElementType = resolved
+		
+		// Track that the element type is referenced
+		p.trackTypeReference(t.ElementType)
 	}
 
 	return nil
+}
+
+// trackTypeReference marks a type as being referenced by another type
+func (p *schemaParser) trackTypeReference(typ schema.Type) {
+	switch t := typ.(type) {
+	case *schema.PrimitiveType:
+		// Mark primitive type references (custom types, not built-ins)
+		if !schema.IsPrimitive(t.Name) {
+			p.typeReferences[t.Name] = true
+		}
+	case *schema.StructType:
+		if t.Name != "" {
+			p.typeReferences[t.Name] = true
+		}
+	case *schema.ArrayType:
+		// Recursively track array element types
+		p.trackTypeReference(t.ElementType)
+	}
 }
 
 func (p *schemaParser) resolveTypeReference(typ schema.Type) (schema.Type, error) {

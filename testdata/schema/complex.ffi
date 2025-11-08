@@ -1,8 +1,9 @@
 package test
 
-// Message represents realistic plugin enumeration data
-type Message = []Plugin
+// PluginList is a root type (unreferenced + exported)
+type PluginList []Plugin
 
+// Plugin is a helper type (referenced by PluginList)
 type Plugin struct {
 	Name           string `json:"name"`
 	ManufacturerID string `json:"manufacturerID"`

@@ -8,14 +8,71 @@
 
 ## Type Definitions
 
-### Message Types
+### Root Types (Message-Capable Types)
+
+Root types are automatically inferred based on two conditions:
+1. **Not referenced** by any other type (as field, embedded type, or array element)
+2. **Exported** (starts with uppercase letter)
+
+These root types generate public encode/decode functions in the C ABI.
+
+**Example:**
 ```go
-type TypeName = ActualType
+package myapp
+
+// Helper types (referenced by other types)
+type Option struct {
+    Name  string
+    Value int32
+}
+
+type Metadata struct {
+    Version string
+    Author  string
+}
+
+// Root types (unreferenced + exported)
+type Config struct {          // ✓ Root: unreferenced + uppercase
+    Host     string
+    Port     int32
+    Options  []Option          // Option is consumed here
+    Metadata Metadata          // Metadata is consumed here
+}
+
+type DeviceList []Device      // ✓ Root: unreferenced + uppercase
+
+type Device struct {          // Not root: referenced by DeviceList
+    Name string
+    ID   int32
+}
+
+type internal struct {        // Not root: lowercase (not exported)
+    value int32
+}
 ```
-- Type alias declares a message type (generates public encode/decode)
-- `ActualType` can be: struct, array of structs, array of primitives
-- Multiple type aliases per file allowed
-- All referenced types auto-generate private helpers
+
+**Generated C ABI functions:**
+```c
+// Only root types get functions
+ConfigHandle config_decode(const uint8_t* data, size_t len, char** error);
+size_t config_encode(ConfigHandle handle, uint8_t** out_data, char** error);
+void config_free(ConfigHandle handle);
+
+DeviceListHandle deviceList_decode(const uint8_t* data, size_t len, char** error);
+size_t deviceList_encode(DeviceListHandle handle, uint8_t** out_data, char** error);
+void deviceList_free(DeviceListHandle handle);
+
+// Helper types only get typedefs, no functions
+typedef void* OptionHandle;
+typedef void* MetadataHandle;
+typedef void* DeviceHandle;
+```
+
+**Rules:**
+- At least one root type required (parser error otherwise)
+- Root types must be exported (start with uppercase)
+- Helper types can be public or private (user's choice)
+- Function names derived from type name: `{type}_decode`, `{type}_encode`, `{type}_free`
 
 ### Struct Types
 ```go
@@ -146,7 +203,7 @@ All schemas must respect wire format constraints:
 
 ### Go Output
 ```go
-// For: type DeviceList = []Device
+// For root type: DeviceList
 func EncodeDeviceList(v []Device) []byte
 func DecodeDeviceList(data []byte) ([]Device, error)
 
@@ -157,15 +214,28 @@ func decodeDevice(r *bytes.Reader) (Device, error)
 
 ### C++ Output
 ```cpp
-// For: type DeviceList = []Device
+// For root type: DeviceList
 namespace package_name {
-    std::vector<uint8_t> encode_device_list(const std::vector<Device>& v);
-    std::vector<Device> decode_device_list(const std::vector<uint8_t>& data);
+    std::vector<uint8_t> encode_devicelist_message(const std::vector<Device>& v);
+    std::vector<Device> decode_devicelist_message(const std::vector<uint8_t>& data);
     
     // Private helpers
     void encode_device(std::vector<uint8_t>& buf, const Device& v);
     Device decode_device(const uint8_t*& ptr, const uint8_t* end);
 }
+```
+
+### C ABI Output
+```c
+// For root type: DeviceList
+DeviceListHandle deviceList_decode(const uint8_t* data, size_t len, char** error);
+size_t deviceList_encode(DeviceListHandle handle, uint8_t** out_data, char** error);
+void deviceList_free(DeviceListHandle handle);
+void deviceList_free_data(uint8_t* data);
+void deviceList_free_error(char* error);
+
+// Helper types only get typedefs
+typedef void* DeviceHandle;
 ```
 
 ### Naming Conventions
@@ -180,26 +250,25 @@ namespace package_name {
 ```go
 package audio
 
-// Message types (generate public API)
-type DeviceList = []Device
-type PluginInfo = Plugin
+// Root types (unreferenced + exported = auto-inferred)
+type DeviceList []Device
 
-// Supporting types
-type Device struct {
-    Name     string
-    ID       string
-    Channels int32
-    IsDefault bool
-}
-
-type Plugin struct {
+type PluginInfo struct {
     Name   string
     Vendor string
     Params []Parameter
 }
 
+// Helper types (referenced by root types)
+type Device struct {
+    Name      string
+    ID        string
+    Channels  int32
+    IsDefault bool
+}
+
 type Parameter struct {
-    Label        string `json:"label" yaml:"label"`
+    Label        string  `json:"label" yaml:"label"`
     DefaultValue float32 `json:"defaultValue" yaml:"default_value"`
     Unit         *string `json:"unit,omitempty" yaml:"unit,omitempty"`  // Optional
 }
@@ -220,10 +289,11 @@ type Parameter struct {
 - **Code Generator**: Outputs full tag string in Go structs
 
 **Example - JSON Tag Mapping:**
-```json
+```go
 // tags.ffi
-type Message = User
-type User struct {
+package example
+
+type User struct {  // Root type (unreferenced + exported)
     ID   int64  `json:"user_id"`
     Name string `json:"name"`
 }

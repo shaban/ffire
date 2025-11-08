@@ -17,7 +17,7 @@ func runBench(args []string) {
 	schemaFile := fs.String("schema", "", "Path to .ffi schema file (required)")
 	jsonFile := fs.String("json", "", "Path to JSON fixture file (required)")
 	outputDir := fs.String("output", "", "Output directory (required)")
-	lang := fs.String("lang", "go", "Target language: go, cpp, python, dart (default: go)")
+	lang := fs.String("lang", "go", "Target language: go, cpp, python, dart, javascript, swift, ruby, php, java, csharp (default: go)")
 	messageName := fs.String("message", "Message", "Message type name to encode (default: Message)")
 	iterations := fs.Int("iterations", 100000, "Number of benchmark iterations (default: 100000)")
 
@@ -67,10 +67,10 @@ Examples:
 	}
 
 	// Validate JSON against schema
-		if err := validator.ValidateJSON(schema, schema.Messages[0].Name, jsonData); err != nil {
-			fmt.Fprintf(os.Stderr, "Error validating JSON: %s\n", formatError(err))
-			os.Exit(1)
-		}	// Extract schema name from file path
+	if err := validator.ValidateJSON(schema, schema.Messages[0].Name, jsonData); err != nil {
+		fmt.Fprintf(os.Stderr, "Error validating JSON: %s\n", formatError(err))
+		os.Exit(1)
+	} // Extract schema name from file path
 	schemaName := filepath.Base(*schemaFile)
 	schemaName = strings.TrimSuffix(schemaName, filepath.Ext(schemaName))
 
@@ -111,8 +111,56 @@ Examples:
 		fmt.Printf("✓ Generated Dart benchmark in %s\n", *outputDir)
 		fmt.Printf("  Run with: cd %s/dart && dart run bench.dart\n", *outputDir)
 
+	case "javascript", "js":
+		if err := benchmark.GenerateJavaScript(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated JavaScript benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/javascript && node bench.js\n", *outputDir)
+
+	case "swift":
+		if err := benchmark.GenerateSwift(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Swift benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/swift && swift bench.swift\n", *outputDir)
+
+	case "ruby", "rb":
+		if err := benchmark.GenerateRuby(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Ruby benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/ruby && ruby bench.rb\n", *outputDir)
+
+	case "php":
+		if err := benchmark.GeneratePHP(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated PHP benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/php && php bench.php\n", *outputDir)
+
+	case "java":
+		if err := benchmark.GenerateJava(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Java benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/java && ./run.sh\n", *outputDir)
+
+	case "csharp", "cs", "c#":
+		if err := benchmark.GenerateCSharp(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated C# benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/csharp && ./run.sh\n", *outputDir)
+
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, python, dart)\n", *lang)
+		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, python, dart, javascript, swift, ruby, php, java, csharp)\n", *lang)
 		os.Exit(1)
 	}
 }

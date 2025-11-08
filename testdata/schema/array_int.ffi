@@ -1,4 +1,4 @@
 package test
 
-// Message represents an array of integers
-type Message = []int32
+// IntList is a root type (unreferenced + exported)
+type IntList []int32

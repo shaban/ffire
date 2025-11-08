@@ -1,4 +1,4 @@
 package test
 
-// Message represents an array of floats
-type Message = []float32
+// FloatList is a root type (unreferenced + exported)
+type FloatList []float32

@@ -1,0 +1,7 @@
+{
+  "host": "localhost",
+  "port": 8080,
+  "enableSSL": true,
+  "timeout": 30.5,
+  "maxRetries": 3
+}

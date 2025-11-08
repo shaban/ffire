@@ -1,8 +1,6 @@
 package test
 
-// Message represents a single configuration struct
-type Message = Config
-
+// Config is a root type (unreferenced + exported)
 type Config struct {
 	Host       string  `json:"host"`
 	Port       int32   `json:"port"`

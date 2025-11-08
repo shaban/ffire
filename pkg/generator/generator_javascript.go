@@ -74,16 +74,15 @@ func generateJavaScriptWrapper(config *PackageConfig, packageDir string) error {
 
 	// Header comment
 	fmt.Fprintf(buf, `/**
- * FFire %s bindings using ffi-napi
+ * FFire %s bindings using Koffi
  * 
  * This module provides Node.js bindings to the FFire binary serialization library
- * via a C ABI dynamic library.
+ * via a C ABI dynamic library using Koffi FFI.
  * 
  * @module %s
  */
 
-const ffi = require('ffi-napi');
-const ref = require('ref-napi');
+const koffi = require('koffi');
 const path = require('path');
 const os = require('os');
 
@@ -126,15 +125,17 @@ func generateJavaScriptMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg 
 	baseName := strings.ToLower(msg.Name[:1]) + msg.Name[1:]
 	className := msg.Name
 
-	// Define FFI library interface
-	buf.WriteString("// FFI library interface\n")
-	fmt.Fprintf(buf, "const lib_%s = ffi.Library(libPath, {\n", baseName)
-	fmt.Fprintf(buf, "  '%s_decode': ['pointer', ['pointer', 'size_t', 'pointer']],\n", baseName)
-	fmt.Fprintf(buf, "  '%s_encode': ['size_t', ['pointer', 'pointer', 'pointer']],\n", baseName)
-	fmt.Fprintf(buf, "  '%s_free': ['void', ['pointer']],\n", baseName)
-	fmt.Fprintf(buf, "  '%s_free_data': ['void', ['pointer']],\n", baseName)
-	fmt.Fprintf(buf, "  '%s_free_error': ['void', ['pointer']]\n", baseName)
-	buf.WriteString("});\n\n")
+	// Load library and define FFI functions using Koffi
+	buf.WriteString("// Load library\n")
+	fmt.Fprintf(buf, "const lib_%s = koffi.load(libPath);\n\n", baseName)
+
+	// Define FFI function signatures using Koffi syntax
+	buf.WriteString("// Define FFI function signatures\n")
+	fmt.Fprintf(buf, "const %s_decode = lib_%s.func('void* %s_decode(void* data, size_t size, char** error)');\n", baseName, baseName, baseName)
+	fmt.Fprintf(buf, "const %s_encode = lib_%s.func('size_t %s_encode(void* handle, void** out_data, char** error)');\n", baseName, baseName, baseName)
+	fmt.Fprintf(buf, "const %s_free = lib_%s.func('void %s_free(void* handle)');\n", baseName, baseName, baseName)
+	fmt.Fprintf(buf, "const %s_free_data = lib_%s.func('void %s_free_data(void* data)');\n", baseName, baseName, baseName)
+	fmt.Fprintf(buf, "const %s_free_error = lib_%s.func('void %s_free_error(char* error)');\n\n", baseName, baseName, baseName)
 
 	// Generate class with JSDoc
 	fmt.Fprintf(buf, `/**
@@ -143,7 +144,7 @@ func generateJavaScriptMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg 
 class %s {
   /**
    * @private
-   * @param {Buffer} handle - Native handle pointer
+   * @param {*} handle - Native handle pointer
    */
   constructor(handle) {
     this._handle = handle;
@@ -161,18 +162,13 @@ class %s {
       throw new TypeError('data must be a Buffer');
     }
 
-    const errorPtr = ref.alloc(ref.refType(ref.types.CString));
-    const handle = lib_%s.%s_decode(
-      data,
-      data.length,
-      errorPtr
-    );
+    const errorOut = [null]; // Array to hold out parameter
+    const handle = %s_decode(data, data.length, errorOut);
 
-    if (handle.isNull()) {
-      const errorMsg = errorPtr.deref();
-      const error = errorMsg.isNull() ? 'Unknown error' : errorMsg.readCString();
-      if (!errorMsg.isNull()) {
-        lib_%s.%s_free_error(errorMsg);
+    if (koffi.address(handle) === 0) {
+      const error = errorOut[0] || 'Unknown error';
+      if (errorOut[0]) {
+        %s_free_error(errorOut[0]);
       }
       throw new Error('Failed to decode %s: ' + error);
     }
@@ -190,27 +186,23 @@ class %s {
       throw new Error('%s already freed');
     }
 
-    const dataPtr = ref.alloc(ref.refType(ref.types.uint8));
-    const errorPtr = ref.alloc(ref.refType(ref.types.CString));
+    const dataOut = [null]; // Array to hold out parameter
+    const errorOut = [null]; // Array to hold error out parameter
 
-    const size = lib_%s.%s_encode(
-      this._handle,
-      dataPtr,
-      errorPtr
-    );
+    const size = %s_encode(this._handle, dataOut, errorOut);
 
     if (size === 0) {
-      const errorMsg = errorPtr.deref();
-      const error = errorMsg.isNull() ? 'Unknown error' : errorMsg.readCString();
-      if (!errorMsg.isNull()) {
-        lib_%s.%s_free_error(errorMsg);
+      const error = errorOut[0] || 'Unknown error';
+      if (errorOut[0]) {
+        %s_free_error(errorOut[0]);
       }
       throw new Error('Failed to encode %s: ' + error);
     }
 
-    const data = dataPtr.deref();
-    const result = Buffer.from(ref.reinterpret(data, size, 0));
-    lib_%s.%s_free_data(data);
+    // Read the encoded data from the pointer
+    const result = Buffer.alloc(size);
+    koffi.decode(dataOut[0], koffi.array('uint8_t', size), result);
+    %s_free_data(dataOut[0]);
 
     return result;
   }
@@ -220,14 +212,14 @@ class %s {
    * @returns {void}
    */
   free() {
-    if (!this._freed && !this._handle.isNull()) {
-      lib_%s.%s_free(this._handle);
+    if (!this._freed && koffi.address(this._handle) !== 0) {
+      %s_free(this._handle);
       this._freed = true;
     }
   }
 }
 
-`, className, className, className, className, baseName, baseName, baseName, baseName, className, className, className, className, baseName, baseName, baseName, baseName, className, baseName, baseName, baseName, baseName)
+`, className, className, className, className, baseName, baseName, className, className, className, className, baseName, baseName, className, baseName, baseName)
 
 	// Export
 	fmt.Fprintf(buf, "module.exports = { %s };\n\n", className)
@@ -309,11 +301,10 @@ func generateJavaScriptPackageJson(config *PackageConfig, packageDir string) err
   "author": "Generated by FFire",
   "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
-    "ffi-napi": "^4.0.3",
-    "ref-napi": "^3.0.3"
+    "koffi": "^2.9.2"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "os": [
     "darwin",
@@ -400,12 +391,11 @@ Node.js bindings for the %s schema, generated by [FFire](https://github.com/shab
 	buf.WriteString("The correct library is automatically loaded based on your platform.\n\n")
 
 	buf.WriteString("## Requirements\n\n")
-	buf.WriteString("- Node.js 14.0.0 or higher\n")
+	buf.WriteString("- Node.js 18.0.0 or higher\n")
 	buf.WriteString("- npm (comes with Node.js)\n\n")
 
 	buf.WriteString("## Dependencies\n\n")
-	buf.WriteString("- `ffi-napi`: Native FFI bindings for Node.js\n")
-	buf.WriteString("- `ref-napi`: Turn Buffer instances into pointers\n\n")
+	buf.WriteString("- `koffi`: Modern FFI library for Node.js with excellent performance\n\n")
 
 	buf.WriteString("These are automatically installed when you run `npm install`.\n\n")
 

@@ -1,0 +1,14 @@
+[
+  {
+    "required": "first",
+    "optionalStr": "hello",
+    "optionalInt": 42,
+    "optionalBool": true
+  },
+  {
+    "required": "second",
+    "optionalStr": null,
+    "optionalInt": null,
+    "optionalBool": false
+  }
+]

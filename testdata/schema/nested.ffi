@@ -1,8 +1,6 @@
 package test
 
-// Message represents deeply nested structure (10 levels)
-type Message = Level1
-
+// Level1 is a root type (unreferenced + exported)
 type Level1 struct {
 	Level2 Level2 `json:"level2"`
 }

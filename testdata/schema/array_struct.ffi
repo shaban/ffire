@@ -1,8 +1,9 @@
 package test
 
-// Message represents an array of device structs
-type Message = []Device
+// DeviceList is a root type (unreferenced + exported)
+type DeviceList []Device
 
+// Device is a helper type (referenced by DeviceList)
 type Device struct {
 	Name     string `json:"name"`
 	Channels int32  `json:"channels"`
