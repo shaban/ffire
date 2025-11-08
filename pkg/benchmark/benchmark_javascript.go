@@ -128,7 +128,7 @@ function main() {
   // Load fixture
   const fixtureData = fs.readFileSync('fixture.bin');
   
-  const iterations = `+fmt.Sprintf("%d", iterations)+`;
+  const iterations = ` + fmt.Sprintf("%d", iterations) + `;
   const jsonOutput = process.env.BENCH_JSON === '1';
   
   // Warmup
@@ -168,7 +168,7 @@ function main() {
     const result = {
       language: 'JavaScript',
       format: 'ffire',
-      message: '`+messageName+`',
+      message: '` + messageName + `',
       iterations: iterations,
       encode_ns: encodeNs,
       decode_ns: decodeNs,
@@ -180,7 +180,7 @@ function main() {
     console.log(JSON.stringify(result));
   } else {
     // Print human-readable results
-    console.log('ffire benchmark: `+messageName+`');
+    console.log('ffire benchmark: ` + messageName + `');
     console.log('Iterations:  ' + iterations);
     console.log('Encode:      ' + encodeNs + ' ns/op');
     console.log('Decode:      ' + decodeNs + ' ns/op');

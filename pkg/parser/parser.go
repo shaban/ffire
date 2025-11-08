@@ -233,7 +233,7 @@ func (p *schemaParser) resolveTypeReferences(typ schema.Type) error {
 		for i, field := range t.Fields {
 			// Track BEFORE resolving (when it's still a PrimitiveType reference)
 			p.trackTypeReference(field.Type)
-			
+
 			resolved, err := p.resolveTypeReference(field.Type)
 			if err != nil {
 				return err
@@ -244,7 +244,7 @@ func (p *schemaParser) resolveTypeReferences(typ schema.Type) error {
 	case *schema.ArrayType:
 		// Track BEFORE resolving
 		p.trackTypeReference(t.ElementType)
-		
+
 		resolved, err := p.resolveTypeReference(t.ElementType)
 		if err != nil {
 			return err

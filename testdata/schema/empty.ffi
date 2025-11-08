@@ -1,8 +1,6 @@
 package test
 
-// Message represents edge case with empty collections
-type Message = EmptyTest
-
+// EmptyTest represents edge case with empty collections
 type EmptyTest struct {
 	EmptyString string  `json:"emptyString"`
 	EmptyArray  []int32 `json:"emptyArray"`

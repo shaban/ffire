@@ -423,7 +423,7 @@ func TestJavaPackageIntegration(t *testing.T) {
 
 	// Verify expected files exist
 	expectedFiles := []string{
-		"java/lib/libtest.dylib", // or .so on Linux (package name is "test")
+		"java/lib/libtest.dylib",                            // or .so on Linux (package name is "test")
 		"java/src/main/java/com/ffire/test/PluginList.java", // Root type is PluginList
 		"java/src/main/java/com/ffire/test/FFireException.java",
 		"java/src/main/java/com/ffire/test/NativeLibrary.java",

@@ -66,18 +66,42 @@ Examples:
 		os.Exit(1)
 	}
 
+	// Auto-detect message name if not specified or if default "Message" doesn't exist
+	actualMessageName := *messageName
+	if len(schema.Messages) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: schema has no root types\n")
+		os.Exit(1)
+	}
+
+	// If using default "Message" but it doesn't exist, use first root type
+	if actualMessageName == "Message" {
+		found := false
+		for _, msg := range schema.Messages {
+			if msg.Name == "Message" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			actualMessageName = schema.Messages[0].Name
+			fmt.Printf("Note: Using root type '%s' (no 'Message' type found)\n", actualMessageName)
+		}
+	}
+
 	// Validate JSON against schema
-	if err := validator.ValidateJSON(schema, schema.Messages[0].Name, jsonData); err != nil {
+	if err := validator.ValidateJSON(schema, actualMessageName, jsonData); err != nil {
 		fmt.Fprintf(os.Stderr, "Error validating JSON: %s\n", formatError(err))
 		os.Exit(1)
-	} // Extract schema name from file path
+	}
+
+	// Extract schema name from file path
 	schemaName := filepath.Base(*schemaFile)
 	schemaName = strings.TrimSuffix(schemaName, filepath.Ext(schemaName))
 
 	// Generate benchmark based on language
 	switch *lang {
 	case "go":
-		if err := benchmark.GenerateGo(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateGo(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -85,7 +109,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s && go run .\n", *outputDir)
 
 	case "cpp":
-		if err := benchmark.GenerateCpp(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateCpp(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -96,7 +120,7 @@ Examples:
 		fmt.Printf("    cd %s && make && ./bench\n", *outputDir)
 
 	case "python":
-		if err := benchmark.GeneratePython(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GeneratePython(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -104,7 +128,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/python && python3 bench.py\n", *outputDir)
 
 	case "dart":
-		if err := benchmark.GenerateDart(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateDart(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -112,7 +136,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/dart && dart run bench.dart\n", *outputDir)
 
 	case "javascript", "js":
-		if err := benchmark.GenerateJavaScript(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateJavaScript(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -120,7 +144,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/javascript && node bench.js\n", *outputDir)
 
 	case "swift":
-		if err := benchmark.GenerateSwift(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateSwift(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -128,7 +152,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/swift && swift bench.swift\n", *outputDir)
 
 	case "ruby", "rb":
-		if err := benchmark.GenerateRuby(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateRuby(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -136,7 +160,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/ruby && ruby bench.rb\n", *outputDir)
 
 	case "php":
-		if err := benchmark.GeneratePHP(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GeneratePHP(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -144,7 +168,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/php && php bench.php\n", *outputDir)
 
 	case "java":
-		if err := benchmark.GenerateJava(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateJava(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
@@ -152,7 +176,7 @@ Examples:
 		fmt.Printf("  Run with: cd %s/java && ./run.sh\n", *outputDir)
 
 	case "csharp", "cs", "c#":
-		if err := benchmark.GenerateCSharp(schema, schemaName, *messageName, jsonData, *outputDir, *iterations); err != nil {
+		if err := benchmark.GenerateCSharp(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
 			os.Exit(1)
 		}
