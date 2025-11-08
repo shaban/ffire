@@ -388,6 +388,9 @@ func RunPython() error {
 			continue
 		}
 
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
 		// Print result
 		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
 		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
@@ -433,6 +436,9 @@ func RunDart() error {
 			fmt.Printf("  ❌ Failed: %v\n", err)
 			continue
 		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
 
 		// Print result
 		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
@@ -573,6 +579,19 @@ func runPythonBench(dir string) (BenchResult, error) {
 	// Python benchmarks are in the python/ subdirectory
 	pythonDir := filepath.Join(dir, "python")
 
+	// Install the pybind11 package (editable mode for fast iteration)
+	// Use --break-system-packages for Homebrew Python or --user as fallback
+	installCmd := exec.Command("pip3", "install", "-e", ".", "--quiet", "--break-system-packages")
+	installCmd.Dir = pythonDir
+	if err := installCmd.Run(); err != nil {
+		// Try again with --user if --break-system-packages failed
+		installCmd = exec.Command("pip3", "install", "-e", ".", "--quiet", "--user")
+		installCmd.Dir = pythonDir
+		if err := installCmd.Run(); err != nil {
+			return BenchResult{}, fmt.Errorf("pip install failed: %w", err)
+		}
+	}
+
 	// Run benchmark with JSON output
 	cmd := exec.Command("python3", "bench.py")
 	cmd.Dir = pythonDir
@@ -642,7 +661,14 @@ func printComparisonTable(results []BenchResult) {
 		"Language", "Format", "Message", "Encode", "Decode", "Total", "Size")
 	fmt.Println(strings.Repeat("-", 95))
 
+	lastMessage := ""
 	for _, r := range results {
+		// Add divider between different schemas
+		if lastMessage != "" && r.Message != lastMessage {
+			fmt.Println(strings.Repeat("-", 95))
+		}
+		lastMessage = r.Message
+
 		fmt.Printf("%-12s %-10s %-15s %10d ns %10d ns %10d ns %8d B\n",
 			r.Language, r.Format, r.Message,
 			r.EncodeNs, r.DecodeNs, r.TotalNs,
@@ -660,7 +686,14 @@ func saveMarkdownTable(results []BenchResult) error {
 	buf.WriteString("| Language | Format | Message | Encode (ns) | Decode (ns) | Total (ns) | Wire Size |\n")
 	buf.WriteString("|----------|--------|---------|-------------|-------------|------------|----------|\n")
 
+	lastMessage := ""
 	for _, r := range results {
+		// Add divider between different schemas
+		if lastMessage != "" && r.Message != lastMessage {
+			buf.WriteString("|----------|--------|---------|-------------|-------------|------------|----------|\n")
+		}
+		lastMessage = r.Message
+
 		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %d | %d | %d | %d |\n",
 			r.Language, r.Format, r.Message,
 			r.EncodeNs, r.DecodeNs, r.TotalNs,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/shaban/ffire/pkg/fixture"
 	"github.com/shaban/ffire/pkg/generator"
@@ -88,7 +89,6 @@ if sys.path and sys.path[0] == script_dir:
 import time
 import json
 import os
-import ctypes
 import importlib.util
 
 # Import our package using absolute file path to avoid conflicts
@@ -97,7 +97,10 @@ spec = importlib.util.spec_from_file_location('ffire_generated_pkg', pkg_init)
 pkg = importlib.util.module_from_spec(spec)
 sys.modules['ffire_generated_pkg'] = pkg
 spec.loader.exec_module(pkg)
-Message = pkg.%s
+
+# Get decode/encode functions
+message_decode = getattr(pkg, '%s_decode')
+message_encode = getattr(pkg, '%s_encode')
 
 # Restore original sys.path for any future imports
 if original_path0 is not None and (not sys.path or sys.path[0] != original_path0):
@@ -114,22 +117,22 @@ def main():
     
     # Warmup
     for _ in range(1000):
-        msg = Message.decode(fixture_data)
-        encoded = msg.encode()
+        msg = message_decode(fixture_data)
+        encoded = message_encode(msg)
     
     # Benchmark decode
     start = time.perf_counter()
     for _ in range(iterations):
-        msg = Message.decode(fixture_data)
+        msg = message_decode(fixture_data)
     end = time.perf_counter()
     decode_time = end - start
     
     # Benchmark encode (decode once, then encode many times)
-    msg = Message.decode(fixture_data)
+    msg = message_decode(fixture_data)
     start = time.perf_counter()
     encoded = None
     for _ in range(iterations):
-        encoded = msg.encode()
+        encoded = message_encode(msg)
     end = time.perf_counter()
     encode_time = end - start
     
@@ -166,7 +169,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-`, schemaName, schemaName, messageName, iterations, messageName, messageName)
+`, schemaName, schemaName, strings.ToLower(messageName), strings.ToLower(messageName), iterations, messageName, messageName)
 
 	return buf.String()
 }

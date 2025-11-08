@@ -322,9 +322,9 @@ func generateGoPackage(config *PackageConfig) error {
 	return nil
 }
 
-// generatePythonPackage generates a complete Python package with ctypes wrapper
+// generatePythonPackage generates a complete Python package with pybind11 wrapper
 func generatePythonPackage(config *PackageConfig) error {
-	return GeneratePythonPackage(config)
+	return GeneratePythonPybind11Package(config)
 }
 
 func generateJavaScriptPackage(config *PackageConfig) error {
