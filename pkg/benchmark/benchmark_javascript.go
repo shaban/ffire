@@ -42,6 +42,7 @@ func GenerateJavaScript(schema *schema.Schema, schemaName, messageName string, j
 	}
 
 	// Step 3: Write the binary fixture
+	// JavaScript package is generated in outputDir/javascript subdirectory
 	jsDir := filepath.Join(outputDir, "javascript")
 	fixturePath := filepath.Join(jsDir, "fixture.bin")
 	if err := os.WriteFile(fixturePath, binaryData, 0644); err != nil {

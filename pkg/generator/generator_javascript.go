@@ -320,43 +320,157 @@ func generateNAPIArrayOrPrimitiveFunctions(buf *bytes.Buffer, msg *schema.Messag
 		fmt.Fprintf(buf, "  std::vector<%s> vec = decode_%s_message(buffer.Data(), buffer.Length());\n",
 			cppType(arrayType.ElementType), funcBaseName)
 
-		buf.WriteString("  Napi::Array arr = Napi::Array::New(env, vec.size());\n")
-		buf.WriteString("  for (size_t i = 0; i < vec.size(); i++) {\n")
-
 		if primType, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
 			switch primType.Name {
-			case "int32", "uint32", "float32", "float64":
-				buf.WriteString("    arr[i] = Napi::Number::New(env, vec[i]);\n")
+			case "int32":
+				buf.WriteString("  // Use Int32Array for optimal performance\n")
+				buf.WriteString("  Napi::Int32Array arr = Napi::Int32Array::New(env, vec.size());\n")
+				buf.WriteString("  memcpy(arr.Data(), vec.data(), vec.size() * sizeof(int32_t));\n")
+				buf.WriteString("  return arr;\n")
+			case "uint32":
+				buf.WriteString("  // Use Uint32Array for optimal performance\n")
+				buf.WriteString("  Napi::Uint32Array arr = Napi::Uint32Array::New(env, vec.size());\n")
+				buf.WriteString("  memcpy(arr.Data(), vec.data(), vec.size() * sizeof(uint32_t));\n")
+				buf.WriteString("  return arr;\n")
+			case "float32":
+				buf.WriteString("  // Use Float32Array for optimal performance\n")
+				buf.WriteString("  Napi::Float32Array arr = Napi::Float32Array::New(env, vec.size());\n")
+				buf.WriteString("  memcpy(arr.Data(), vec.data(), vec.size() * sizeof(float));\n")
+				buf.WriteString("  return arr;\n")
+			case "float64":
+				buf.WriteString("  // Use Float64Array for optimal performance\n")
+				buf.WriteString("  Napi::Float64Array arr = Napi::Float64Array::New(env, vec.size());\n")
+				buf.WriteString("  memcpy(arr.Data(), vec.data(), vec.size() * sizeof(double));\n")
+				buf.WriteString("  return arr;\n")
 			case "string":
+				// Strings can't use TypedArray, keep the loop
+				buf.WriteString("  Napi::Array arr = Napi::Array::New(env, vec.size());\n")
+				buf.WriteString("  for (size_t i = 0; i < vec.size(); i++) {\n")
 				buf.WriteString("    arr[i] = Napi::String::New(env, vec[i]);\n")
+				buf.WriteString("  }\n")
+				buf.WriteString("  return arr;\n")
 			}
+		} else if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
+			// Handle arrays of structs
+			buf.WriteString("  Napi::Array arr = Napi::Array::New(env, vec.size());\n")
+			buf.WriteString("  for (size_t i = 0; i < vec.size(); i++) {\n")
+			buf.WriteString("    Napi::Object obj = Napi::Object::New(env);\n")
+			for _, field := range structType.Fields {
+				if err := generateFieldToJS(buf, &field, "vec[i]"); err != nil {
+					return err
+				}
+			}
+			buf.WriteString("    arr[i] = obj;\n")
+			buf.WriteString("  }\n")
+			buf.WriteString("  return arr;\n")
 		}
 
-		buf.WriteString("  }\n")
-		buf.WriteString("  return arr;\n")
 		buf.WriteString("}\n\n")
 
 		// Encode
 		fmt.Fprintf(buf, "Napi::Value Encode%s(const Napi::CallbackInfo& info) {\n", msgName)
 		buf.WriteString("  Napi::Env env = info.Env();\n")
-		buf.WriteString("  Napi::Array arr = info[0].As<Napi::Array>();\n\n")
+		buf.WriteString("  Napi::Value input = info[0];\n\n")
 
-		fmt.Fprintf(buf, "  std::vector<%s> vec;\n", cppType(arrayType.ElementType))
-		buf.WriteString("  vec.reserve(arr.Length());\n")
-		buf.WriteString("  for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+		fmt.Fprintf(buf, "  std::vector<%s> vec;\n\n", cppType(arrayType.ElementType))
 
 		if primType, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
 			switch primType.Name {
 			case "int32":
-				buf.WriteString("    vec.push_back(arr.Get(i).As<Napi::Number>().Int32Value());\n")
-			case "float32", "float64":
-				buf.WriteString("    vec.push_back(arr.Get(i).As<Napi::Number>().FloatValue());\n")
+				buf.WriteString("  // Fast path: Int32Array with direct memory copy\n")
+				buf.WriteString("  if (input.IsTypedArray() && input.As<Napi::TypedArray>().TypedArrayType() == napi_int32_array) {\n")
+				buf.WriteString("    Napi::Int32Array arr = input.As<Napi::Int32Array>();\n")
+				buf.WriteString("    vec.resize(arr.ElementLength());\n")
+				buf.WriteString("    memcpy(vec.data(), arr.Data(), arr.ByteLength());\n")
+				buf.WriteString("  } else {\n")
+				buf.WriteString("    // Fallback: regular Array\n")
+				buf.WriteString("    Napi::Array arr = input.As<Napi::Array>();\n")
+				buf.WriteString("    vec.reserve(arr.Length());\n")
+				buf.WriteString("    for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+				buf.WriteString("      vec.push_back(arr.Get(i).As<Napi::Number>().Int32Value());\n")
+				buf.WriteString("    }\n")
+				buf.WriteString("  }\n\n")
+			case "uint32":
+				buf.WriteString("  // Fast path: Uint32Array with direct memory copy\n")
+				buf.WriteString("  if (input.IsTypedArray() && input.As<Napi::TypedArray>().TypedArrayType() == napi_uint32_array) {\n")
+				buf.WriteString("    Napi::Uint32Array arr = input.As<Napi::Uint32Array>();\n")
+				buf.WriteString("    vec.resize(arr.ElementLength());\n")
+				buf.WriteString("    memcpy(vec.data(), arr.Data(), arr.ByteLength());\n")
+				buf.WriteString("  } else {\n")
+				buf.WriteString("    // Fallback: regular Array\n")
+				buf.WriteString("    Napi::Array arr = input.As<Napi::Array>();\n")
+				buf.WriteString("    vec.reserve(arr.Length());\n")
+				buf.WriteString("    for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+				buf.WriteString("      vec.push_back(arr.Get(i).As<Napi::Number>().Uint32Value());\n")
+				buf.WriteString("    }\n")
+				buf.WriteString("  }\n\n")
+			case "float32":
+				buf.WriteString("  // Fast path: Float32Array with direct memory copy\n")
+				buf.WriteString("  if (input.IsTypedArray() && input.As<Napi::TypedArray>().TypedArrayType() == napi_float32_array) {\n")
+				buf.WriteString("    Napi::Float32Array arr = input.As<Napi::Float32Array>();\n")
+				buf.WriteString("    vec.resize(arr.ElementLength());\n")
+				buf.WriteString("    memcpy(vec.data(), arr.Data(), arr.ByteLength());\n")
+				buf.WriteString("  } else {\n")
+				buf.WriteString("    // Fallback: regular Array\n")
+				buf.WriteString("    Napi::Array arr = input.As<Napi::Array>();\n")
+				buf.WriteString("    vec.reserve(arr.Length());\n")
+				buf.WriteString("    for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+				buf.WriteString("      vec.push_back(arr.Get(i).As<Napi::Number>().FloatValue());\n")
+				buf.WriteString("    }\n")
+				buf.WriteString("  }\n\n")
+			case "float64":
+				buf.WriteString("  // Fast path: Float64Array with direct memory copy\n")
+				buf.WriteString("  if (input.IsTypedArray() && input.As<Napi::TypedArray>().TypedArrayType() == napi_float64_array) {\n")
+				buf.WriteString("    Napi::Float64Array arr = input.As<Napi::Float64Array>();\n")
+				buf.WriteString("    vec.resize(arr.ElementLength());\n")
+				buf.WriteString("    memcpy(vec.data(), arr.Data(), arr.ByteLength());\n")
+				buf.WriteString("  } else {\n")
+				buf.WriteString("    // Fallback: regular Array\n")
+				buf.WriteString("    Napi::Array arr = input.As<Napi::Array>();\n")
+				buf.WriteString("    vec.reserve(arr.Length());\n")
+				buf.WriteString("    for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+				buf.WriteString("      vec.push_back(arr.Get(i).As<Napi::Number>().FloatValue());\n")
+				buf.WriteString("    }\n")
+				buf.WriteString("  }\n\n")
 			case "string":
+				// Strings can't use TypedArray
+				buf.WriteString("  Napi::Array arr = input.As<Napi::Array>();\n")
+				buf.WriteString("  vec.reserve(arr.Length());\n")
+				buf.WriteString("  for (uint32_t i = 0; i < arr.Length(); i++) {\n")
 				buf.WriteString("    vec.push_back(arr.Get(i).As<Napi::String>().Utf8Value());\n")
+				buf.WriteString("  }\n\n")
 			}
+		} else if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
+			// Handle arrays of structs
+			buf.WriteString("  Napi::Array arr = input.As<Napi::Array>();\n")
+			buf.WriteString("  vec.reserve(arr.Length());\n")
+			buf.WriteString("  for (uint32_t i = 0; i < arr.Length(); i++) {\n")
+			buf.WriteString("    Napi::Object obj = arr.Get(i).As<Napi::Object>();\n")
+			fmt.Fprintf(buf, "    %s item;\n", cppType(arrayType.ElementType))
+			// Inline field extraction for each field
+			for _, field := range structType.Fields {
+				jsFieldName := field.Name
+				cppFieldName := field.Name
+				switch t := field.Type.(type) {
+				case *schema.PrimitiveType:
+					switch t.Name {
+					case "string":
+						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::String>().Utf8Value();\n", cppFieldName, jsFieldName)
+					case "bool":
+						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Boolean>().Value();\n", cppFieldName, jsFieldName)
+					case "int32":
+						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().Int32Value();\n", cppFieldName, jsFieldName)
+					case "uint32":
+						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().Uint32Value();\n", cppFieldName, jsFieldName)
+					case "float32", "float64":
+						fmt.Fprintf(buf, "    item.%s = obj.Get(\"%s\").As<Napi::Number>().FloatValue();\n", cppFieldName, jsFieldName)
+					}
+				}
+			}
+			buf.WriteString("    vec.push_back(item);\n")
+			buf.WriteString("  }\n\n")
 		}
 
-		buf.WriteString("  }\n\n")
 		fmt.Fprintf(buf, "  std::vector<uint8_t> encoded = encode_%s_message(vec);\n", funcBaseName)
 		buf.WriteString("  return Napi::Buffer<uint8_t>::Copy(env, encoded.data(), encoded.size());\n")
 		buf.WriteString("}\n\n")
@@ -428,7 +542,16 @@ func generateJavaScriptWrapper(config *PackageConfig, rootDir string) error {
 		if isArray {
 			// For array types, store the array as a property
 			buf.WriteString("  constructor(data) {\n")
-			buf.WriteString("    this.value = Array.isArray(data) ? data : data.value;\n")
+			buf.WriteString("    // Support TypedArrays, regular Arrays, or objects with .value\n")
+			buf.WriteString("    if (ArrayBuffer.isView(data)) {\n")
+			buf.WriteString("      this.value = data; // TypedArray (Int32Array, Float32Array, etc.)\n")
+			buf.WriteString("    } else if (Array.isArray(data)) {\n")
+			buf.WriteString("      this.value = data; // Regular Array\n")
+			buf.WriteString("    } else if (data && data.value !== undefined) {\n")
+			buf.WriteString("      this.value = data.value; // Object with .value property\n")
+			buf.WriteString("    } else {\n")
+			buf.WriteString("      this.value = data; // Fallback: use data as-is\n")
+			buf.WriteString("    }\n")
 			buf.WriteString("  }\n\n")
 
 			fmt.Fprintf(buf, "  encode() {\n")
@@ -436,6 +559,7 @@ func generateJavaScriptWrapper(config *PackageConfig, rootDir string) error {
 			fmt.Fprintf(buf, "  }\n\n")
 
 			fmt.Fprintf(buf, "  static decode(buffer) {\n")
+			fmt.Fprintf(buf, "    // Returns TypedArray for numeric types, Array for strings/structs\n")
 			fmt.Fprintf(buf, "    const data = addon.decode%s(buffer);\n", msgName)
 			fmt.Fprintf(buf, "    return new %s(data);\n", msgName)
 			fmt.Fprintf(buf, "  }\n")
