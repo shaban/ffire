@@ -265,13 +265,15 @@ func RunGo() error {
 		return err
 	}
 
-	// Filter to only pure Go benchmarks (exclude ffire_cpp_*, ffire_python_*, ffire_dart_*)
+	// Filter to only pure Go benchmarks (exclude other language variants)
 	var dirs []string
 	for _, dir := range allDirs {
 		base := filepath.Base(dir)
 		if !strings.HasPrefix(base, "ffire_cpp_") &&
 			!strings.HasPrefix(base, "ffire_python_") &&
-			!strings.HasPrefix(base, "ffire_dart_") {
+			!strings.HasPrefix(base, "ffire_dart_") &&
+			!strings.HasPrefix(base, "ffire_swift_") &&
+			!strings.HasPrefix(base, "ffire_javascript_") {
 			dirs = append(dirs, dir)
 		}
 	}
