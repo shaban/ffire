@@ -13,7 +13,7 @@
 - Python: 4/10 (pybind11 only supports struct types, not arrays/primitives)
 
 ### ❌ Not Working
-- Protobuf (comparison baseline): 0/10
+- Protobuf (comparison baseline): 0/10 - **Regression** (was working, now broken)
 - C#: Generator exists, no benchmark
 - Java: Generator exists, no benchmark
 - PHP: Generator exists, no benchmark
@@ -91,24 +91,26 @@
 
 ### Milestone 1.3: Fix Protobuf Baseline (Target: 10/10)
 **Status**: 0/10 → 10/10  
-**Issue**: Protobuf benchmarks not working at all
+**Issue**: Protobuf benchmarks are integrated but all failing (regression from working state)
 
 - [ ] Task 1.3.1: Investigate protobuf benchmark failures
   - Run: `mage runProto` to see exact errors
-  - Check: Are .proto files generated correctly?
-  - Check: Is protoc installed and working?
-  - Document: Root cause analysis
-  - Commit: "docs: protobuf benchmark failure analysis"
+  - Context: These were working previously, something broke them
+  - Check: Recent changes that might have affected protobuf
+  - Check: Proto file generation vs compilation vs runtime
+  - Document: Root cause analysis (what changed?)
+  - Commit: "docs: protobuf benchmark regression analysis"
 
-- [ ] Task 1.3.2: Fix protobuf generation/compilation
-  - Fix: Generation issues (likely proto file format)
-  - Test: Protobuf schemas compile with protoc
-  - Commit: "fix: protobuf schema generation"
+- [ ] Task 1.3.2: Fix protobuf regression
+  - Fix: Root cause identified in 1.3.1
+  - Likely: Schema package naming or generated code path issues
+  - Test: Individual schema compiles and runs
+  - Commit: "fix: protobuf benchmark regression"
 
-- [ ] Task 1.3.3: Fix protobuf benchmark harness
-  - Fix: Benchmark runner integration
+- [ ] Task 1.3.3: Validate all protobuf benchmarks
   - Test: `mage runProto` shows 10/10
-  - Commit: "fix: protobuf benchmark execution"
+  - Compare: Performance against previous baseline (if available)
+  - Commit: "test: validate protobuf baseline restoration"
 
 **Verification**: `mage runProto` shows 10/10 passing
 
