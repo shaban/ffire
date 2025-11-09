@@ -185,12 +185,12 @@ func generateFieldToJS(buf *bytes.Buffer, field *schema.Field, structVar string)
 	jsFieldName := field.Name
 	cppFieldName := field.Name // C++ uses original field names from schema
 	isOptional := field.Type.IsOptional()
-	
+
 	// For optional fields, wrap in has_value() check
 	if isOptional {
 		fmt.Fprintf(buf, "  if (%s.%s.has_value()) {\n", structVar, cppFieldName)
 	}
-	
+
 	// Determine the value accessor (use .value() for std::optional)
 	valueAccessor := fmt.Sprintf("%s.%s", structVar, cppFieldName)
 	if isOptional {
@@ -531,13 +531,13 @@ func generateNAPIArrayOrPrimitiveFunctions(buf *bytes.Buffer, msg *schema.Messag
 				jsFieldName := field.Name
 				cppFieldName := field.Name
 				isOptional := field.Type.IsOptional()
-				
+
 				if isOptional {
 					fmt.Fprintf(buf, "    {\n")
 					fmt.Fprintf(buf, "      Napi::Value val = obj.Get(\"%s\");\n", jsFieldName)
 					fmt.Fprintf(buf, "      if (!val.IsUndefined() && !val.IsNull()) {\n")
 				}
-				
+
 				switch t := field.Type.(type) {
 				case *schema.PrimitiveType:
 					indent := "    "
@@ -577,7 +577,7 @@ func generateNAPIArrayOrPrimitiveFunctions(buf *bytes.Buffer, msg *schema.Messag
 						}
 					}
 				}
-				
+
 				if isOptional {
 					fmt.Fprintf(buf, "      }\n")
 					fmt.Fprintf(buf, "    }\n")

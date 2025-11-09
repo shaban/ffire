@@ -550,7 +550,7 @@ func TestRoundtripOptionalArray(t *testing.T) {
 	}
 
 	codeStr := string(code)
-	
+
 	t.Logf("Generated code:\n%s", codeStr)
 
 	// Optional arrays should use pointer type
@@ -843,7 +843,7 @@ func TestGenerateCppArray(t *testing.T) {
 	if !strings.Contains(codeStr, "for (uint16_t i = 0; i < len; ++i)") {
 		t.Errorf("missing decode loop")
 	}
-	
+
 	t.Logf("Generated C++ code:\n%s", codeStr)
 }
 

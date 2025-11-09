@@ -68,7 +68,7 @@ func GenerateDart(schema *schema.Schema, schemaName, messageName string, jsonDat
 // generateDartBenchmarkCode generates the benchmark harness code
 func generateDartBenchmarkCode(schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
-	
+
 	// Add Message suffix to class name (generator adds this suffix)
 	className := messageName + "Message"
 

@@ -18,11 +18,12 @@ func GenerateJava(schema *schema.Schema, schemaName, messageName string, jsonDat
 	}
 
 	// Step 1: Generate the Java package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "java",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",

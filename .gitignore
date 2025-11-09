@@ -11,6 +11,10 @@
 # Output of the go coverage tool
 *.out
 
+# Test artifacts
+test_*.bin
+test_*.json
+
 # Go workspace file
 go.work
 

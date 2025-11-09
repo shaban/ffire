@@ -157,10 +157,35 @@ func (g *goGenerator) generate() ([]byte, error) {
 	}
 	g.buf.WriteString(")\n\n")
 
-	// Generate type definitions (structs)
+	// Generate root message type definitions with Message suffix
+	for _, msg := range g.schema.Messages {
+		if structType, ok := msg.TargetType.(*schema.StructType); ok {
+			g.generateMessageStruct(structType)
+		} else if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+			// Array type alias: type IntListMessage []int32
+			elementTypeStr := g.goTypeString(arrayType.ElementType)
+			fmt.Fprintf(g.buf, "type %sMessage []%s\n\n", msg.Name, elementTypeStr)
+		} else {
+			// Primitive type alias: type Int32Message int32
+			typeStr := g.goTypeString(msg.TargetType)
+			fmt.Fprintf(g.buf, "type %sMessage %s\n\n", msg.Name, typeStr)
+		}
+	}
+
+	// Generate helper type definitions (embedded/referenced types, no Message suffix)
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			g.generateStruct(structType)
+			// Skip if this is a root message type (already generated above)
+			isRootType := false
+			for _, msg := range g.schema.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
+			}
+			if !isRootType {
+				g.generateStruct(structType)
+			}
 		}
 	}
 
@@ -187,7 +212,22 @@ func (g *goGenerator) generate() ([]byte, error) {
 	return formatted, nil
 }
 
+func (g *goGenerator) generateMessageStruct(structType *schema.StructType) {
+	// Generate root message type with Message suffix to avoid keyword collisions
+	fmt.Fprintf(g.buf, "type %sMessage struct {\n", structType.Name)
+	for _, field := range structType.Fields {
+		typeStr := g.goTypeString(field.Type)
+		if field.Tag != "" {
+			fmt.Fprintf(g.buf, "%s %s %s\n", field.Name, typeStr, field.Tag)
+		} else {
+			fmt.Fprintf(g.buf, "%s %s\n", field.Name, typeStr)
+		}
+	}
+	g.buf.WriteString("}\n\n")
+}
+
 func (g *goGenerator) generateStruct(structType *schema.StructType) {
+	// Generate helper/embedded type (no Message suffix)
 	fmt.Fprintf(g.buf, "type %s struct {\n", structType.Name)
 	for _, field := range structType.Fields {
 		typeStr := g.goTypeString(field.Type)
@@ -233,9 +273,9 @@ func (g *goGenerator) generateMessageEncode(msg schema.MessageType) {
 	rootTypeName := g.rootTypeName(msg.TargetType)
 	funcName := fmt.Sprintf("Encode%sMessage", rootTypeName)
 
-	// Function signature
-	paramType := g.goTypeString(msg.TargetType)
-	fmt.Fprintf(g.buf, "// %s encodes %s to binary wire format.\n", funcName, msg.Name)
+	// Function signature - use Message suffix type
+	paramType := msg.Name + "Message"
+	fmt.Fprintf(g.buf, "// %s encodes %sMessage to binary wire format.\n", funcName, msg.Name)
 	fmt.Fprintf(g.buf, "func %s(v %s) []byte {\n", funcName, paramType)
 
 	// Use default buffer - bytes.Buffer automatically grows efficiently
@@ -250,8 +290,8 @@ func (g *goGenerator) generateMessageDecode(msg schema.MessageType) {
 	rootTypeName := g.rootTypeName(msg.TargetType)
 	funcName := fmt.Sprintf("Decode%sMessage", rootTypeName)
 
-	// Function signature
-	returnType := g.goTypeString(msg.TargetType)
+	// Function signature - use Message suffix type
+	returnType := msg.Name + "Message"
 	fmt.Fprintf(g.buf, "// %s decodes %s from binary wire format.\n", funcName, msg.Name)
 	fmt.Fprintf(g.buf, "func %s(data []byte) (%s, error) {\n", funcName, returnType)
 
@@ -409,10 +449,10 @@ func (g *goGenerator) generateBulkArrayEncode(bufVar, valueVar string, primType 
 		// Strings need individual length prefixes - optimize with pre-calculated Grow()
 		// Calculate total wire size: all string data + 2 bytes per string for length prefixes
 		totalVar := g.uniqueVar("totalSize")
-		fmt.Fprintf(g.buf, "%s := 2 * len(%s)\n", totalVar, valueVar) // length prefixes
+		fmt.Fprintf(g.buf, "%s := 2 * len(%s)\n", totalVar, valueVar)                     // length prefixes
 		fmt.Fprintf(g.buf, "for _, s := range %s { %s += len(s) }\n", valueVar, totalVar) // string data
 		fmt.Fprintf(g.buf, "%s.Grow(%s)\n", bufVar, totalVar)
-		
+
 		// Now encode normally
 		fmt.Fprintf(g.buf, "for _, elem := range %s {\n", valueVar)
 		fmt.Fprintf(g.buf, "{ l := uint16(len(elem)); %s.WriteByte(byte(l)); %s.WriteByte(byte(l>>8)) }\n", bufVar, bufVar)
@@ -728,10 +768,10 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 			// Optimized string decode: read all lengths first for better cache locality
 			fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
 			strLenVar := g.uniqueVar("strLen")
-			fmt.Fprintf(g.buf, "%s := uint16(%s[%s]) | uint16(%s[%s+1])<<8\n", 
+			fmt.Fprintf(g.buf, "%s := uint16(%s[%s]) | uint16(%s[%s+1])<<8\n",
 				strLenVar, dataVar, posVar, dataVar, posVar)
 			fmt.Fprintf(g.buf, "%s += 2\n", posVar)
-			fmt.Fprintf(g.buf, "%s[i] = string(%s[%s:%s+int(%s)])\n", 
+			fmt.Fprintf(g.buf, "%s[i] = string(%s[%s:%s+int(%s)])\n",
 				sliceVar, dataVar, posVar, posVar, strLenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s)\n", posVar, strLenVar)
 			fmt.Fprintf(g.buf, "}\n")

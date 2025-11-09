@@ -1,0 +1,68 @@
+site_name: ffire
+site_description: Fast binary serialization format
+repo_url: https://github.com/shaban/ffire
+repo_name: shaban/ffire
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Schema Format: architecture/schema-format.md
+      - Wire Format: architecture/wire-format.md
+      - Generators: architecture/generators.md
+      - Generator Patterns: architecture/generator-patterns.md
+      - Codebase Structure: architecture/codebase.md
+      - Swift C++ Interop: architecture/swift-cpp-interop.md
+  - Development:
+      - Testing: development/testing.md
+      - Benchmarks: development/benchmarks.md
+      - Build System: development/build-system.md
+      - Reserved Keywords: development/keywords.md
+      - Fuzzing: development/fuzzing.md
+  - API:
+      - CLI: api/cli.md
+      - Go API: api/go-api.md
+      - Multi-Language Packaging: api/multi-language-packaging.md
+  - Internals:
+      - Encoder Design: internals/encoder-internals.md
+      - Optimizations: internals/optimizations.md
+      - Design Decisions: internals/design-decisions.md

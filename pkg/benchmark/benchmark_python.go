@@ -67,7 +67,7 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 // generatePythonBenchmarkCode generates the benchmark harness code
 func generatePythonBenchmarkCode(schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
-	
+
 	// Add Message suffix to class name (generator adds this suffix)
 	className := messageName + "Message"
 

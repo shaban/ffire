@@ -18,11 +18,12 @@ func GenerateCSharp(schema *schema.Schema, schemaName, messageName string, jsonD
 	}
 
 	// Step 1: Generate the C# package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "csharp",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",

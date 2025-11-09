@@ -18,11 +18,12 @@ func GeneratePHP(schema *schema.Schema, schemaName, messageName string, jsonData
 	}
 
 	// Step 1: Generate the PHP package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "php",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",

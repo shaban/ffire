@@ -63,18 +63,29 @@ func (g *cppGenerator) generate() ([]byte, error) {
 	}
 	g.buf.WriteString("\n")
 
-	// Generate root message struct definitions with Message suffix
+	// Build unified list of all structs (both root messages and embedded types)
+	// We need to sort them together because root messages can depend on embedded types
+	type structInfo struct {
+		structType *schema.StructType
+		isRoot     bool
+	}
+	
+	allStructs := make([]structInfo, 0)
+	
+	// Add root message structs
 	for _, msg := range g.schema.Messages {
 		if structType, ok := msg.TargetType.(*schema.StructType); ok {
-			g.generateMessageStruct(structType)
+			allStructs = append(allStructs, structInfo{
+				structType: structType,
+				isRoot:     true,
+			})
 		}
 	}
-
-	// Generate helper/embedded struct definitions (no Message suffix)
-	structs := make([]*schema.StructType, 0)
+	
+	// Add embedded/helper structs
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			// Skip if this is a root message type (already generated above)
+			// Skip if this is a root message type (already added above)
 			isRootType := false
 			for _, msg := range g.schema.Messages {
 				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
@@ -83,13 +94,39 @@ func (g *cppGenerator) generate() ([]byte, error) {
 				}
 			}
 			if !isRootType {
-				structs = append(structs, structType)
+				allStructs = append(allStructs, structInfo{
+					structType: structType,
+					isRoot:     false,
+				})
 			}
 		}
 	}
-	sortedStructs := g.topologicalSort(structs)
-	for _, structType := range sortedStructs {
-		g.generateStruct(structType)
+	
+	// Extract just the struct types for topological sort
+	structTypes := make([]*schema.StructType, len(allStructs))
+	for i, info := range allStructs {
+		structTypes[i] = info.structType
+	}
+	
+	// Sort by dependencies
+	sortedStructTypes := g.topologicalSort(structTypes)
+	
+	// Generate in dependency order, applying Message suffix to root types
+	for _, structType := range sortedStructTypes {
+		// Check if this is a root message type
+		isRoot := false
+		for _, msg := range g.schema.Messages {
+			if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+				isRoot = true
+				break
+			}
+		}
+		
+		if isRoot {
+			g.generateMessageStruct(structType)
+		} else {
+			g.generateStruct(structType)
+		}
 	}
 
 	// Generate encoder class

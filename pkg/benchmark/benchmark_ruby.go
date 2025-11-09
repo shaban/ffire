@@ -17,12 +17,13 @@ func GenerateRuby(schema *schema.Schema, schemaName, messageName string, jsonDat
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Step 1: Generate the Ruby package
+	// Step 1: Generate the Ruby gem
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "ruby",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",
