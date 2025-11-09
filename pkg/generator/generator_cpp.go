@@ -40,18 +40,51 @@ func (g *cppGenerator) generate() ([]byte, error) {
 	fmt.Fprintf(g.buf, "namespace %s {\n\n", g.schema.Package)
 
 	// Forward declarations for all structs (needed for mutual references)
+	// Include Message suffix for root message types
+	for _, msg := range g.schema.Messages {
+		if structType, ok := msg.TargetType.(*schema.StructType); ok {
+			fmt.Fprintf(g.buf, "struct %sMessage;\n", structType.Name)
+		}
+	}
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			fmt.Fprintf(g.buf, "struct %s;\n", structType.Name)
+			// Skip if this is a root message type (will be declared with Message suffix above)
+			isRootType := false
+			for _, msg := range g.schema.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
+			}
+			if !isRootType {
+				fmt.Fprintf(g.buf, "struct %s;\n", structType.Name)
+			}
 		}
 	}
 	g.buf.WriteString("\n")
 
-	// Generate struct definitions in dependency order (structs with no dependencies first)
+	// Generate root message struct definitions with Message suffix
+	for _, msg := range g.schema.Messages {
+		if structType, ok := msg.TargetType.(*schema.StructType); ok {
+			g.generateMessageStruct(structType)
+		}
+	}
+
+	// Generate helper/embedded struct definitions (no Message suffix)
 	structs := make([]*schema.StructType, 0)
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			structs = append(structs, structType)
+			// Skip if this is a root message type (already generated above)
+			isRootType := false
+			for _, msg := range g.schema.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
+			}
+			if !isRootType {
+				structs = append(structs, structType)
+			}
 		}
 	}
 	sortedStructs := g.topologicalSort(structs)
@@ -266,7 +299,18 @@ func (g *cppGenerator) generate() ([]byte, error) {
 	return g.buf.Bytes(), nil
 }
 
+func (g *cppGenerator) generateMessageStruct(structType *schema.StructType) {
+	// Generate root message struct with Message suffix to avoid keyword collisions
+	fmt.Fprintf(g.buf, "struct %sMessage {\n", structType.Name)
+	for _, field := range structType.Fields {
+		typeStr := g.cppTypeString(field.Type)
+		fmt.Fprintf(g.buf, "    %s %s;\n", typeStr, field.Name)
+	}
+	g.buf.WriteString("};\n\n")
+}
+
 func (g *cppGenerator) generateStruct(structType *schema.StructType) {
+	// Generate helper/embedded struct (no Message suffix)
 	fmt.Fprintf(g.buf, "struct %s {\n", structType.Name)
 	for _, field := range structType.Fields {
 		typeStr := g.cppTypeString(field.Type)
@@ -330,11 +374,21 @@ func (g *cppGenerator) generateMessageEncode(msg schema.MessageType) {
 	rootTypeName := g.rootTypeName(msg.TargetType)
 	funcName := fmt.Sprintf("encode_%s_message", strings.ToLower(rootTypeName))
 
-	paramType := g.cppTypeString(msg.TargetType)
-	constRef := "const " + paramType + "&"
-	// Special case for primitives - pass by value
-	if _, ok := msg.TargetType.(*schema.PrimitiveType); ok {
-		constRef = paramType
+	// For struct messages, use {Name}Message type; for arrays/primitives use target type
+	var paramType string
+	var constRef string
+	if _, ok := msg.TargetType.(*schema.StructType); ok {
+		// Root message struct uses Message suffix
+		paramType = msg.Name + "Message"
+		constRef = "const " + paramType + "&"
+	} else {
+		paramType = g.cppTypeString(msg.TargetType)
+		// Special case for primitives - pass by value
+		if _, ok := msg.TargetType.(*schema.PrimitiveType); ok {
+			constRef = paramType
+		} else {
+			constRef = "const " + paramType + "&"
+		}
 	}
 
 	fmt.Fprintf(g.buf, "// Encode %s to binary wire format\n", msg.Name)
@@ -349,7 +403,15 @@ func (g *cppGenerator) generateMessageDecode(msg schema.MessageType) {
 	rootTypeName := g.rootTypeName(msg.TargetType)
 	funcName := fmt.Sprintf("decode_%s_message", strings.ToLower(rootTypeName))
 
-	returnType := g.cppTypeString(msg.TargetType)
+	// For struct messages, use {Name}Message type; for arrays/primitives use target type
+	var returnType string
+	if _, ok := msg.TargetType.(*schema.StructType); ok {
+		// Root message struct uses Message suffix
+		returnType = msg.Name + "Message"
+	} else {
+		returnType = g.cppTypeString(msg.TargetType)
+	}
+
 	fmt.Fprintf(g.buf, "// Decode %s from binary wire format\n", msg.Name)
 	fmt.Fprintf(g.buf, "inline %s %s(const uint8_t* data, size_t size) {\n", returnType, funcName)
 	g.buf.WriteString("    Decoder dec(data, size);\n")

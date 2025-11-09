@@ -1,5 +1,25 @@
 package generator
 
+// C ABI Generator - Bundled Deployment Model
+//
+// ARCHITECTURAL DECISION: Each language package bundles its own copy of the dylib.
+// This is the canonical deployment model for ffire.
+//
+// Why bundled?
+//   - No version conflicts between applications
+//   - No system-wide installation required
+//   - Each app controls its own ffire version
+//   - Simple deployment (pip install, pub get, etc.)
+//   - No symbol versioning needed
+//
+// What we DON'T support:
+//   - System-wide installation (/usr/local/lib/libffire.dylib)
+//   - Plugin systems with multiple ffire versions
+//   - Shared library approach across apps
+//
+// Symbol versioning is NOT implemented because bundled deployment
+// eliminates conflicts entirely.
+
 import (
 	"bytes"
 	"fmt"
@@ -131,9 +151,9 @@ func GenerateCABIImpl(s *schema.Schema) ([]byte, error) {
 			cppType := cppTypeForType(s.Package, msg.TargetType)
 			fmt.Fprintf(buf, "    %s items;  // Store full vector\n", cppType)
 		} else {
-			// Single struct
+			// Single struct - use Message suffix for root message types
 			if structType, ok := msg.TargetType.(*schema.StructType); ok {
-				fmt.Fprintf(buf, "    %s::%s item;\n", s.Package, structType.Name)
+				fmt.Fprintf(buf, "    %s::%sMessage item;\n", s.Package, structType.Name)
 			}
 		}
 
