@@ -87,8 +87,8 @@ func generatePythonMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *sch
 	fmt.Fprintf(buf, "_lib.%s_free_error.argtypes = [ctypes.c_char_p]\n", baseName)
 	fmt.Fprintf(buf, "_lib.%s_free_error.restype = None\n\n", baseName)
 
-	// Generate Python class wrapper
-	className := msg.Name
+	// Generate Python class wrapper with Message suffix to avoid keyword collisions
+	className := msg.Name + "Message"
 	fmt.Fprintf(buf, "class %s:\n", className)
 	fmt.Fprintf(buf, `    """Wrapper for %s message type."""
     
@@ -199,12 +199,12 @@ func generatePythonInit(config *PackageConfig, packageDir string) error {
 from .bindings import (
 `, config.Namespace, config.Schema.Package)
 
-	// Import all message types
+	// Import all message types (with Message suffix)
 	for i, msg := range config.Schema.Messages {
 		if i > 0 {
 			buf.WriteString(",\n")
 		}
-		fmt.Fprintf(buf, "    %s", msg.Name)
+		fmt.Fprintf(buf, "    %sMessage", msg.Name)
 	}
 
 	buf.WriteString(",\n)\n\n__all__ = [\n")
@@ -213,7 +213,7 @@ from .bindings import (
 		if i > 0 {
 			buf.WriteString(",\n")
 		}
-		fmt.Fprintf(buf, "    '%s'", msg.Name)
+		fmt.Fprintf(buf, "    '%sMessage'", msg.Name)
 	}
 
 	buf.WriteString(",\n]\n")

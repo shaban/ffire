@@ -113,11 +113,33 @@ func generatePybind11Bindings(config *PackageConfig) ([]byte, error) {
 	fmt.Fprintf(buf, "PYBIND11_MODULE(%s_native, m) {\n", config.Namespace)
 	fmt.Fprintf(buf, "    m.doc() = \"FFire bindings for %s schema\";\n\n", config.Namespace)
 
-	// Generate bindings for each struct type
+	// Generate bindings for root message struct types (with Message suffix)
+	for _, msg := range s.Messages {
+		if structType, ok := msg.TargetType.(*schema.StructType); ok {
+			// Create a modified struct type with Message suffix for binding
+			msgStructType := *structType
+			msgStructType.Name = structType.Name + "Message"
+			if err := generatePybind11StructBinding(buf, s, &msgStructType); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Generate bindings for helper/embedded struct types (no Message suffix)
 	for _, typ := range s.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			if err := generatePybind11StructBinding(buf, s, structType); err != nil {
-				return nil, err
+			// Skip if this is a root message type (already generated above)
+			isRootType := false
+			for _, msg := range s.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
+			}
+			if !isRootType {
+				if err := generatePybind11StructBinding(buf, s, structType); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -159,8 +181,12 @@ func generatePybind11MessageBinding(buf *bytes.Buffer, s *schema.Schema, msg *sc
 	encodeFunc := fmt.Sprintf("encode_%s_message", strings.ToLower(typeName))
 	decodeFunc := fmt.Sprintf("decode_%s_message", strings.ToLower(typeName))
 
-	// Determine the C++ type
-	cppType := getCppTypeString(s.Package, msg.TargetType)
+	// Determine the C++ type (root message types have Message suffix)
+	isStructMessage := false
+	if _, ok := msg.TargetType.(*schema.StructType); ok {
+		isStructMessage = true
+	}
+	cppType := getCppTypeString(s.Package, msg.TargetType, isStructMessage)
 
 	// Add static decode method
 	fmt.Fprintf(buf, "    m.def(\"%s_decode\", [](py::bytes data) {\n", strings.ToLower(msg.Name))
@@ -184,12 +210,17 @@ func generatePybind11MessageBinding(buf *bytes.Buffer, s *schema.Schema, msg *sc
 	return nil
 }
 
-func getCppTypeString(packageName string, typ schema.Type) string {
+func getCppTypeString(packageName string, typ schema.Type, isRootMessage bool) string {
 	switch t := typ.(type) {
 	case *schema.StructType:
-		return fmt.Sprintf("const %s::%s&", packageName, t.Name)
+		// Root message types have Message suffix in C++
+		structName := t.Name
+		if isRootMessage {
+			structName += "Message"
+		}
+		return fmt.Sprintf("const %s::%s&", packageName, structName)
 	case *schema.ArrayType:
-		elemType := getCppTypeString(packageName, t.ElementType)
+		elemType := getCppTypeString(packageName, t.ElementType, false)
 		elemType = strings.TrimPrefix(elemType, "const ")
 		elemType = strings.TrimSuffix(elemType, "&")
 		return fmt.Sprintf("const std::vector<%s>&", strings.TrimSpace(elemType))

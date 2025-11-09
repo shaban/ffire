@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/shaban/ffire/pkg/fixture"
 	"github.com/shaban/ffire/pkg/generator"
@@ -19,11 +18,12 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 	}
 
 	// Step 1: Generate the Python package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "python",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",
@@ -67,6 +67,9 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 // generatePythonBenchmarkCode generates the benchmark harness code
 func generatePythonBenchmarkCode(schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
+	
+	// Add Message suffix to class name (generator adds this suffix)
+	className := messageName + "Message"
 
 	fmt.Fprintf(buf, `#!/usr/bin/env python3
 """
@@ -98,9 +101,8 @@ pkg = importlib.util.module_from_spec(spec)
 sys.modules['ffire_generated_pkg'] = pkg
 spec.loader.exec_module(pkg)
 
-# Get decode/encode functions
-message_decode = getattr(pkg, '%s_decode')
-message_encode = getattr(pkg, '%s_encode')
+# Get message class (with Message suffix)
+MessageClass = getattr(pkg, '%s')
 
 # Restore original sys.path for any future imports
 if original_path0 is not None and (not sys.path or sys.path[0] != original_path0):
@@ -117,22 +119,22 @@ def main():
     
     # Warmup
     for _ in range(1000):
-        msg = message_decode(fixture_data)
-        encoded = message_encode(msg)
+        msg = MessageClass.decode(fixture_data)
+        encoded = msg.encode()
     
     # Benchmark decode
     start = time.perf_counter()
     for _ in range(iterations):
-        msg = message_decode(fixture_data)
+        msg = MessageClass.decode(fixture_data)
     end = time.perf_counter()
     decode_time = end - start
     
     # Benchmark encode (decode once, then encode many times)
-    msg = message_decode(fixture_data)
+    msg = MessageClass.decode(fixture_data)
     start = time.perf_counter()
     encoded = None
     for _ in range(iterations):
-        encoded = message_encode(msg)
+        encoded = msg.encode()
     end = time.perf_counter()
     encode_time = end - start
     
@@ -169,7 +171,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-`, schemaName, schemaName, strings.ToLower(messageName), strings.ToLower(messageName), iterations, messageName, messageName)
+`, schemaName, schemaName, className, iterations, messageName, messageName)
 
 	return buf.String()
 }
