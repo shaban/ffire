@@ -7,13 +7,11 @@
 - C++ (Tier A)
 - Swift (Tier B, via C ABI)
 - Dart (Tier B, via C ABI)
-
-### ⚠️ Partial (need fixes)
-- JavaScript: 6/10 (npm install issues in 4 benchmarks)
-- Python: 4/10 (pybind11 only supports struct types, not arrays/primitives)
+- **JavaScript (Tier B, via N-API)** ✅ FIXED
+- **Python (Tier B, via pybind11)** ✅ FIXED
+- **Protobuf (comparison baseline)** ✅ FIXED
 
 ### ❌ Not Working
-- Protobuf (comparison baseline): 0/10 - **Regression** (was working, now broken)
 - C#: Generator exists, no benchmark
 - Java: Generator exists, no benchmark
 - PHP: Generator exists, no benchmark
@@ -39,66 +37,66 @@
 
 **Goal**: Fix existing implementations to 10/10
 
-### Milestone 1.1: Fix JavaScript (Target: 10/10)
+### Milestone 1.1: Fix JavaScript (Target: 10/10) ✅ COMPLETE
 **Status**: 6/10 → 10/10  
-**Issue**: npm install failures in 4 schemas (empty, nested, struct, tags)
+**Issue**: npm install failures - binding.cpp referenced wrong type names
 
-- [ ] Task 1.1.1: Investigate npm install errors for empty schema
-  - Run: `cd benchmarks/generated/ffire_javascript_empty/javascript && npm install`
-  - Debug: Check package.json, native module build
-  - Test: `mage runJavaScript` shows 7/10
-  - Commit: "fix: JavaScript empty schema npm install"
+- [x] Task 1.1.1: Investigate npm install errors for empty schema
+  - Root cause: JavaScript binding used `msg.Name` instead of `msg.Name + "Message"`
+  - Fix: Updated `generator_javascript.go` line 109 to use Message suffix
+  - Commit: "fix: JavaScript binding uses Message suffix for type names"
 
-- [ ] Task 1.1.2: Fix remaining npm install errors (nested, struct, tags)
-  - Debug: Likely similar root cause
-  - Test: `mage runJavaScript` shows 10/10
-  - Commit: "fix: JavaScript npm install for all schemas"
+- [x] Task 1.1.2: Verified all schemas working
+  - All 10 schemas now build and run successfully
+  - Test: `mage clean && mage genAll && mage runJavaScript` shows 10/10
+  - No additional fixes needed - single root cause
 
-**Verification**: `mage runJavaScript` shows 10/10 passing
+**Verification**: ✅ `mage runJavaScript` shows 10/10 passing
 
 ---
 
-### Milestone 1.2: Fix Python Array/Primitive Support (Target: 10/10)
+### Milestone 1.2: Fix Python Array/Primitive Support (Target: 10/10) ✅ COMPLETE
 **Status**: 4/10 → 10/10  
-**Issue**: pybind11 only binds struct types, not array/primitive root messages
+**Issue**: __init__.py exported classes that didn't exist for array/primitive types
 
-- [ ] Task 1.2.1: Design Python bindings for array root types
-  - Research: How to bind `std::vector<T>` as root message in pybind11
-  - Design: Wrapper class pattern or direct binding?
-  - Document: Update architecture YAML with approach
-  - Commit: "docs: design Python array/primitive message bindings"
+- [x] Task 1.2.1: Remove class exports for non-struct message types
+  - Solution: Python's dynamic typing handles raw vectors/primitives naturally
+  - Fix: Only export classes for struct-based messages in __init__.py
+  - Modified: `generator_python_pybind11.go` lines 282-350
+  - Commit: "fix: Python __init__.py only exports struct message classes"
 
-- [ ] Task 1.2.2: Implement array type bindings in pybind11 generator
-  - Modify: `pkg/generator/generator_python_pybind11.go`
-  - Add: Bindings for array root messages (std::vector wrapper)
-  - Test: Generate array_float, array_int, array_string schemas
-  - Commit: "feat: Python pybind11 array root message support"
+- [x] Task 1.2.2: Update benchmark to not expect Message classes
+  - Issue: Benchmark tried to get {Name}Message class but only needs functions
+  - Fix: Removed unused `MessageClass = getattr(pkg, ...)` line
+  - Modified: `benchmark_python.go` removed className variable
+  - Commit: "fix: Python benchmark uses only encode/decode functions"
 
-- [ ] Task 1.2.3: Implement primitive type bindings (if needed)
-  - Handle: Primitive root messages (e.g., single int32)
-  - Test: Generate any primitive-based schemas
-  - Commit: "feat: Python pybind11 primitive root message support"
+- [x] Task 1.2.3: Verified all schemas working
+  - All 10 schemas now build and run successfully
+  - Test: `mage clean && mage genAll && mage runPython` shows 10/10
+  - Arrays and primitives work via direct vector/value return
 
-- [ ] Task 1.2.4: Fix complex schema (nested struct + optional handling)
-  - Debug: Why complex schema fails (likely optional fields)
-  - Fix: Optional field handling in pybind11 bindings
-  - Test: `mage runPython` shows 10/10
-  - Commit: "fix: Python complex schema with optional fields"
-
-**Verification**: `mage runPython` shows 10/10 passing
+**Verification**: ✅ `mage runPython` shows 10/10 passing
 
 ---
 
-### Milestone 1.3: Fix Protobuf Baseline (Target: 10/10)
+### Milestone 1.3: Fix Protobuf Baseline (Target: 10/10) ✅ COMPLETE
 **Status**: 0/10 → 10/10  
-**Issue**: Protobuf benchmarks are integrated but all failing (regression from working state)
+**Issue**: Benchmark generator incorrectly added Message suffix to proto type names
 
-- [ ] Task 1.3.1: Investigate protobuf benchmark failures
-  - Run: `mage runProto` to see exact errors
-  - Context: These were working previously, something broke them
-  - Check: Recent changes that might have affected protobuf
-  - Check: Proto file generation vs compilation vs runtime
-  - Document: Root cause analysis (what changed?)
+- [x] Task 1.3.1: Fix protobuf message name mapping
+  - Root cause: `inferMessageType()` added Message suffix but proto doesn't use it
+  - Protobuf uses exact message names from .proto files (EmptyTest not EmptyTestMessage)
+  - Fix: Updated typeMap to use bare names matching .proto definitions
+  - Modified: `benchmarks/magefile.go` lines 935-958
+  - Commit: "fix: protobuf benchmark uses correct message names from .proto files"
+
+- [x] Task 1.3.2: Verified fix is isolated to protobuf
+  - Confirmed: `inferMessageType()` only called by `generateProtoBenchmark()`
+  - No impact on other 6 languages (Go, C++, Python, Dart, Swift, JavaScript)
+  - Test: `mage clean && mage genAll && mage runProto` shows 10/10
+
+**Verification**: ✅ `mage runProto` shows 10/10 passing
   - Commit: "docs: protobuf benchmark regression analysis"
 
 - [ ] Task 1.3.2: Fix protobuf regression
@@ -116,44 +114,45 @@
 
 ---
 
-## Phase 2: Language Expansion (Priority: High)
+## Phase 2: Language Expansion - Tier C (Priority: High)
 
-**Goal**: Activate existing generators with benchmarks
+**Goal**: Activate PHP (Tier C) with C ABI bridge - quick wins
 
-### Milestone 2.1: C# Support (Target: 10/10)
+### Milestone 2.1: PHP Support (Target: 10/10)
 **Status**: Generator exists, no benchmark
 
-- [ ] Task 2.1.1: Audit C# generator for Message suffix compliance
-  - Check: `pkg/generator/generator_csharp.go` for Message suffix
+- [ ] Task 2.1.1: Audit PHP generator for Message suffix compliance
+  - Check: `pkg/generator/generator_php.go` for Message suffix
   - Check: Uses schema.Package not filename
   - Fix: Any violations found
   - Test: Generate test schema manually
-  - Commit: "fix: C# generator Message suffix compliance"
+  - Commit: "fix: PHP generator Message suffix compliance"
 
-- [ ] Task 2.1.2: Create C# benchmark harness
-  - Create: `pkg/benchmark/benchmark_csharp.go`
-  - Pattern: Follow Dart/Swift Tier B pattern (FFI to C ABI)
-  - Generate: C# project with proper structure
-  - Commit: "feat: C# benchmark harness"
+- [ ] Task 2.1.2: Create PHP benchmark harness
+  - Create: `pkg/benchmark/benchmark_php.go`
+  - Pattern: Follow Python Tier B pattern (FFI to C ABI)
+  - Generate: PHP project with FFI bindings
+  - Commit: "feat: PHP benchmark harness"
 
-- [ ] Task 2.1.3: Add C# to magefile
-  - Add: `RunCSharp()` function to benchmarks/magefile.go
-  - Add: C# to `bench` workflow
-  - Test: `mage genAll` generates C# benchmarks
-  - Commit: "feat: integrate C# into benchmark suite"
+- [ ] Task 2.1.3: Add PHP to magefile
+  - Add: `RunPHP()` function to benchmarks/magefile.go
+  - Add: PHP to `bench` workflow
+  - Test: `mage genAll` generates PHP benchmarks
+  - Commit: "feat: integrate PHP into benchmark suite"
 
-- [ ] Task 2.1.4: Validate and fix C# implementation
-  - Run: `mage runCSharp`
-  - Fix: Any errors found (likely DLL loading, P/Invoke)
+- [ ] Task 2.1.4: Validate and fix PHP implementation
+  - Run: `mage runPHP`
+  - Fix: Any errors found (likely FFI loading, shared library path)
   - Test: 10/10 passing
-  - Commit: "fix: C# benchmark validation"
+  - Commit: "fix: PHP benchmark validation"
 
-**Verification**: `mage runCSharp` shows 10/10 passing
+**Verification**: `mage runPHP` shows 10/10 passing
 
 ---
 
-### Milestone 2.2: Java Support (Target: 10/10)
-**Status**: Generator exists, no benchmark
+## Phase 3: Rust Native Implementation (Priority: High)
+
+**Goal**: Add Rust as Tier A (native, no FFI) - strategic priority
 
 - [ ] Task 2.2.1: Audit Java generator for Message suffix compliance
   - Check: `pkg/generator/generator_java.go`
@@ -216,10 +215,11 @@
 
 ## Phase 3: Rust Native Implementation (Priority: High)
 
-**Goal**: Add Rust as Tier A (native, no FFI)
+**Goal**: Add Rust as Tier A (native, no FFI) - strategic priority for performance-critical applications
 
 ### Milestone 3.1: Rust Generator Foundation
 **Status**: Does not exist
+**Rationale**: Rust + zero-copy = fastest possible binary serialization
 
 - [ ] Task 3.1.1: Design Rust code generation architecture
   - Research: Rust serialization patterns (serde reference)
@@ -283,32 +283,116 @@
 
 ---
 
-## Phase 4: Performance Optimization (Priority: Medium)
+## Phase 4: C# & Java Native Implementations (Priority: Medium)
 
-**Goal**: Investigate and optimize slow Tier B languages
+**Goal**: Replace C ABI bridges with pure native implementations for Tier A performance
 
-### Milestone 4.1: Performance Baseline & Analysis
+**Rationale**: Modern JIT compilers (RyuJIT, HotSpot) achieve near-C++ speed. Native implementations provide:
+- 🚀 10x faster than P/Invoke/JNI (no FFI overhead)
+- 📦 Better distribution (single package, no native deps)
+- 🔧 Easier debugging (pure managed code)
+- ✨ Idiomatic APIs (native language features)
+
+### Milestone 4.1: C# Native Generator (Target: 10/10)
+**Status**: Replace existing P/Invoke implementation
+
+- [ ] Task 4.1.1: Design C# native generator
+  - Research: Span<byte> for zero-copy operations
+  - Design: Pure C# encoder/decoder (no FFI)
+  - Pattern: Copy from Go generator (similar syntax)
+  - Document: Architecture design
+  - Commit: "docs: C# native generator design"
+
+- [ ] Task 4.1.2: Create C# native generator
+  - Create: `pkg/generator/generator_csharp_native.go`
+  - Implement: Struct generation with properties
+  - Implement: Encode/decode using BinaryWriter/Span<byte>
+  - Test: Generate struct schema
+  - Commit: "feat: C# native generator"
+
+- [ ] Task 4.1.3: Implement C# type system
+  - Primitives: bool, sbyte, short, int, long, float, double, string
+  - Optionals: Nullable<T> for value types, null for reference types
+  - Arrays: List<T> or T[]
+  - Nested: Child classes
+  - Commit: "feat: C# native type system"
+
+- [ ] Task 4.1.4: Validate and benchmark
+  - Test: `mage runCSharp` shows 10/10
+  - Compare: Performance vs old P/Invoke version
+  - Expect: ~10x faster, competitive with Go/C++
+  - Commit: "feat: C# native implementation complete"
+
+**Verification**: C# native shows Tier A performance (~50-200ns per operation)
+
+---
+
+### Milestone 4.2: Java Native Generator (Target: 10/10)
+**Status**: Create new native implementation
+
+- [ ] Task 4.2.1: Design Java native generator
+  - Research: ByteBuffer for efficient encoding
+  - Design: Pure Java encoder/decoder (no JNI)
+  - Pattern: Copy from C# native generator
+  - Document: Architecture design
+  - Commit: "docs: Java native generator design"
+
+- [ ] Task 4.2.2: Create Java native generator
+  - Create: `pkg/generator/generator_java.go`
+  - Implement: Class generation with getters/setters
+  - Implement: Encode/decode using ByteBuffer
+  - Test: Generate struct schema
+  - Commit: "feat: Java native generator"
+
+- [ ] Task 4.2.3: Implement Java type system
+  - Primitives: boolean, byte, short, int, long, float, double, String
+  - Optionals: Optional<T> or null
+  - Arrays: ArrayList<T> or native arrays
+  - Nested: Inner/outer classes
+  - Commit: "feat: Java native type system"
+
+- [ ] Task 4.2.4: Create Java benchmark harness
+  - Create: `pkg/benchmark/benchmark_java.go`
+  - Generate: Maven/Gradle project structure
+  - Generate: Benchmark driver (JMH or manual)
+  - Commit: "feat: Java benchmark harness"
+
+- [ ] Task 4.2.5: Validate and benchmark
+  - Test: `mage runJava` shows 10/10
+  - Compare: Performance expectations (Tier A)
+  - Expect: Within 20% of Go/C++
+  - Commit: "feat: Java native implementation complete"
+
+**Verification**: Java native shows Tier A performance
+
+---
+
+## Phase 5: Performance Optimization & Analysis (Priority: Medium)
+
+**Goal**: Optimize remaining Tier B languages and document tradeoffs
+
+### Milestone 5.1: Performance Baseline & Analysis
 **Status**: Need data
 
-- [ ] Task 4.1.1: Collect comprehensive benchmark data
+- [ ] Task 5.1.1: Collect comprehensive benchmark data
   - Run: `mage bench` and save results
   - Document: Performance comparison table
   - Identify: Slowest operations per language
   - Commit: "docs: baseline performance analysis"
 
-- [ ] Task 4.1.2: Analyze Tier B FFI overhead
-  - Profile: Swift, Dart, Python, C#, Java, PHP benchmarks
-  - Measure: FFI call overhead vs C++ native
+- [ ] Task 5.1.2: Analyze Tier B FFI overhead
+  - Profile: Swift, Dart, Python, JavaScript, PHP benchmarks
+  - Measure: FFI call overhead vs native implementations
   - Identify: Major bottlenecks (memory allocation, data conversion, etc.)
   - Document: Findings with potential optimizations
   - Commit: "docs: Tier B FFI overhead analysis"
 
 ---
 
-### Milestone 4.2: Optimization Implementation
+### Milestone 5.2: Optimization Implementation
 **Status**: Depends on analysis
 
-- [ ] Task 4.2.1: Optimize identified hotspots (per language)
+- [ ] Task 5.2.1: Optimize identified hotspots (per language)
   - Examples:
     - Reduce memory allocations in Swift
     - Batch FFI calls in Dart
@@ -318,20 +402,20 @@
   - Test: Performance improvement > 20%
   - Commit: "perf: {language} {specific optimization}"
 
-- [ ] Task 4.2.2: Document optimization techniques
+- [ ] Task 5.2.2: Document optimization techniques
   - Update: Architecture YAML with patterns
   - Create: Performance tuning guide
   - Commit: "docs: Tier B performance optimization guide"
 
-**Verification**: All Tier B languages within 5-10x of C++ (acceptable FFI overhead)
+**Verification**: All Tier B languages within 5-10x of native (acceptable FFI overhead)
 
 ---
 
-## Phase 5: Documentation & Examples (Priority: High)
+## Phase 6: Documentation & Examples (Priority: High)
 
 **Goal**: Complete developer and user documentation
 
-### Milestone 5.1: Developer Documentation
+### Milestone 6.1: Developer Documentation
 **Status**: Partial (architecture YAML exists)
 
 - [ ] Task 5.1.1: Generator development guide
@@ -421,19 +505,19 @@
 
 ---
 
-## Phase 6: Release Preparation (Priority: Critical)
+## Phase 7: Release Preparation (Priority: Critical)
 
 **Goal**: Polish for public release
 
-### Milestone 6.1: README & Project Polish
+### Milestone 7.1: README & Project Polish
 
-- [ ] Task 6.1.1: Write comprehensive README
+- [ ] Task 7.1.1: Write comprehensive README
   - Include: Feature highlights, quick start, language support matrix
   - Include: Performance comparison table
   - Include: Link to all documentation
   - Commit: "docs: comprehensive README"
 
-- [ ] Task 6.1.2: Add CI/CD pipeline
+- [ ] Task 7.1.2: Add CI/CD pipeline
   - Setup: GitHub Actions for all languages
   - Test: Run full benchmark suite on PR
   - Test: Verify 10/10 for all languages
