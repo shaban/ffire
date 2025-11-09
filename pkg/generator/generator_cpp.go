@@ -69,9 +69,9 @@ func (g *cppGenerator) generate() ([]byte, error) {
 		structType *schema.StructType
 		isRoot     bool
 	}
-	
+
 	allStructs := make([]structInfo, 0)
-	
+
 	// Add root message structs
 	for _, msg := range g.schema.Messages {
 		if structType, ok := msg.TargetType.(*schema.StructType); ok {
@@ -81,7 +81,7 @@ func (g *cppGenerator) generate() ([]byte, error) {
 			})
 		}
 	}
-	
+
 	// Add embedded/helper structs
 	for _, typ := range g.schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
@@ -101,16 +101,16 @@ func (g *cppGenerator) generate() ([]byte, error) {
 			}
 		}
 	}
-	
+
 	// Extract just the struct types for topological sort
 	structTypes := make([]*schema.StructType, len(allStructs))
 	for i, info := range allStructs {
 		structTypes[i] = info.structType
 	}
-	
+
 	// Sort by dependencies
 	sortedStructTypes := g.topologicalSort(structTypes)
-	
+
 	// Generate in dependency order, applying Message suffix to root types
 	for _, structType := range sortedStructTypes {
 		// Check if this is a root message type
@@ -121,7 +121,7 @@ func (g *cppGenerator) generate() ([]byte, error) {
 				break
 			}
 		}
-		
+
 		if isRoot {
 			g.generateMessageStruct(structType)
 		} else {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/shaban/ffire/pkg/fixture"
 	"github.com/shaban/ffire/pkg/generator"
@@ -48,7 +49,7 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 	}
 
 	// Step 4: Generate the benchmark harness
-	benchmarkCode := generatePythonBenchmarkCode(schemaName, messageName, iterations)
+	benchmarkCode := generatePythonBenchmarkCode(schema.Package, messageName, iterations)
 	benchPath := filepath.Join(outputDir, "python", "bench.py")
 	if err := os.WriteFile(benchPath, []byte(benchmarkCode), 0644); err != nil {
 		return fmt.Errorf("failed to write benchmark: %w", err)
@@ -65,11 +66,12 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 }
 
 // generatePythonBenchmarkCode generates the benchmark harness code
-func generatePythonBenchmarkCode(schemaName, messageName string, iterations int) string {
+func generatePythonBenchmarkCode(packageName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
 
 	// Add Message suffix to class name (generator adds this suffix)
 	className := messageName + "Message"
+	funcBaseName := strings.ToLower(messageName)
 
 	fmt.Fprintf(buf, `#!/usr/bin/env python3
 """
@@ -108,6 +110,10 @@ MessageClass = getattr(pkg, '%s')
 if original_path0 is not None and (not sys.path or sys.path[0] != original_path0):
     sys.path.insert(0, original_path0)
 
+# Get decode/encode functions
+decode_func = getattr(pkg, '%s_decode')
+encode_func = getattr(pkg, '%s_encode')
+
 def main():
     # Load fixture
     fixture_path = Path(__file__).parent / 'fixture.bin'
@@ -119,22 +125,22 @@ def main():
     
     # Warmup
     for _ in range(1000):
-        msg = MessageClass.decode(fixture_data)
-        encoded = msg.encode()
+        msg = decode_func(fixture_data)
+        encoded = encode_func(msg)
     
     # Benchmark decode
     start = time.perf_counter()
     for _ in range(iterations):
-        msg = MessageClass.decode(fixture_data)
+        msg = decode_func(fixture_data)
     end = time.perf_counter()
     decode_time = end - start
     
     # Benchmark encode (decode once, then encode many times)
-    msg = MessageClass.decode(fixture_data)
+    msg = decode_func(fixture_data)
     start = time.perf_counter()
     encoded = None
     for _ in range(iterations):
-        encoded = msg.encode()
+        encoded = encode_func(msg)
     end = time.perf_counter()
     encode_time = end - start
     
@@ -171,7 +177,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-`, schemaName, schemaName, className, iterations, messageName, messageName)
+`, packageName, packageName, className, funcBaseName, funcBaseName, iterations, messageName, messageName)
 
 	return buf.String()
 }

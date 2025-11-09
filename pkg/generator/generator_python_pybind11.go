@@ -278,10 +278,27 @@ func generatePybind11Init(config *PackageConfig, rootDir string) error {
 	// Import the compiled extension module (named with _native suffix to avoid circular import)
 	fmt.Fprintf(buf, "from . import %s_native as _native\n\n", config.Namespace)
 
-	// Re-export all struct types for direct access
+	// Re-export root message types (with Message suffix)
+	for _, msg := range config.Schema.Messages {
+		className := msg.Name + "Message"
+		fmt.Fprintf(buf, "%s = _native.%s\n", className, className)
+	}
+	buf.WriteString("\n")
+
+	// Re-export embedded struct types (bare names, only those not in Messages)
 	for _, typ := range config.Schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			fmt.Fprintf(buf, "%s = _native.%s\n", structType.Name, structType.Name)
+			// Skip if this is a root message type
+			isRootType := false
+			for _, msg := range config.Schema.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
+			}
+			if !isRootType {
+				fmt.Fprintf(buf, "%s = _native.%s\n", structType.Name, structType.Name)
+			}
 		}
 	}
 	buf.WriteString("\n")
@@ -297,14 +314,33 @@ func generatePybind11Init(config *PackageConfig, rootDir string) error {
 	// Export all types and functions
 	buf.WriteString("__all__ = [")
 	first := true
-	// Export struct types
+	// Export root message types (with Message suffix)
+	for _, msg := range config.Schema.Messages {
+		if !first {
+			buf.WriteString(", ")
+		}
+		className := msg.Name + "Message"
+		fmt.Fprintf(buf, "\"%s\"", className)
+		first = false
+	}
+	// Export embedded struct types (bare names, only those not in Messages)
 	for _, typ := range config.Schema.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			if !first {
-				buf.WriteString(", ")
+			// Skip if this is a root message type
+			isRootType := false
+			for _, msg := range config.Schema.Messages {
+				if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == structType.Name {
+					isRootType = true
+					break
+				}
 			}
-			fmt.Fprintf(buf, "\"%s\"", structType.Name)
-			first = false
+			if !isRootType {
+				if !first {
+					buf.WriteString(", ")
+				}
+				fmt.Fprintf(buf, "\"%s\"", structType.Name)
+				first = false
+			}
 		}
 	}
 	// Export encode/decode functions for message types
