@@ -135,14 +135,6 @@ func generateTierBPackage(config *PackageConfig) error {
 		return generateJavaScriptPackage(config)
 	case "swift":
 		return generateSwiftPackage(config)
-	case "ruby", "rb":
-		return generateRubyPackage(config)
-	case "php":
-		return generatePHPPackage(config)
-	case "java":
-		return generateJavaPackage(config)
-	case "csharp":
-		return generateCSharpPackage(config)
 	case "dart":
 		return generateDartPackage(config)
 	default:
@@ -333,22 +325,6 @@ func generateJavaScriptPackage(config *PackageConfig) error {
 
 func generateSwiftPackage(config *PackageConfig) error {
 	return GenerateSwiftPackage(config)
-}
-
-func generateRubyPackage(config *PackageConfig) error {
-	return GenerateRubyPackage(config)
-}
-
-func generatePHPPackage(config *PackageConfig) error {
-	return GeneratePHPPackage(config)
-}
-
-func generateJavaPackage(config *PackageConfig) error {
-	return GenerateJavaPackage(config)
-}
-
-func generateCSharpPackage(config *PackageConfig) error {
-	return GenerateCSharpPackage(config)
 }
 
 func generateDartPackage(config *PackageConfig) error {

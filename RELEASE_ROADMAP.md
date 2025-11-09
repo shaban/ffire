@@ -14,8 +14,22 @@
 ### ❌ Not Working
 - C#: Generator exists, no benchmark
 - Java: Generator exists, no benchmark
-- PHP: Generator exists, no benchmark
-- Ruby: Generator exists, no benchmark
+
+### 🚫 Not Planned
+- **PHP**: Generator exists but not pursuing
+  - **Reasoning**: Web-centric ecosystem lacks high-performance IPC use cases
+  - PHP deployments use HTTP/Redis for inter-service communication, not binary protocols
+  - No persistent process model in typical PHP environments (Apache mod_php, PHP-FPM)
+  - Market overlap with Python (scripting language with better IPC ecosystem)
+  - Better to focus resources on languages with clear binary serialization demand
+  
+- **Ruby**: Generator exists but not pursuing
+  - **Reasoning**: Same limitations as PHP, even less IPC culture
+  - Ruby 3.x has YJIT (15-50% faster) but still web/scripting focused
+  - Ecosystem dominated by Rails (web) and DevOps tools (Chef, Puppet)
+  - Ruby users solve cross-process problems with HTTP/Redis/JSON, not binary IPC
+  - No desktop or high-performance same-machine communication patterns
+  - Python already covers "dynamic scripting language" use cases better
 
 ### 🚫 Missing
 - Rust: No generator (needs native Tier A implementation)
@@ -25,11 +39,13 @@
 ## Release Requirements
 
 1. **All benchmark languages fully working** (10/10 each)
-2. **PHP, C#, Java working** (existing generators + benchmarks)
+2. **C#, Java working** (existing generators + benchmarks)
 3. **Rust native implementation** (new Tier A generator)
 4. **Protobuf baseline working** (for comparison)
 5. **Performance optimization** for slow Tier B languages
 6. **Complete documentation** (developer + user facing)
+
+**Note**: PHP and Ruby are explicitly excluded from v1.0 due to lack of market fit for high-performance binary IPC in their ecosystems.
 
 ---
 
@@ -114,127 +130,28 @@
 
 ---
 
-## Phase 2: Language Expansion - Tier C (Priority: High)
-
-**Goal**: Activate PHP (Tier C) with C ABI bridge - quick wins
-
-### Milestone 2.1: PHP Support (Target: 10/10)
-**Status**: Generator exists, no benchmark
-
-- [ ] Task 2.1.1: Audit PHP generator for Message suffix compliance
-  - Check: `pkg/generator/generator_php.go` for Message suffix
-  - Check: Uses schema.Package not filename
-  - Fix: Any violations found
-  - Test: Generate test schema manually
-  - Commit: "fix: PHP generator Message suffix compliance"
-
-- [ ] Task 2.1.2: Create PHP benchmark harness
-  - Create: `pkg/benchmark/benchmark_php.go`
-  - Pattern: Follow Python Tier B pattern (FFI to C ABI)
-  - Generate: PHP project with FFI bindings
-  - Commit: "feat: PHP benchmark harness"
-
-- [ ] Task 2.1.3: Add PHP to magefile
-  - Add: `RunPHP()` function to benchmarks/magefile.go
-  - Add: PHP to `bench` workflow
-  - Test: `mage genAll` generates PHP benchmarks
-  - Commit: "feat: integrate PHP into benchmark suite"
-
-- [ ] Task 2.1.4: Validate and fix PHP implementation
-  - Run: `mage runPHP`
-  - Fix: Any errors found (likely FFI loading, shared library path)
-  - Test: 10/10 passing
-  - Commit: "fix: PHP benchmark validation"
-
-**Verification**: `mage runPHP` shows 10/10 passing
-
----
-
-## Phase 3: Rust Native Implementation (Priority: High)
-
-**Goal**: Add Rust as Tier A (native, no FFI) - strategic priority
-
-- [ ] Task 2.2.1: Audit Java generator for Message suffix compliance
-  - Check: `pkg/generator/generator_java.go`
-  - Fix: Message suffix violations
-  - Test: Generate test schema manually
-  - Commit: "fix: Java generator Message suffix compliance"
-
-- [ ] Task 2.2.2: Create Java benchmark harness
-  - Create: `pkg/benchmark/benchmark_java.go`
-  - Pattern: JNI/JNA to C ABI (Tier B)
-  - Generate: Maven/Gradle project structure
-  - Commit: "feat: Java benchmark harness"
-
-- [ ] Task 2.2.3: Add Java to magefile
-  - Add: `RunJava()` function
-  - Integrate: Into benchmark workflow
-  - Test: `mage genAll` generates Java benchmarks
-  - Commit: "feat: integrate Java into benchmark suite"
-
-- [ ] Task 2.2.4: Validate and fix Java implementation
-  - Run: `mage runJava`
-  - Fix: JNI/JNA loading, native library path
-  - Test: 10/10 passing
-  - Commit: "fix: Java benchmark validation"
-
-**Verification**: `mage runJava` shows 10/10 passing
-
----
-
-### Milestone 2.3: PHP Support (Target: 10/10)
-**Status**: Generator exists, no benchmark
-
-- [ ] Task 2.3.1: Audit PHP generator for Message suffix compliance
-  - Check: `pkg/generator/generator_php.go`
-  - Fix: Message suffix violations
-  - Test: Generate test schema manually
-  - Commit: "fix: PHP generator Message suffix compliance"
-
-- [ ] Task 2.3.2: Create PHP benchmark harness
-  - Create: `pkg/benchmark/benchmark_php.go`
-  - Pattern: FFI to C ABI (PHP 7.4+ FFI extension)
-  - Generate: composer.json, proper PHP project
-  - Commit: "feat: PHP benchmark harness"
-
-- [ ] Task 2.3.3: Add PHP to magefile
-  - Add: `RunPHP()` function
-  - Integrate: Into benchmark workflow
-  - Test: `mage genAll` generates PHP benchmarks
-  - Commit: "feat: integrate PHP into benchmark suite"
-
-- [ ] Task 2.3.4: Validate and fix PHP implementation
-  - Run: `mage runPHP`
-  - Fix: FFI loading, shared library path
-  - Test: 10/10 passing
-  - Commit: "fix: PHP benchmark validation"
-
-**Verification**: `mage runPHP` shows 10/10 passing
-
----
-
-## Phase 3: Rust Native Implementation (Priority: High)
+## Phase 2: Rust Native Implementation (Priority: High)
 
 **Goal**: Add Rust as Tier A (native, no FFI) - strategic priority for performance-critical applications
 
-### Milestone 3.1: Rust Generator Foundation
+### Milestone 2.1: Rust Generator Foundation
 **Status**: Does not exist
 **Rationale**: Rust + zero-copy = fastest possible binary serialization
 
-- [ ] Task 3.1.1: Design Rust code generation architecture
+- [ ] Task 2.1.1: Design Rust code generation architecture
   - Research: Rust serialization patterns (serde reference)
   - Design: Message suffix (ConfigMessage struct)
   - Design: Encode/decode API (methods vs functions)
   - Document: Architecture in YAML
   - Commit: "docs: Rust generator architecture design"
 
-- [ ] Task 3.1.2: Create Rust generator skeleton
+- [ ] Task 2.1.2: Create Rust generator skeleton
   - Create: `pkg/generator/generator_rust.go`
   - Implement: Basic struct generation (empty structs)
   - Pattern: Follow Go/C++ Tier A pattern (self-contained)
   - Commit: "feat: Rust generator skeleton"
 
-- [ ] Task 3.1.3: Implement Rust type system
+- [ ] Task 2.1.3: Implement Rust type system
   - Implement: Primitive types (bool, i8, i16, i32, i64, f32, f64, String)
   - Implement: Optional types (Option<T>)
   - Implement: Array types (Vec<T>)
@@ -242,13 +159,13 @@
   - Test: Generate struct schema
   - Commit: "feat: Rust type system implementation"
 
-- [ ] Task 3.1.4: Implement Rust encoder
+- [ ] Task 2.1.4: Implement Rust encoder
   - Implement: Wire format encoding (match ffire spec)
   - Pattern: impl for each type
   - Test: Encode struct schema matches wire format
   - Commit: "feat: Rust encoder implementation"
 
-- [ ] Task 3.1.5: Implement Rust decoder
+- [ ] Task 2.1.5: Implement Rust decoder
   - Implement: Wire format decoding
   - Error handling: Result<T, Error> pattern
   - Test: Decode struct schema matches expected
@@ -258,22 +175,22 @@
 
 ---
 
-### Milestone 3.2: Rust Benchmark Integration
+### Milestone 2.2: Rust Benchmark Integration
 **Status**: Benchmark harness does not exist
 
-- [ ] Task 3.2.1: Create Rust benchmark harness
+- [ ] Task 2.2.1: Create Rust benchmark harness
   - Create: `pkg/benchmark/benchmark_rust.go`
   - Generate: Cargo.toml with dependencies
   - Generate: Rust benchmark driver (criterion or manual)
   - Commit: "feat: Rust benchmark harness"
 
-- [ ] Task 3.2.2: Add Rust to magefile
+- [ ] Task 2.2.2: Add Rust to magefile
   - Add: `RunRust()` function
   - Build: `cargo build --release` integration
   - Run: Benchmark execution
   - Commit: "feat: integrate Rust into benchmark suite"
 
-- [ ] Task 3.2.3: Validate Rust across all schemas
+- [ ] Task 2.2.3: Validate Rust across all schemas
   - Test: `mage runRust`
   - Fix: Any encoding/decoding bugs found
   - Iterate: Until 10/10 passing
@@ -283,7 +200,7 @@
 
 ---
 
-## Phase 4: C# & Java Native Implementations (Priority: Medium)
+## Phase 3: C# & Java Native Implementations (Priority: Medium)
 
 **Goal**: Replace C ABI bridges with pure native implementations for Tier A performance
 
@@ -293,31 +210,31 @@
 - 🔧 Easier debugging (pure managed code)
 - ✨ Idiomatic APIs (native language features)
 
-### Milestone 4.1: C# Native Generator (Target: 10/10)
+### Milestone 3.1: C# Native Generator (Target: 10/10)
 **Status**: Replace existing P/Invoke implementation
 
-- [ ] Task 4.1.1: Design C# native generator
+- [ ] Task 3.1.1: Design C# native generator
   - Research: Span<byte> for zero-copy operations
   - Design: Pure C# encoder/decoder (no FFI)
   - Pattern: Copy from Go generator (similar syntax)
   - Document: Architecture design
   - Commit: "docs: C# native generator design"
 
-- [ ] Task 4.1.2: Create C# native generator
+- [ ] Task 3.1.2: Create C# native generator
   - Create: `pkg/generator/generator_csharp_native.go`
   - Implement: Struct generation with properties
   - Implement: Encode/decode using BinaryWriter/Span<byte>
   - Test: Generate struct schema
   - Commit: "feat: C# native generator"
 
-- [ ] Task 4.1.3: Implement C# type system
+- [ ] Task 3.1.3: Implement C# type system
   - Primitives: bool, sbyte, short, int, long, float, double, string
   - Optionals: Nullable<T> for value types, null for reference types
   - Arrays: List<T> or T[]
   - Nested: Child classes
   - Commit: "feat: C# native type system"
 
-- [ ] Task 4.1.4: Validate and benchmark
+- [ ] Task 3.1.4: Validate and benchmark
   - Test: `mage runCSharp` shows 10/10
   - Compare: Performance vs old P/Invoke version
   - Expect: ~10x faster, competitive with Go/C++
@@ -327,37 +244,37 @@
 
 ---
 
-### Milestone 4.2: Java Native Generator (Target: 10/10)
+### Milestone 3.2: Java Native Generator (Target: 10/10)
 **Status**: Create new native implementation
 
-- [ ] Task 4.2.1: Design Java native generator
+- [ ] Task 3.2.1: Design Java native generator
   - Research: ByteBuffer for efficient encoding
   - Design: Pure Java encoder/decoder (no JNI)
   - Pattern: Copy from C# native generator
   - Document: Architecture design
   - Commit: "docs: Java native generator design"
 
-- [ ] Task 4.2.2: Create Java native generator
+- [ ] Task 3.2.2: Create Java native generator
   - Create: `pkg/generator/generator_java.go`
   - Implement: Class generation with getters/setters
   - Implement: Encode/decode using ByteBuffer
   - Test: Generate struct schema
   - Commit: "feat: Java native generator"
 
-- [ ] Task 4.2.3: Implement Java type system
+- [ ] Task 3.2.3: Implement Java type system
   - Primitives: boolean, byte, short, int, long, float, double, String
   - Optionals: Optional<T> or null
   - Arrays: ArrayList<T> or native arrays
   - Nested: Inner/outer classes
   - Commit: "feat: Java native type system"
 
-- [ ] Task 4.2.4: Create Java benchmark harness
+- [ ] Task 3.2.4: Create Java benchmark harness
   - Create: `pkg/benchmark/benchmark_java.go`
   - Generate: Maven/Gradle project structure
   - Generate: Benchmark driver (JMH or manual)
   - Commit: "feat: Java benchmark harness"
 
-- [ ] Task 4.2.5: Validate and benchmark
+- [ ] Task 3.2.5: Validate and benchmark
   - Test: `mage runJava` shows 10/10
   - Compare: Performance expectations (Tier A)
   - Expect: Within 20% of Go/C++
@@ -367,21 +284,21 @@
 
 ---
 
-## Phase 5: Performance Optimization & Analysis (Priority: Medium)
+## Phase 4: Performance Optimization & Analysis (Priority: Medium)
 
 **Goal**: Optimize remaining Tier B languages and document tradeoffs
 
-### Milestone 5.1: Performance Baseline & Analysis
+### Milestone 4.1: Performance Baseline & Analysis
 **Status**: Need data
 
-- [ ] Task 5.1.1: Collect comprehensive benchmark data
+- [ ] Task 4.1.1: Collect comprehensive benchmark data
   - Run: `mage bench` and save results
   - Document: Performance comparison table
   - Identify: Slowest operations per language
   - Commit: "docs: baseline performance analysis"
 
-- [ ] Task 5.1.2: Analyze Tier B FFI overhead
-  - Profile: Swift, Dart, Python, JavaScript, PHP benchmarks
+- [ ] Task 4.1.2: Analyze Tier B FFI overhead
+  - Profile: Swift, Dart, Python, JavaScript benchmarks
   - Measure: FFI call overhead vs native implementations
   - Identify: Major bottlenecks (memory allocation, data conversion, etc.)
   - Document: Findings with potential optimizations
@@ -389,10 +306,10 @@
 
 ---
 
-### Milestone 5.2: Optimization Implementation
+### Milestone 4.2: Optimization Implementation
 **Status**: Depends on analysis
 
-- [ ] Task 5.2.1: Optimize identified hotspots (per language)
+- [ ] Task 4.2.1: Optimize identified hotspots (per language)
   - Examples:
     - Reduce memory allocations in Swift
     - Batch FFI calls in Dart
@@ -402,7 +319,7 @@
   - Test: Performance improvement > 20%
   - Commit: "perf: {language} {specific optimization}"
 
-- [ ] Task 5.2.2: Document optimization techniques
+- [ ] Task 4.2.2: Document optimization techniques
   - Update: Architecture YAML with patterns
   - Create: Performance tuning guide
   - Commit: "docs: Tier B performance optimization guide"
@@ -411,11 +328,11 @@
 
 ---
 
-## Phase 6: Documentation & Examples (Priority: High)
+## Phase 5: Documentation & Examples (Priority: High)
 
 **Goal**: Complete developer and user documentation
 
-### Milestone 6.1: Developer Documentation
+### Milestone 5.1: Developer Documentation
 **Status**: Partial (architecture YAML exists)
 
 - [ ] Task 5.1.1: Generator development guide
@@ -505,19 +422,19 @@
 
 ---
 
-## Phase 7: Release Preparation (Priority: Critical)
+## Phase 6: Release Preparation (Priority: Critical)
 
 **Goal**: Polish for public release
 
-### Milestone 7.1: README & Project Polish
+### Milestone 6.1: README & Project Polish
 
-- [ ] Task 7.1.1: Write comprehensive README
+- [ ] Task 6.1.1: Write comprehensive README
   - Include: Feature highlights, quick start, language support matrix
   - Include: Performance comparison table
   - Include: Link to all documentation
   - Commit: "docs: comprehensive README"
 
-- [ ] Task 7.1.2: Add CI/CD pipeline
+- [ ] Task 6.1.2: Add CI/CD pipeline
   - Setup: GitHub Actions for all languages
   - Test: Run full benchmark suite on PR
   - Test: Verify 10/10 for all languages
@@ -536,39 +453,42 @@
 ## Summary & Prioritization
 
 ### Critical Path (Must complete for release):
-1. **Phase 1**: Stabilization (JS, Python, Protobuf) → 3 languages, 24 tasks
-2. **Phase 3**: Rust implementation → 8 tasks
-3. **Phase 5**: Documentation → 12 tasks
-4. **Phase 6**: Release prep → 3 tasks
+1. **Phase 1**: Stabilization (JS, Python, Protobuf) ✅ COMPLETE
+2. **Phase 2**: Rust implementation → 8 tasks
+3. **Phase 3**: C# & Java native implementations → 10 tasks
+4. **Phase 5**: Documentation → 12 tasks
+5. **Phase 6**: Release prep → 3 tasks
 
-**Total Critical Path**: ~47 tasks
+**Total Critical Path**: ~33 tasks remaining
 
-### High Priority (Important for comprehensive release):
-- **Phase 2**: C#, Java, PHP support → 12 tasks
+### Excluded from v1.0:
+- **PHP**: Web-centric ecosystem lacks IPC use cases
+- **Ruby**: Same as PHP, even less IPC culture
 
 ### Medium Priority (Can be post-1.0):
-- **Phase 4**: Performance optimization → 2 tasks + language-specific
+- **Phase 4**: Performance optimization → 4 tasks + language-specific
 
 ---
 
 ## Recommended Execution Order
 
-1. **Week 1-2**: Phase 1 (Stabilization) - Get existing languages to 100%
-2. **Week 3-4**: Phase 3 (Rust) - Native implementation
-3. **Week 5**: Phase 2 (C#, Java, PHP) - Expand language support
-4. **Week 6-7**: Phase 5 (Documentation) - Complete docs & examples
-5. **Week 8**: Phase 4 (Performance) - Optimize slow paths
-6. **Week 9**: Phase 6 (Release) - Final polish & CI/CD
+1. ~~**Week 1-2**: Phase 1 (Stabilization)~~ ✅ COMPLETE
+2. **Week 3-4**: Phase 2 (Rust) - Native Tier A implementation
+3. **Week 5-6**: Phase 3 (C# & Java) - Native Tier A implementations
+4. **Week 7-8**: Phase 5 (Documentation) - Complete docs & examples
+5. **Week 9**: Phase 4 (Performance) - Optimize Tier B languages
+6. **Week 10**: Phase 6 (Release) - Final polish & CI/CD
 
-**Target Release**: ~9 weeks from start
+**Target Release**: ~8 weeks remaining
 
 ---
 
 ## Success Metrics
 
 - [ ] All languages: 10/10 benchmark pass rate
-- [ ] Total languages: 11 (Go, C++, Rust, Swift, Dart, Python, JS, C#, Java, PHP, Ruby)
+- [ ] Total languages: 9 (Go, C++, Rust, Swift, Dart, Python, JS, C#, Java)
+  - **Note**: PHP and Ruby excluded due to lack of market fit for binary IPC
 - [ ] Documentation coverage: 100% (all sections complete)
 - [ ] Examples: Working examples for each language
 - [ ] CI/CD: Green builds on all PRs
-- [ ] Performance: Tier B within 10x of Tier A
+- [ ] Performance: Tier A ~50-200ns, Tier B within 10x of Tier A
