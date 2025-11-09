@@ -103,7 +103,7 @@ func generateNAPIBinding(config *PackageConfig, paths *PackagePaths) error {
 // generateNAPIMessageFunctions generates encode/decode functions for a message type
 func generateNAPIMessageFunctions(buf *bytes.Buffer, msg *schema.MessageType) error {
 	msgName := msg.Name + "Message"
-	cppTypeName := msg.Name // C++ struct name (without Message suffix)
+	cppTypeName := msg.Name + "Message" // C++ struct name (with Message suffix)
 	structType, ok := msg.TargetType.(*schema.StructType)
 	if !ok {
 		// Handle array and primitive types
