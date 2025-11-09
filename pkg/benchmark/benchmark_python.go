@@ -69,8 +69,7 @@ func GeneratePython(schema *schema.Schema, schemaName, messageName string, jsonD
 func generatePythonBenchmarkCode(packageName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
 
-	// Add Message suffix to class name (generator adds this suffix)
-	className := messageName + "Message"
+	// Generate lowercase function base name for encode/decode functions
 	funcBaseName := strings.ToLower(messageName)
 
 	fmt.Fprintf(buf, `#!/usr/bin/env python3
@@ -102,9 +101,6 @@ spec = importlib.util.spec_from_file_location('ffire_generated_pkg', pkg_init)
 pkg = importlib.util.module_from_spec(spec)
 sys.modules['ffire_generated_pkg'] = pkg
 spec.loader.exec_module(pkg)
-
-# Get message class (with Message suffix)
-MessageClass = getattr(pkg, '%s')
 
 # Restore original sys.path for any future imports
 if original_path0 is not None and (not sys.path or sys.path[0] != original_path0):
@@ -177,7 +173,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-`, packageName, packageName, className, funcBaseName, funcBaseName, iterations, messageName, messageName)
+`, packageName, packageName, funcBaseName, funcBaseName, iterations, messageName, messageName)
 
 	return buf.String()
 }

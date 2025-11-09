@@ -278,10 +278,13 @@ func generatePybind11Init(config *PackageConfig, rootDir string) error {
 	// Import the compiled extension module (named with _native suffix to avoid circular import)
 	fmt.Fprintf(buf, "from . import %s_native as _native\n\n", config.Namespace)
 
-	// Re-export root message types (with Message suffix)
+	// Re-export root message types (with Message suffix) - only for struct types
 	for _, msg := range config.Schema.Messages {
-		className := msg.Name + "Message"
-		fmt.Fprintf(buf, "%s = _native.%s\n", className, className)
+		// Only export class for struct-based messages
+		if _, ok := msg.TargetType.(*schema.StructType); ok {
+			className := msg.Name + "Message"
+			fmt.Fprintf(buf, "%s = _native.%s\n", className, className)
+		}
 	}
 	buf.WriteString("\n")
 
@@ -314,14 +317,17 @@ func generatePybind11Init(config *PackageConfig, rootDir string) error {
 	// Export all types and functions
 	buf.WriteString("__all__ = [")
 	first := true
-	// Export root message types (with Message suffix)
+	// Export root message types (with Message suffix) - only for struct types
 	for _, msg := range config.Schema.Messages {
-		if !first {
-			buf.WriteString(", ")
+		// Only export class for struct-based messages
+		if _, ok := msg.TargetType.(*schema.StructType); ok {
+			if !first {
+				buf.WriteString(", ")
+			}
+			className := msg.Name + "Message"
+			fmt.Fprintf(buf, "\"%s\"", className)
+			first = false
 		}
-		className := msg.Name + "Message"
-		fmt.Fprintf(buf, "\"%s\"", className)
-		first = false
 	}
 	// Export embedded struct types (bare names, only those not in Messages)
 	for _, typ := range config.Schema.Types {
