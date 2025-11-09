@@ -111,7 +111,7 @@ func generateDartFiles(config *PackageConfig, libDir, nativeLibDir string) error
 
 func generateDartMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType, packageName string) error {
 	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI
-	className := msg.Name
+	className := msg.Name + "Message"      // Add Message suffix to avoid keyword collisions
 
 	// Native function references in _NativeLibrary class extension
 	fmt.Fprintf(buf, "extension _%sFunctions on _NativeLibrary {\n", className)

@@ -18,11 +18,12 @@ func GenerateDart(schema *schema.Schema, schemaName, messageName string, jsonDat
 	}
 
 	// Step 1: Generate the Dart package
+	// Use package name (not schema filename) as module name
 	config := &generator.PackageConfig{
 		Schema:    schema,
 		Language:  "dart",
 		OutputDir: outputDir,
-		Namespace: schemaName,
+		Namespace: schema.Package,
 		Optimize:  2,
 		Platform:  "current",
 		Arch:      "current",
@@ -48,7 +49,7 @@ func GenerateDart(schema *schema.Schema, schemaName, messageName string, jsonDat
 	}
 
 	// Step 4: Generate the benchmark harness
-	benchmarkCode := generateDartBenchmarkCode(schemaName, messageName, iterations)
+	benchmarkCode := generateDartBenchmarkCode(schema.Package, messageName, iterations)
 	benchPath := filepath.Join(dartDir, "bench.dart")
 	if err := os.WriteFile(benchPath, []byte(benchmarkCode), 0644); err != nil {
 		return fmt.Errorf("failed to write benchmark: %w", err)
@@ -67,6 +68,9 @@ func GenerateDart(schema *schema.Schema, schemaName, messageName string, jsonDat
 // generateDartBenchmarkCode generates the benchmark harness code
 func generateDartBenchmarkCode(schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
+	
+	// Add Message suffix to class name (generator adds this suffix)
+	className := messageName + "Message"
 
 	fmt.Fprintf(buf, `import 'dart:io';
 import 'dart:convert';
@@ -135,7 +139,7 @@ void main() async {
     print('Total time:  ${(encodeTime.inMilliseconds + decodeTime.inMilliseconds) / 1000}s');
   }
 }
-`, schemaName, schemaName, iterations, messageName, messageName, messageName, messageName, messageName)
+`, schemaName, schemaName, iterations, className, className, className, messageName, messageName)
 
 	return buf.String()
 }
