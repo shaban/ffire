@@ -47,9 +47,9 @@ func TestGenerateGoSimpleStruct(t *testing.T) {
 		t.Errorf("missing imports")
 	}
 
-	// Check struct definition
-	if !strings.Contains(codeStr, "type User struct") {
-		t.Errorf("missing User struct")
+	// Check struct definition (with Message suffix)
+	if !strings.Contains(codeStr, "type UserMessage struct") {
+		t.Errorf("missing UserMessage struct")
 	}
 
 	// Check encode function
@@ -449,14 +449,16 @@ func TestRoundtripNestedStructs(t *testing.T) {
 	codeStr := string(code)
 
 	// Verify nested struct handling
+	// Inner is an embedded struct (no Message suffix)
 	if !strings.Contains(codeStr, "type Inner struct") {
 		t.Errorf("Missing Inner struct definition")
 	}
-	if !strings.Contains(codeStr, "type Outer struct") {
-		t.Errorf("Missing Outer struct definition")
+	// Outer is a root message (has Message suffix)
+	if !strings.Contains(codeStr, "type OuterMessage struct") {
+		t.Errorf("Missing OuterMessage struct definition")
 	}
 	if !strings.Contains(codeStr, "Nested Inner") {
-		t.Errorf("Missing nested field in Outer struct")
+		t.Errorf("Missing nested field in OuterMessage struct")
 	}
 }
 
@@ -548,6 +550,8 @@ func TestRoundtripOptionalArray(t *testing.T) {
 	}
 
 	codeStr := string(code)
+	
+	t.Logf("Generated code:\n%s", codeStr)
 
 	// Optional arrays should use pointer type
 	if !strings.Contains(codeStr, "v *[]int32") {
@@ -755,8 +759,8 @@ func TestGenerateCppSimpleStruct(t *testing.T) {
 		t.Errorf("missing namespace declaration")
 	}
 
-	// Check struct definition
-	if !strings.Contains(codeStr, "struct User {") {
+	// Check struct definition (with Message suffix for root message)
+	if !strings.Contains(codeStr, "struct UserMessage {") {
 		t.Errorf("missing struct definition")
 	}
 	if !strings.Contains(codeStr, "int32_t ID;") {
@@ -839,6 +843,8 @@ func TestGenerateCppArray(t *testing.T) {
 	if !strings.Contains(codeStr, "for (uint16_t i = 0; i < len; ++i)") {
 		t.Errorf("missing decode loop")
 	}
+	
+	t.Logf("Generated C++ code:\n%s", codeStr)
 }
 
 func TestGenerateCppOptional(t *testing.T) {
@@ -984,11 +990,13 @@ func TestGenerateCppNestedStruct(t *testing.T) {
 	codeStr := string(code)
 
 	// Check both structs are defined
+	// Inner is embedded (no Message suffix)
 	if !strings.Contains(codeStr, "struct Inner {") {
 		t.Errorf("missing Inner struct")
 	}
-	if !strings.Contains(codeStr, "struct Outer {") {
-		t.Errorf("missing Outer struct")
+	// Outer is root message (has Message suffix)
+	if !strings.Contains(codeStr, "struct OuterMessage {") {
+		t.Errorf("missing OuterMessage struct")
 	}
 
 	// Check nested struct field
