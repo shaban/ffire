@@ -10,8 +10,60 @@ import (
 	"github.com/shaban/ffire/pkg/schema"
 )
 
+// swiftModuleKeywords lists Swift keywords that cannot be used as module/package names.
+//
+// Purpose:
+//   - Sanitize schema.Package names for Swift module system
+//   - Example: "package struct" → "import structModule" (struct is Swift keyword)
+//
+// Scope:
+//   - Used ONLY for module/package name sanitization
+//   - NOT used for type names (they get Message suffix: StructMessage)
+//   - NOT used for field names or other identifiers
+//
+// Why type names don't need this:
+//   - Type names automatically get "Message" suffix
+//   - "type Struct" → "StructMessage" (no collision)
+//   - "type Class" → "ClassMessage" (no collision)
+//   - Universal collision avoidance across all 11 languages
+//
+// Swift's module system:
+//   - Modules must not conflict with language keywords
+//   - "import struct" is invalid (struct is keyword)
+//   - "import structModule" is valid (appended suffix)
+var swiftModuleKeywords = map[string]bool{
+	"Any": true, "as": true, "associatedtype": true, "break": true, "case": true,
+	"catch": true, "class": true, "continue": true, "default": true, "defer": true,
+	"deinit": true, "do": true, "else": true, "enum": true, "extension": true,
+	"fallthrough": true, "false": true, "fileprivate": true, "for": true, "func": true,
+	"guard": true, "if": true, "import": true, "in": true, "init": true,
+	"inout": true, "internal": true, "is": true, "let": true, "nil": true,
+	"open": true, "operator": true, "private": true, "protocol": true, "public": true,
+	"repeat": true, "rethrows": true, "return": true, "self": true, "Self": true,
+	"static": true, "struct": true, "subscript": true, "super": true, "switch": true,
+	"throw": true, "throws": true, "true": true, "try": true, "typealias": true,
+	"var": true, "where": true, "while": true,
+}
+
+// SanitizeSwiftModuleName ensures the module name is not a Swift keyword.
+// Appends "Module" suffix if the name conflicts with a Swift keyword.
+//
+// Used for: schema.Package (module names)
+// Not used for: Type names (already get Message suffix)
+//
+// Exported for use by benchmark generation (pkg/benchmark/benchmark_swift.go).
+func SanitizeSwiftModuleName(name string) string {
+	if swiftModuleKeywords[name] {
+		return name + "Module"
+	}
+	return name
+}
+
 // GenerateSwiftPackage generates a complete Swift package using the orchestrator
 func GenerateSwiftPackage(config *PackageConfig) error {
+	// Sanitize the namespace to avoid Swift keywords
+	config.Namespace = SanitizeSwiftModuleName(config.Namespace)
+
 	return orchestrateTierBPackage(
 		config,
 		SwiftLayout,
@@ -131,8 +183,9 @@ import Foundation
 }
 
 func generateSwiftMessageBindings(buf *bytes.Buffer, s *schema.Schema, msg *schema.MessageType) error {
-	className := msg.Name
-	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI
+	// Append "Message" suffix to avoid keyword collisions
+	className := msg.Name + "Message"
+	baseName := strings.ToLower(msg.Name) // All lowercase to match C ABI (no Message suffix in C functions)
 
 	// C function declarations
 	fmt.Fprintf(buf, "// C function declarations for %s\n", className)
@@ -280,12 +333,12 @@ let package = Package(
             path: "Sources/%s",
             linkerSettings: [
                 .unsafeFlags(["-L", "lib"]),
-                .linkedLibrary("ffire")
+                .linkedLibrary("%s")
             ]
         ),
     ]
 )
-`, config.Namespace, config.Namespace, config.Namespace, config.Namespace, config.Namespace)
+`, config.Namespace, config.Namespace, config.Namespace, config.Namespace, config.Namespace, config.Schema.Package)
 
 	manifestPath := filepath.Join(packageDir, "Package.swift")
 	if err := os.WriteFile(manifestPath, buf.Bytes(), 0644); err != nil {
