@@ -933,19 +933,19 @@ func saveMarkdownTable(results []BenchResult) error {
 }
 
 func inferMessageType(name string, jsonData []byte) string {
-	// Map schema names to generated message type names
-	// Note: ffire generators automatically append "Message" suffix to avoid keyword collisions
+	// Map schema names to protobuf message type names (as defined in .proto files)
+	// Note: protobuf uses the exact message names from .proto files, no suffix added
 	typeMap := map[string]string{
-		"complex":      "PluginListMessage",
-		"array_float":  "FloatListMessage",
-		"array_int":    "IntListMessage",
-		"array_string": "StringListMessage",
-		"array_struct": "DeviceListMessage",
-		"empty":        "EmptyTestMessage",
-		"nested":       "Level1Message",
-		"optional":     "RecordListMessage",
-		"struct":       "ConfigMessage",
-		"tags":         "UserMessage",
+		"complex":      "PluginList",
+		"array_float":  "FloatList",
+		"array_int":    "IntList",
+		"array_string": "StringList",
+		"array_struct": "DeviceList",
+		"empty":        "EmptyTest",
+		"nested":       "Level1",
+		"optional":     "RecordList",
+		"struct":       "Config",
+		"tags":         "User",
 	}
 
 	if typeName, ok := typeMap[name]; ok {
