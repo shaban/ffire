@@ -1,0 +1,15 @@
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/bin/Release/net9.0/Complex
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/bin/Release/net9.0/Complex.deps.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/bin/Release/net9.0/Complex.runtimeconfig.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/bin/Release/net9.0/Complex.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/bin/Release/net9.0/Complex.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.sourcelink.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/refint/Complex.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/Complex.genruntimeconfig.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Release/net9.0/ref/Complex.dll

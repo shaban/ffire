@@ -21,7 +21,7 @@ func GenerateCpp(s *schema.Schema, schemaName string, messageName string, jsonDa
 	}
 
 	// Generate the encoder/decoder code
-	generatedCode, err := generator.Generate(s, generator.LanguageCpp)
+	generatedCode, err := generator.GenerateCpp(s)
 	if err != nil {
 		return fmt.Errorf("failed to generate code: %w", err)
 	}

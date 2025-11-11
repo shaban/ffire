@@ -5,10 +5,28 @@
 //
 // Usage:
 //
-//	mage genAll      - Generate all benchmarks
-//	mage runGo       - Run Go benchmarks
-//	mage compare     - Show comparison table
-//	mage bench       - Full workflow (generate + run + compare)
+//	mage gen {target}    - Generate benchmarks for specific language or 'all'
+//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Example: mage gen java
+//
+//	mage run {target}    - Run benchmarks for specific language or 'all'
+//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Example: mage run go
+//
+//	mage clean {target}  - Clean generated files for specific language or 'all'
+//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Example: mage clean cpp
+//
+//	mage compare         - Generate comparison table from all benchmark results
+//	                       Shows performance metrics across all languages and formats
+//
+//	mage graph {target}  - Display visual decode time comparison
+//	                       Targets: all (average), or specific schema name (struct, array_int, etc.)
+//	                       Example: mage graph struct
+//	                       Shows all language implementations with performance bars
+//
+//	mage bench           - Full workflow: generate all → run all → compare
+//	                       Comprehensive benchmark suite across all languages
 package main
 
 import (
@@ -21,7 +39,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
@@ -86,25 +103,19 @@ type BenchResult struct {
 	Timestamp   string `json:"timestamp"`
 }
 
-// Clean removes all generated benchmark code (but preserves results/)
-func Clean() error {
-	fmt.Println("🧹 Cleaning generated files...")
-	os.RemoveAll(genDir)
-	// Don't delete resultsDir - preserve historical benchmark results
-	return nil
-}
-
-// CleanAll removes all generated files AND results
-func CleanAll() error {
+// cleanAll removes all generated files AND results (private helper)
+func cleanAll() error {
 	fmt.Println("🧹 Cleaning all generated files and results...")
 	os.RemoveAll(genDir)
 	os.RemoveAll(resultsDir)
 	return nil
 }
 
-// GenAll generates all benchmark variants
-func GenAll() error {
-	mg.Deps(Clean)
+// genAll generates all benchmark variants (private helper)
+func genAll() error {
+	// Clean generated directory first
+	fmt.Println("🧹 Cleaning generated files...")
+	os.RemoveAll(genDir)
 
 	if err := os.MkdirAll(genDir, 0755); err != nil {
 		return err
@@ -218,10 +229,25 @@ func GenAll() error {
 		}
 	}
 
-	// Generate protobuf benchmarks (only for those with .proto files)
+	// Generate ffire Java benchmarks
+	for _, suite := range suites {
+		fmt.Printf("☕ Generating ffire Java benchmark: %s\n", suite.Name)
+		if err := sh.Run("ffire", "bench",
+			"--lang", "java",
+			"--schema", suite.SchemaFile,
+			"--json", suite.JSONFile,
+			"--output", filepath.Join(genDir, "ffire_java_"+suite.Name),
+			"--iterations", "10000",
+		); err != nil {
+			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
+			continue
+		}
+	}
+
+	// Generate proto benchmarks (only for those with .proto files)
 	for _, suite := range suites {
 		if _, err := os.Stat(suite.ProtoFile); err == nil {
-			fmt.Printf("📦 Generating protobuf benchmark: %s\n", suite.Name)
+			fmt.Printf("📦 Generating proto benchmark: %s\n", suite.Name)
 			if err := genProto(suite.Name, suite.ProtoFile, suite.JSONFile); err != nil {
 				return fmt.Errorf("failed to generate proto benchmark for %s: %w", suite.Name, err)
 			}
@@ -232,7 +258,7 @@ func GenAll() error {
 	return nil
 }
 
-// genProto generates protobuf benchmark
+// genProto generates proto benchmark
 func genProto(name, protoFile, jsonFile string) error {
 	outDir := filepath.Join(genDir, "proto_"+name)
 	if err := os.MkdirAll(outDir, 0755); err != nil {
@@ -254,8 +280,211 @@ func genProto(name, protoFile, jsonFile string) error {
 	return generateProtoBenchmark(name, outDir, jsonFile)
 }
 
-// RunGo runs the Go benchmarks
-func RunGo() error {
+// Gen generates benchmarks for the specified target
+// Usage:
+//
+//	mage gen all      - Generate all languages
+//	mage gen go       - Generate only Go benchmarks
+//	mage gen java     - Generate only Java benchmarks
+//	mage gen cpp      - Generate only C++ benchmarks
+//	(supports: go, cpp, java, python, dart, swift, javascript/js, proto)
+func Gen(target string) error {
+	target = strings.ToLower(target)
+
+	// Handle 'all' target
+	if target == "all" {
+		return genAll()
+	}
+
+	// Handle 'js' alias
+	if target == "js" {
+		target = "javascript"
+	}
+
+	// Validate target
+	validTargets := map[string]bool{
+		"go": true, "cpp": true, "java": true, "csharp": true, "python": true, "python-pybind11": true,
+		"dart": true, "swift": true, "javascript": true, "proto": true,
+	}
+
+	if !validTargets[target] {
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, python-pybind11, dart, swift, javascript, proto", target)
+	}
+
+	// Create output directories
+	if err := os.MkdirAll(genDir, 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(resultsDir, 0755); err != nil {
+		return err
+	}
+
+	// Build ffire
+	fmt.Println("🔨 Building ffire...")
+	if err := sh.RunV("sh", "-c", "cd .. && go install ./cmd/ffire"); err != nil {
+		return fmt.Errorf("failed to build ffire: %w", err)
+	}
+
+	// Discover benchmarks
+	suites, err := discoverBenchmarks()
+	if err != nil {
+		return err
+	}
+
+	// Generate for the target language
+	return genLanguage(target, suites)
+}
+
+// Run runs benchmarks for the specified target
+// Usage:
+//
+//	mage run all      - Run all language benchmarks
+//	mage run go       - Run only Go benchmarks
+//	mage run java     - Run only Java benchmarks
+//	(supports: go, cpp, java, python, dart, swift, javascript/js, proto)
+func Run(target string) error {
+	target = strings.ToLower(target)
+
+	// Handle 'all' target - run everything
+	if target == "all" {
+		fmt.Println("🏃 Running all benchmarks...")
+
+		if err := runGo(); err != nil {
+			fmt.Printf("⚠️  Go benchmarks failed: %v\n", err)
+		}
+		if err := runCpp(); err != nil {
+			fmt.Printf("⚠️  C++ benchmarks failed: %v\n", err)
+		}
+		if err := runJava(); err != nil {
+			fmt.Printf("⚠️  Java benchmarks failed: %v\n", err)
+		}
+		if err := runCSharp(); err != nil {
+			fmt.Printf("⚠️  C# benchmarks failed: %v\n", err)
+		}
+		if err := runPython(); err != nil {
+			fmt.Printf("⚠️  Python benchmarks failed: %v\n", err)
+		}
+		if err := runDart(); err != nil {
+			fmt.Printf("⚠️  Dart benchmarks failed: %v\n", err)
+		}
+		if err := runSwift(); err != nil {
+			fmt.Printf("⚠️  Swift benchmarks failed: %v\n", err)
+		}
+		if err := runJavaScript(); err != nil {
+			fmt.Printf("⚠️  JavaScript benchmarks failed: %v\n", err)
+		}
+		if err := runProto(); err != nil {
+			fmt.Printf("⚠️  Proto benchmarks failed: %v\n", err)
+		}
+
+		return nil
+	}
+
+	// Handle 'js' alias
+	if target == "js" {
+		target = "javascript"
+	}
+
+	// Route to specific runner
+	switch target {
+	case "go":
+		return runGo()
+	case "cpp":
+		return runCpp()
+	case "java":
+		return runJava()
+	case "csharp":
+		return runCSharp()
+	case "python":
+		return runPython()
+	case "dart":
+		return runDart()
+	case "swift":
+		return runSwift()
+	case "javascript":
+		return runJavaScript()
+	case "proto":
+		return runProto()
+	default:
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, dart, swift, javascript, proto", target)
+	}
+}
+
+// Clean removes generated files for the specified target
+// Usage:
+//
+//	mage clean all    - Remove all generated files (keeps results/)
+//	mage clean go     - Remove only Go generated files
+//	mage clean java   - Remove only Java generated files
+func Clean(target string) error {
+	target = strings.ToLower(target)
+
+	// Handle 'all' target
+	if target == "all" {
+		fmt.Println("🧹 Cleaning all generated files...")
+		return os.RemoveAll(genDir)
+	}
+
+	// Handle 'js' alias
+	if target == "js" {
+		target = "javascript"
+	}
+
+	// Validate target
+	validTargets := map[string]bool{
+		"go": true, "cpp": true, "java": true, "csharp": true, "python": true,
+		"dart": true, "swift": true, "javascript": true, "proto": true,
+	}
+
+	if !validTargets[target] {
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, python, dart, swift, javascript, proto", target)
+	}
+
+	// Remove language-specific generated files
+	fmt.Printf("🧹 Cleaning %s generated files...\n", target)
+
+	var patterns []string
+	if target == "go" {
+		// Go benchmarks don't have language prefix
+		patterns = []string{filepath.Join(genDir, "ffire_*")}
+	} else if target == "proto" {
+		patterns = []string{filepath.Join(genDir, "proto_*")}
+	} else {
+		patterns = []string{filepath.Join(genDir, fmt.Sprintf("ffire_%s_*", target))}
+	}
+
+	for _, pattern := range patterns {
+		dirs, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+
+		for _, dir := range dirs {
+			// For Go, skip other language variants
+			if target == "go" {
+				base := filepath.Base(dir)
+				if strings.HasPrefix(base, "ffire_cpp_") ||
+					strings.HasPrefix(base, "ffire_python_") ||
+					strings.HasPrefix(base, "ffire_dart_") ||
+					strings.HasPrefix(base, "ffire_swift_") ||
+					strings.HasPrefix(base, "ffire_javascript_") ||
+					strings.HasPrefix(base, "ffire_java_") {
+					continue
+				}
+			}
+
+			fmt.Printf("  Removing %s\n", dir)
+			if err := os.RemoveAll(dir); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// runGo runs the Go benchmarks
+func runGo() error {
 	fmt.Println("\n🏃 Running ffire Go benchmarks...")
 
 	// Find all Go ffire benchmark directories (exclude cpp and python variants)
@@ -273,7 +502,8 @@ func RunGo() error {
 			!strings.HasPrefix(base, "ffire_python_") &&
 			!strings.HasPrefix(base, "ffire_dart_") &&
 			!strings.HasPrefix(base, "ffire_swift_") &&
-			!strings.HasPrefix(base, "ffire_javascript_") {
+			!strings.HasPrefix(base, "ffire_javascript_") &&
+			!strings.HasPrefix(base, "ffire_java_") {
 			dirs = append(dirs, dir)
 		}
 	}
@@ -307,11 +537,11 @@ func RunGo() error {
 	return saveResults(allResults, "ffire_go")
 }
 
-// RunProto runs the protobuf benchmarks
-func RunProto() error {
-	fmt.Println("\n🏃 Running protobuf Go benchmarks...")
+// runProto runs the proto benchmarks
+func runProto() error {
+	fmt.Println("\n🏃 Running proto benchmarks...")
 
-	// Find all protobuf benchmark directories
+	// Find all proto benchmark directories
 	pattern := filepath.Join(genDir, "proto_*")
 	dirs, err := filepath.Glob(pattern)
 	if err != nil {
@@ -319,7 +549,7 @@ func RunProto() error {
 	}
 
 	if len(dirs) == 0 {
-		fmt.Println("  ⚠️  No protobuf benchmarks found (skipping)")
+		fmt.Println("  ⚠️  No proto benchmarks found (skipping)")
 		return nil
 	}
 
@@ -347,8 +577,8 @@ func RunProto() error {
 	return saveResults(allResults, "proto_go")
 }
 
-// RunCpp runs the C++ benchmarks
-func RunCpp() error {
+// runCpp runs the C++ benchmarks
+func runCpp() error {
 	fmt.Println("\n🏃 Running ffire C++ benchmarks...")
 
 	// Find all C++ benchmark directories
@@ -387,8 +617,8 @@ func RunCpp() error {
 	return saveResults(allResults, "ffire_cpp")
 }
 
-// RunPython runs the Python benchmarks
-func RunPython() error {
+// runPython runs the Pure Python benchmarks (now the default)
+func runPython() error {
 	fmt.Println("\n🏃 Running ffire Python benchmarks...")
 
 	// Check if python3 is available
@@ -414,7 +644,7 @@ func RunPython() error {
 		name := strings.TrimPrefix(filepath.Base(dir), "ffire_python_")
 		fmt.Printf("\n  Testing: %s\n", name)
 
-		result, err := runPythonBench(dir)
+		result, err := runPythonPureBench(dir)
 		if err != nil {
 			fmt.Printf("  ❌ Failed: %v\n", err)
 			continue
@@ -436,8 +666,9 @@ func RunPython() error {
 	return saveResults(allResults, "ffire_python")
 }
 
-// RunDart runs the Dart benchmarks
-func RunDart() error {
+// runPythonPyBind11 runs the PyBind11 benchmarks (legacy)
+// runDart runs the Dart benchmarks
+func runDart() error {
 	fmt.Println("\n🏃 Running ffire Dart benchmarks...")
 
 	// Check if dart is available
@@ -485,8 +716,8 @@ func RunDart() error {
 	return saveResults(allResults, "ffire_dart")
 }
 
-// RunSwift runs the Swift benchmarks
-func RunSwift() error {
+// runSwift runs the Swift benchmarks
+func runSwift() error {
 	fmt.Println("\n🏃 Running ffire Swift benchmarks...")
 
 	// Check if swift is available
@@ -534,8 +765,8 @@ func RunSwift() error {
 	return saveResults(allResults, "ffire_swift")
 }
 
-// RunJavaScript runs the JavaScript (Node.js) benchmarks
-func RunJavaScript() error {
+// runJavaScript runs the JavaScript (Node.js) benchmarks
+func runJavaScript() error {
 	fmt.Println("\n🏃 Running ffire JavaScript benchmarks...")
 
 	// Check if node is available
@@ -583,7 +814,113 @@ func RunJavaScript() error {
 	return saveResults(allResults, "ffire_javascript")
 }
 
+// runJava runs the Java benchmarks
+func runJava() error {
+	fmt.Println("\n🏃 Running ffire Java benchmarks...")
+
+	// Check if java and javac are available
+	if _, err := exec.LookPath("java"); err != nil {
+		fmt.Println("  ⚠️  java not found (skipping)")
+		return nil
+	}
+	if _, err := exec.LookPath("javac"); err != nil {
+		fmt.Println("  ⚠️  javac not found (skipping)")
+		return nil
+	}
+
+	// Find all Java benchmark directories
+	pattern := filepath.Join(genDir, "ffire_java_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Java benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_java_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runJavaBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_java")
+}
+
+func runCSharp() error {
+	fmt.Println("\n🏃 Running ffire C# benchmarks...")
+
+	// Check if dotnet is available
+	if _, err := exec.LookPath("dotnet"); err != nil {
+		fmt.Println("  ⚠️  dotnet not found (skipping)")
+		return nil
+	}
+
+	// Find all C# benchmark directories
+	pattern := filepath.Join(genDir, "ffire_csharp_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No C# benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_csharp_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runCSharpBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_csharp")
+}
+
 // Compare generates comparison table from all results
+// Compare shows performance comparison across languages
+// Usage:
+//
+//	mage compare           - Compare all languages
+//	mage compare go java   - Compare specific languages
 func Compare() error {
 	fmt.Println("\n📊 Generating comparison table...")
 
@@ -634,33 +971,202 @@ func Compare() error {
 // Bench is the full workflow: generate, run, compare
 func Bench() error {
 	fmt.Println("🚀 Running full benchmark workflow...")
-	mg.Deps(GenAll)
-
-	if err := RunGo(); err != nil {
+	if err := genAll(); err != nil {
 		return err
 	}
 
-	if err := RunCpp(); err != nil {
+	if err := runGo(); err != nil {
 		return err
 	}
 
-	if err := RunPython(); err != nil {
+	if err := runCpp(); err != nil {
 		return err
 	}
 
-	if err := RunDart(); err != nil {
+	if err := runPython(); err != nil {
 		return err
 	}
 
-	if err := RunSwift(); err != nil {
+	if err := runDart(); err != nil {
 		return err
 	}
 
-	if err := RunProto(); err != nil {
+	if err := runSwift(); err != nil {
+		return err
+	}
+
+	if err := runJavaScript(); err != nil {
+		return err
+	}
+
+	if err := runJava(); err != nil {
+		return err
+	}
+
+	if err := runProto(); err != nil {
 		return err
 	}
 
 	return Compare()
+}
+
+// Graph displays a terminal graph of decode times from benchmark results
+// Usage:
+//
+//	mage graph all         - Show average across all schemas
+//	mage graph struct      - Show comparison for 'struct' schema only
+//	mage graph array_int   - Show comparison for 'array_int' schema only
+func Graph(target string) error {
+	target = strings.ToLower(target)
+
+	var targetSchema string
+	if target != "all" {
+		targetSchema = target
+	}
+
+	if targetSchema != "" {
+		fmt.Printf("\n📈 Generating decode time graph for '%s'...\n", targetSchema)
+	} else {
+		fmt.Println("\n📈 Generating decode time graph (average across all schemas)...")
+	}
+
+	// Load all result files
+	files, err := filepath.Glob(filepath.Join(resultsDir, "*.json"))
+	if err != nil {
+		return err
+	}
+
+	var allResults []BenchResult
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+
+		var results []BenchResult
+		if err := json.Unmarshal(data, &results); err != nil {
+			continue
+		}
+		allResults = append(allResults, results...)
+	}
+
+	if len(allResults) == 0 {
+		return fmt.Errorf("no results found - run 'mage bench' or 'mage run all' first")
+	}
+
+	// Filter by schema if specified
+	if targetSchema != "" {
+		var filtered []BenchResult
+		for _, r := range allResults {
+			if r.Message == targetSchema {
+				filtered = append(filtered, r)
+			}
+		}
+		if len(filtered) == 0 {
+			return fmt.Errorf("no results found for schema '%s'\nAvailable schemas: run 'mage compare' to see all", targetSchema)
+		}
+		allResults = filtered
+	}
+
+	// Group results by language+format combination
+	type LangFormat struct {
+		language string
+		format   string
+	}
+
+	langFormatData := make(map[LangFormat][]float64)
+	messageNames := make(map[string]bool)
+
+	for _, r := range allResults {
+		messageNames[r.Message] = true
+		key := LangFormat{language: r.Language, format: r.Format}
+		langFormatData[key] = append(langFormatData[key], float64(r.DecodeNs))
+	}
+
+	// Calculate averages for each language+format
+	type LangFormatAvg struct {
+		language string
+		format   string
+		label    string
+		avgNs    float64
+	}
+
+	var langFormatAvgs []LangFormatAvg
+	for key, values := range langFormatData {
+		sum := 0.0
+		for _, v := range values {
+			sum += v
+		}
+		avg := sum / float64(len(values))
+		label := fmt.Sprintf("%s %s", key.format, key.language)
+		langFormatAvgs = append(langFormatAvgs, LangFormatAvg{
+			language: key.language,
+			format:   key.format,
+			label:    label,
+			avgNs:    avg,
+		})
+	}
+
+	// Sort by average decode time
+	sort.Slice(langFormatAvgs, func(i, j int) bool {
+		return langFormatAvgs[i].avgNs < langFormatAvgs[j].avgNs
+	})
+
+	// Print summary
+	if targetSchema != "" {
+		fmt.Printf("\nDecode Time (ns/op) for '%s':\n", targetSchema)
+	} else {
+		fmt.Println("\nDecode Time (ns/op) - Average across", len(messageNames), "schemas:")
+	}
+	fmt.Println()
+
+	maxLen := 0
+	for _, lf := range langFormatAvgs {
+		if len(lf.label) > maxLen {
+			maxLen = len(lf.label)
+		}
+	}
+
+	for _, lf := range langFormatAvgs {
+		fmt.Printf("  %-*s: %8.0f ns/op\n", maxLen, lf.label, lf.avgNs)
+	}
+
+	// Create visual bar chart
+	fmt.Println("\nVisual Comparison:")
+	fmt.Println()
+
+	// Find the maximum value for scaling
+	maxVal := 0.0
+	for _, lf := range langFormatAvgs {
+		if lf.avgNs > maxVal {
+			maxVal = lf.avgNs
+		}
+	}
+
+	// Draw horizontal bars
+	barWidth := 50
+	for _, lf := range langFormatAvgs {
+		usVal := lf.avgNs / 1000.0 // Convert to microseconds
+		barLen := int((lf.avgNs / maxVal) * float64(barWidth))
+		if barLen < 1 {
+			barLen = 1
+		}
+
+		bar := strings.Repeat("█", barLen)
+		fmt.Printf("  %-15s %s %.2f μs\n", lf.label, bar, usVal)
+	}
+
+	fmt.Println()
+
+	// Show performance ratio for fastest vs slowest
+	if len(langFormatAvgs) >= 2 {
+		fastest := langFormatAvgs[0].label
+		slowest := langFormatAvgs[len(langFormatAvgs)-1].label
+		ratio := langFormatAvgs[len(langFormatAvgs)-1].avgNs / langFormatAvgs[0].avgNs
+		fmt.Printf("  → %s is %.2fx faster than %s\n", fastest, ratio, slowest)
+	}
+
+	return nil
 }
 
 // Helper functions
@@ -729,6 +1235,27 @@ func runPythonBench(dir string) (BenchResult, error) {
 	// Run benchmark with JSON output
 	cmd := exec.Command("python3", "bench.py")
 	cmd.Dir = pythonDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	return result, nil
+}
+
+func runPythonPureBench(dir string) (BenchResult, error) {
+	// Pure Python benchmarks are directly in the directory (no python/ subdirectory)
+
+	// Run benchmark directly with JSON output
+	cmd := exec.Command("python3", "bench.py")
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
 
 	output, err := cmd.Output()
@@ -863,6 +1390,96 @@ func runJavaScriptBench(dir string) (BenchResult, error) {
 	return result, nil
 }
 
+func runJavaBench(dir string) (BenchResult, error) {
+	// Java benchmarks are in the java/ subdirectory
+	javaDir := filepath.Join(dir, "java")
+
+	// Find all Java files
+	javaFiles, err := filepath.Glob(filepath.Join(javaDir, "*.java"))
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("failed to find Java files: %w", err)
+	}
+	if len(javaFiles) == 0 {
+		return BenchResult{}, fmt.Errorf("no Java files found in %s", javaDir)
+	}
+
+	// Compile all Java files
+	fmt.Printf("    Compiling Java benchmark...\n")
+	args := []string{"-d", "."}
+	for _, f := range javaFiles {
+		args = append(args, filepath.Base(f))
+	}
+	cmd := exec.Command("javac", args...)
+	cmd.Dir = javaDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return BenchResult{}, fmt.Errorf("javac failed: %w\nOutput: %s", err, output)
+	}
+
+	// Run benchmark with JSON output
+	fmt.Printf("    Running Java benchmark...\n")
+	cmd = exec.Command("java", "Bench")
+	cmd.Dir = javaDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
+		}
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
+	}
+
+	return result, nil
+}
+
+func runCSharpBench(dir string) (BenchResult, error) {
+	// C# benchmarks are in the csharp/ subdirectory
+	csharpDir := filepath.Join(dir, "csharp")
+
+	// Find the .csproj file
+	csprojFiles, err := filepath.Glob(filepath.Join(csharpDir, "*.csproj"))
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("failed to find .csproj files: %w", err)
+	}
+	if len(csprojFiles) == 0 {
+		return BenchResult{}, fmt.Errorf("no .csproj file found in %s", csharpDir)
+	}
+
+	// Compile C# benchmark
+	fmt.Printf("    Compiling C# benchmark...\n")
+	cmd := exec.Command("dotnet", "build", "-c", "Release", "--nologo", "-v", "q")
+	cmd.Dir = csharpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return BenchResult{}, fmt.Errorf("dotnet build failed: %w\nOutput: %s", err, output)
+	}
+
+	// Run benchmark with JSON output
+	fmt.Printf("    Running C# benchmark...\n")
+	cmd = exec.Command("dotnet", "run", "-c", "Release", "--no-build", "--nologo")
+	cmd.Dir = csharpDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
+		}
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
+	}
+
+	return result, nil
+}
+
 func saveResults(results []BenchResult, name string) error {
 	data, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
@@ -933,8 +1550,8 @@ func saveMarkdownTable(results []BenchResult) error {
 }
 
 func inferMessageType(name string, jsonData []byte) string {
-	// Map schema names to protobuf message type names (as defined in .proto files)
-	// Note: protobuf uses the exact message names from .proto files, no suffix added
+	// Map schema names to proto message type names (as defined in .proto files)
+	// Note: proto uses the exact message names from .proto files, no suffix added
 	typeMap := map[string]string{
 		"complex":      "PluginList",
 		"array_float":  "FloatList",
@@ -1077,7 +1694,7 @@ func main() {
 	if jsonOutput {
 		result := BenchResult{
 			Language:    "Go",
-			Format:      "protobuf",
+			Format:      "proto",
 			Message:     "` + name + `",
 			Iterations:  iterations,
 			EncodeNs:    encodeNs,
@@ -1089,7 +1706,7 @@ func main() {
 		}
 		json.NewEncoder(os.Stdout).Encode(result)
 	} else {
-		fmt.Printf("protobuf benchmark: ` + name + `\n")
+		fmt.Printf("proto benchmark: ` + name + `\n")
 		fmt.Printf("Iterations:  %d\n", iterations)
 		fmt.Printf("Encode:      %d ns/op\n", encodeNs)
 		fmt.Printf("Decode:      %d ns/op\n", decodeNs)
@@ -1132,4 +1749,171 @@ require google.golang.org/protobuf v1.31.0
 	}
 
 	return nil
+}
+
+// Helper function for language generation
+func genLanguage(lang string, suites []BenchmarkSuite) error {
+	switch lang {
+	case "go":
+		for _, suite := range suites {
+			fmt.Printf("🔧 Generating Go benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "go",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "cpp":
+		for _, suite := range suites {
+			fmt.Printf("🔨 Generating C++ benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "cpp",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_cpp_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "java":
+		for _, suite := range suites {
+			fmt.Printf("☕ Generating Java benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "java",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_java_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "csharp":
+		for _, suite := range suites {
+			fmt.Printf("💜 Generating C# benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "csharp",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_csharp_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "swift":
+		for _, suite := range suites {
+			fmt.Printf("🍎 Generating Swift benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "swift",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_swift_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "dart":
+		for _, suite := range suites {
+			fmt.Printf("🎯 Generating Dart benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "dart",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_dart_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "python":
+		for _, suite := range suites {
+			fmt.Printf("🐍 Generating Python benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "python",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_python_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "python-pybind11":
+		for _, suite := range suites {
+			fmt.Printf("🐍 Generating Python-PyBind11 benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "python-pybind11",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_python_pybind11_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "javascript":
+		for _, suite := range suites {
+			fmt.Printf("🟨 Generating JavaScript benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "javascript",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_js_"+suite.Name),
+				"--iterations", "10000",
+			); err != nil {
+				return err
+			}
+		}
+	case "proto":
+		for _, suite := range suites {
+			fmt.Printf("📦 Generating proto benchmark: %s\n", suite.Name)
+			if _, err := os.Stat(suite.ProtoFile); os.IsNotExist(err) {
+				fmt.Printf("  ⚠️  Skipping %s: no proto file\n", suite.Name)
+				continue
+			}
+			outDir := filepath.Join(genDir, "proto_"+suite.Name)
+			if err := genProto(suite.Name, suite.ProtoFile, suite.JSONFile); err != nil {
+				return err
+			}
+			fmt.Printf("  Generating benchmark driver...\n")
+			if err := generateProtoBenchmark(suite.Name, outDir, suite.JSONFile); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unknown language: %s", lang)
+	}
+	return nil
+}
+
+func runLanguage(lang string) error {
+	switch lang {
+	case "go":
+		return runGo()
+	case "cpp":
+		return runCpp()
+	case "java":
+		return runJava()
+	case "csharp":
+		return runCSharp()
+	case "swift":
+		return runSwift()
+	case "dart":
+		return runDart()
+	case "python":
+		return runPython()
+	case "javascript":
+		return runJavaScript()
+	case "proto":
+		return runProto()
+	default:
+		return fmt.Errorf("unknown language: %s", lang)
+	}
 }

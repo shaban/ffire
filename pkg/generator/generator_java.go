@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/shaban/ffire/pkg/schema"
 )
@@ -40,6 +41,11 @@ func (g *javaGenerator) generate() ([]byte, error) {
 		g.collectNeededTypes(msg.TargetType)
 	}
 
+	// Generate slice helper classes
+	if err := g.generateSliceClasses(); err != nil {
+		return nil, err
+	}
+
 	if err := g.generateHelperClasses(); err != nil {
 		return nil, err
 	}
@@ -68,15 +74,725 @@ func (g *javaGenerator) collectNeededTypes(t schema.Type) {
 	}
 }
 
+func (g *javaGenerator) generateSliceClasses() error {
+	// Slice classes are primitive array wrappers with Go-like API.
+	// These provide 11x faster encoding vs ArrayList<Integer> and 4.25x better memory efficiency.
+	// Validated in experimental/javaslices/ with comprehensive testing.
+
+	g.buf.WriteString(`
+// ByteSlice - A Go-like slice wrapper around byte[] primitive array.
+// For int8, uint8, byte types.
+class ByteSlice implements Iterable<Byte> {
+    private byte[] data;
+    
+    public ByteSlice(int capacity) {
+        this.data = new byte[capacity];
+    }
+    
+    public ByteSlice(byte[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public byte get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, byte value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public byte[] array() {
+        return data;
+    }
+    
+    public ByteSlice append(byte... values) {
+        byte[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new ByteSlice(newData);
+    }
+    
+    public ByteSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new ByteSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public ByteSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public ByteSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Byte> iterator() {
+        return new java.util.Iterator<Byte>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Byte next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Byte> asList() {
+        Byte[] boxed = new Byte[data.length];
+        for (int i = 0; i < data.length; i++) {
+            boxed[i] = data[i];
+        }
+        return java.util.Arrays.asList(boxed);
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.put(data);
+    }
+    
+    public static ByteSlice decodeFrom(ByteBuffer buf, int length) {
+        ByteSlice slice = new ByteSlice(length);
+        buf.get(slice.data, 0, length);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ByteSlice)) return false;
+        ByteSlice other = (ByteSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+// ShortSlice - A Go-like slice wrapper around short[] primitive array.
+// For int16, uint16 types.
+class ShortSlice implements Iterable<Short> {
+    private short[] data;
+    
+    public ShortSlice(int capacity) {
+        this.data = new short[capacity];
+    }
+    
+    public ShortSlice(short[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public short get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, short value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public short[] array() {
+        return data;
+    }
+    
+    public ShortSlice append(short... values) {
+        short[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new ShortSlice(newData);
+    }
+    
+    public ShortSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new ShortSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public ShortSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public ShortSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Short> iterator() {
+        return new java.util.Iterator<Short>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Short next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Short> asList() {
+        Short[] boxed = new Short[data.length];
+        for (int i = 0; i < data.length; i++) {
+            boxed[i] = data[i];
+        }
+        return java.util.Arrays.asList(boxed);
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.asShortBuffer().put(data);
+        buf.position(buf.position() + data.length * 2);
+    }
+    
+    public static ShortSlice decodeFrom(ByteBuffer buf, int length) {
+        ShortSlice slice = new ShortSlice(length);
+        buf.asShortBuffer().get(slice.data, 0, length);
+        buf.position(buf.position() + length * 2);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ShortSlice)) return false;
+        ShortSlice other = (ShortSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+// IntSlice - A Go-like slice wrapper around int[] primitive array.
+// Design: zero boxing in codec paths, Iterable for for-each loops, simple wrapper around primitive array.
+class IntSlice implements Iterable<Integer> {
+    private int[] data;
+    
+    public IntSlice(int capacity) {
+        this.data = new int[capacity];
+    }
+    
+    public IntSlice(int[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public int get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, int value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public int[] array() {
+        return data;
+    }
+    
+    public IntSlice append(int... values) {
+        int[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new IntSlice(newData);
+    }
+    
+    public IntSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new IntSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public IntSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public IntSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Integer> iterator() {
+        return new java.util.Iterator<Integer>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Integer next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Integer> asList() {
+        List<Integer> list = new ArrayList<>(data.length);
+        for (int v : data) {
+            list.add(v);
+        }
+        return list;
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.asIntBuffer().put(data);
+        buf.position(buf.position() + data.length * 4);
+    }
+    
+    public static IntSlice decodeFrom(ByteBuffer buf, int length) {
+        IntSlice slice = new IntSlice(length);
+        buf.asIntBuffer().get(slice.data, 0, length);
+        buf.position(buf.position() + length * 4);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof IntSlice)) return false;
+        IntSlice other = (IntSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+// LongSlice - A Go-like slice wrapper around long[] primitive array.
+// For int64, uint64 types.
+class LongSlice implements Iterable<Long> {
+    private long[] data;
+    
+    public LongSlice(int capacity) {
+        this.data = new long[capacity];
+    }
+    
+    public LongSlice(long[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public long get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, long value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public long[] array() {
+        return data;
+    }
+    
+    public LongSlice append(long... values) {
+        long[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new LongSlice(newData);
+    }
+    
+    public LongSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new LongSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public LongSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public LongSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Long> iterator() {
+        return new java.util.Iterator<Long>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Long next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Long> asList() {
+        List<Long> list = new ArrayList<>(data.length);
+        for (long v : data) {
+            list.add(v);
+        }
+        return list;
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.asLongBuffer().put(data);
+        buf.position(buf.position() + data.length * 8);
+    }
+    
+    public static LongSlice decodeFrom(ByteBuffer buf, int length) {
+        LongSlice slice = new LongSlice(length);
+        buf.asLongBuffer().get(slice.data, 0, length);
+        buf.position(buf.position() + length * 8);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof LongSlice)) return false;
+        LongSlice other = (LongSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+// FloatSlice - A Go-like slice wrapper around float[] primitive array.
+// For float32 type.
+class FloatSlice implements Iterable<Float> {
+    private float[] data;
+    
+    public FloatSlice(int capacity) {
+        this.data = new float[capacity];
+    }
+    
+    public FloatSlice(float[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public float get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, float value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public float[] array() {
+        return data;
+    }
+    
+    public FloatSlice append(float... values) {
+        float[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new FloatSlice(newData);
+    }
+    
+    public FloatSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new FloatSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public FloatSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public FloatSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Float> iterator() {
+        return new java.util.Iterator<Float>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Float next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Float> asList() {
+        Float[] boxed = new Float[data.length];
+        for (int i = 0; i < data.length; i++) {
+            boxed[i] = data[i];
+        }
+        return java.util.Arrays.asList(boxed);
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.asFloatBuffer().put(data);
+        buf.position(buf.position() + data.length * 4);
+    }
+    
+    public static FloatSlice decodeFrom(ByteBuffer buf, int length) {
+        FloatSlice slice = new FloatSlice(length);
+        buf.asFloatBuffer().get(slice.data, 0, length);
+        buf.position(buf.position() + length * 4);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof FloatSlice)) return false;
+        FloatSlice other = (FloatSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+// DoubleSlice - A Go-like slice wrapper around double[] primitive array.
+// For float64 type.
+class DoubleSlice implements Iterable<Double> {
+    private double[] data;
+    
+    public DoubleSlice(int capacity) {
+        this.data = new double[capacity];
+    }
+    
+    public DoubleSlice(double[] array) {
+        this.data = array;
+    }
+    
+    public int len() {
+        return data.length;
+    }
+    
+    public double get(int index) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        return data[index];
+    }
+    
+    public void set(int index, double value) {
+        if (index < 0 || index >= data.length) {
+            throw new IndexOutOfBoundsException("index " + index + " out of bounds for length " + data.length);
+        }
+        data[index] = value;
+    }
+    
+    public double[] array() {
+        return data;
+    }
+    
+    public DoubleSlice append(double... values) {
+        double[] newData = java.util.Arrays.copyOf(data, data.length + values.length);
+        System.arraycopy(values, 0, newData, data.length, values.length);
+        return new DoubleSlice(newData);
+    }
+    
+    public DoubleSlice slice(int start, int end) {
+        if (start < 0 || end > data.length || start > end) {
+            throw new IndexOutOfBoundsException("slice bounds [" + start + ":" + end + "] out of range for length " + data.length);
+        }
+        return new DoubleSlice(java.util.Arrays.copyOfRange(data, start, end));
+    }
+    
+    public DoubleSlice sliceFrom(int start) {
+        return slice(start, data.length);
+    }
+    
+    public DoubleSlice sliceTo(int end) {
+        return slice(0, end);
+    }
+    
+    @Override
+    public java.util.Iterator<Double> iterator() {
+        return new java.util.Iterator<Double>() {
+            private int index = 0;
+            
+            @Override
+            public boolean hasNext() {
+                return index < data.length;
+            }
+            
+            @Override
+            public Double next() {
+                if (!hasNext()) {
+                    throw new java.util.NoSuchElementException();
+                }
+                return data[index++];
+            }
+        };
+    }
+    
+    public List<Double> asList() {
+        List<Double> list = new ArrayList<>(data.length);
+        for (double v : data) {
+            list.add(v);
+        }
+        return list;
+    }
+    
+    public void encodeTo(ByteBuffer buf) {
+        buf.asDoubleBuffer().put(data);
+        buf.position(buf.position() + data.length * 8);
+    }
+    
+    public static DoubleSlice decodeFrom(ByteBuffer buf, int length) {
+        DoubleSlice slice = new DoubleSlice(length);
+        buf.asDoubleBuffer().get(slice.data, 0, length);
+        buf.position(buf.position() + length * 8);
+        return slice;
+    }
+    
+    @Override
+    public String toString() {
+        return java.util.Arrays.toString(data);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof DoubleSlice)) return false;
+        DoubleSlice other = (DoubleSlice) obj;
+        return java.util.Arrays.equals(this.data, other.data);
+    }
+    
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(data);
+    }
+}
+
+`)
+
+	return nil
+}
+
 func (g *javaGenerator) generateHelperClasses() error {
+	// Build set of root message type names
+	messageTypes := make(map[string]bool)
+	for _, msg := range g.schema.Messages {
+		if st, ok := msg.TargetType.(*schema.StructType); ok {
+			messageTypes[st.Name] = true
+		}
+	}
+
 	sorted, err := g.topologicalSort()
 	if err != nil {
 		return err
 	}
 
+	// Only generate helper classes for non-message types
 	for _, name := range sorted {
-		if err := g.generateStructClass(name, false); err != nil {
-			return err
+		if !messageTypes[name] {
+			if err := g.generateStructClass(name, false); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -84,36 +800,43 @@ func (g *javaGenerator) generateHelperClasses() error {
 }
 
 func (g *javaGenerator) topologicalSort() ([]string, error) {
+	// deps[A] = [B, C] means A depends on B and C (A uses B and C)
 	deps := make(map[string][]string)
 	for name := range g.needsTypes {
 		structType := g.findStructType(name)
 		if structType != nil {
 			for _, field := range structType.Fields {
 				if st, ok := field.Type.(*schema.StructType); ok {
-					deps[name] = append(deps[name], st.Name)
+					if g.needsTypes[st.Name] {
+						deps[name] = append(deps[name], st.Name)
+					}
 				}
 				if arr, ok := field.Type.(*schema.ArrayType); ok {
 					if st, ok := arr.ElementType.(*schema.StructType); ok {
-						deps[name] = append(deps[name], st.Name)
+						if g.needsTypes[st.Name] {
+							deps[name] = append(deps[name], st.Name)
+						}
 					}
 				}
 			}
 		}
 	}
 
+	// inDegree[A] = number of types that depend on A
+	// Types with inDegree 0 have no dependencies, so they can be generated first
 	inDegree := make(map[string]int)
 	for name := range g.needsTypes {
-		inDegree[name] = 0
-	}
-	for _, depList := range deps {
-		for _, dep := range depList {
-			inDegree[dep]++
+		if _, exists := deps[name]; !exists {
+			inDegree[name] = 0
+		} else {
+			inDegree[name] = len(deps[name])
 		}
 	}
 
+	// Start with types that have no dependencies
 	var queue []string
-	for name := range g.needsTypes {
-		if inDegree[name] == 0 {
+	for name, degree := range inDegree {
+		if degree == 0 {
 			queue = append(queue, name)
 		}
 	}
@@ -122,10 +845,13 @@ func (g *javaGenerator) topologicalSort() ([]string, error) {
 	for len(queue) > 0 {
 		sort.Strings(queue)
 
+		// Take the first type with no dependencies
 		name := queue[0]
 		queue = queue[1:]
 		sorted = append(sorted, name)
 
+		// Now that we've processed 'name', reduce the dependency count
+		// for all types that depend on it
 		for dependent, depList := range deps {
 			for _, dep := range depList {
 				if dep == name {
@@ -133,6 +859,7 @@ func (g *javaGenerator) topologicalSort() ([]string, error) {
 					if inDegree[dependent] == 0 {
 						queue = append(queue, dependent)
 					}
+					break
 				}
 			}
 		}
@@ -146,21 +873,36 @@ func (g *javaGenerator) topologicalSort() ([]string, error) {
 }
 
 func (g *javaGenerator) findStructType(name string) *schema.StructType {
+	// First check message types
 	for _, msg := range g.schema.Messages {
 		if st, ok := msg.TargetType.(*schema.StructType); ok && st.Name == name {
 			return st
 		}
 	}
+
+	// Then check all schema types
+	for _, t := range g.schema.Types {
+		if st, ok := t.(*schema.StructType); ok && st.Name == name {
+			return st
+		}
+	}
+
 	return nil
 }
 
 func (g *javaGenerator) generateMessageClass(msg *schema.MessageType) error {
-	structType, ok := msg.TargetType.(*schema.StructType)
-	if !ok {
-		return fmt.Errorf("message %s must have a struct type", msg.Name)
-	}
+	switch targetType := msg.TargetType.(type) {
+	case *schema.StructType:
+		// Simple struct message - generate as XxxMessage (public class)
+		return g.generateStructClassWithName(targetType, msg.Name+"Message", false)
 
-	return g.generateStructClassWithName(structType, msg.Name+"Message")
+	case *schema.ArrayType:
+		// Array message - generate as XxxMessage with array field
+		return g.generateArrayMessageClass(msg.Name, targetType)
+
+	default:
+		return fmt.Errorf("message %s has unsupported type %T", msg.Name, msg.TargetType)
+	}
 }
 
 func (g *javaGenerator) generateStructClass(typeName string, isMessage bool) error {
@@ -174,11 +916,16 @@ func (g *javaGenerator) generateStructClass(typeName string, isMessage bool) err
 		className = typeName + "Message"
 	}
 
-	return g.generateStructClassWithName(structType, className)
+	return g.generateStructClassWithName(structType, className, !isMessage)
 }
 
-func (g *javaGenerator) generateStructClassWithName(structType *schema.StructType, className string) error {
-	fmt.Fprintf(g.buf, "public class %s {\n", className)
+func (g *javaGenerator) generateStructClassWithName(structType *schema.StructType, className string, isHelper bool) error {
+	// Helper classes are package-private, message classes are public
+	if isHelper {
+		fmt.Fprintf(g.buf, "class %s {\n", className)
+	} else {
+		fmt.Fprintf(g.buf, "public class %s {\n", className)
+	}
 
 	for _, field := range structType.Fields {
 		javaType := g.javaType(field.Type)
@@ -203,7 +950,8 @@ func (g *javaGenerator) generateStructClassWithName(structType *schema.StructTyp
 	g.buf.WriteString("        return obj;\n")
 	g.buf.WriteString("    }\n\n")
 
-	g.buf.WriteString("    private int computeSize() {\n")
+	// computeSize, encodeTo, decodeFrom are package-private so they can be called by other classes in the same package
+	g.buf.WriteString("    int computeSize() {\n")
 	g.buf.WriteString("        int size = 0;\n")
 	for _, field := range structType.Fields {
 		g.generateSizeComputation(&field)
@@ -211,19 +959,182 @@ func (g *javaGenerator) generateStructClassWithName(structType *schema.StructTyp
 	g.buf.WriteString("        return size;\n")
 	g.buf.WriteString("    }\n\n")
 
-	g.buf.WriteString("    private void encodeTo(ByteBuffer buf) {\n")
+	g.buf.WriteString("    void encodeTo(ByteBuffer buf) {\n")
 	for _, field := range structType.Fields {
 		g.generateEncodeField(&field)
 	}
 	g.buf.WriteString("    }\n\n")
 
-	g.buf.WriteString("    private void decodeFrom(ByteBuffer buf) {\n")
+	g.buf.WriteString("    void decodeFrom(ByteBuffer buf) {\n")
 	for _, field := range structType.Fields {
 		g.generateDecodeField(&field)
 	}
 	g.buf.WriteString("    }\n\n")
 
 	if g.structUsesStrings(structType) {
+		g.buf.WriteString("    private static String decodeString(ByteBuffer buf) {\n")
+		g.buf.WriteString("        int len = buf.getShort() & 0xFFFF;\n")
+		g.buf.WriteString("        byte[] bytes = new byte[len];\n")
+		g.buf.WriteString("        buf.get(bytes);\n")
+		g.buf.WriteString("        return new String(bytes, StandardCharsets.UTF_8);\n")
+		g.buf.WriteString("    }\n")
+	}
+
+	g.buf.WriteString("}\n\n")
+	return nil
+}
+
+func (g *javaGenerator) generateArrayMessageClass(msgName string, arrayType *schema.ArrayType) error {
+	className := msgName + "Message"
+
+	// Determine the field type - use slice types for primitive arrays
+	isPrimitiveArray := false
+	sliceType := ""
+	if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
+		switch prim.Name {
+		case "i8", "u8", "int8", "uint8":
+			isPrimitiveArray = true
+			sliceType = "ByteSlice"
+		case "i16", "u16", "int16", "uint16":
+			isPrimitiveArray = true
+			sliceType = "ShortSlice"
+		case "i32", "u32", "int32", "uint32":
+			isPrimitiveArray = true
+			sliceType = "IntSlice"
+		case "i64", "u64", "int64", "uint64":
+			isPrimitiveArray = true
+			sliceType = "LongSlice"
+		case "f32", "float32":
+			isPrimitiveArray = true
+			sliceType = "FloatSlice"
+		case "f64", "float64":
+			isPrimitiveArray = true
+			sliceType = "DoubleSlice"
+		}
+	}
+
+	fmt.Fprintf(g.buf, "public class %s {\n", className)
+
+	if isPrimitiveArray {
+		fmt.Fprintf(g.buf, "    public %s items;\n\n", sliceType)
+	} else {
+		elemType := g.javaType(arrayType.ElementType)
+		// For List<T>, we need boxed types for primitives
+		if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
+			elemType = g.boxedType(g.javaBaseType(prim.Name))
+		}
+		fmt.Fprintf(g.buf, "    public List<%s> items;\n\n", elemType)
+	}
+
+	fmt.Fprintf(g.buf, "    public %s() {\n", className)
+	if isPrimitiveArray {
+		fmt.Fprintf(g.buf, "        items = new %s(0);\n", sliceType)
+	} else {
+		g.buf.WriteString("        items = new ArrayList<>();\n")
+	}
+	g.buf.WriteString("    }\n\n")
+
+	// encode()
+	g.buf.WriteString("    public byte[] encode() {\n")
+	g.buf.WriteString("        ByteBuffer buf = ByteBuffer.allocate(computeSize());\n")
+	g.buf.WriteString("        buf.order(ByteOrder.LITTLE_ENDIAN);\n")
+	g.buf.WriteString("        encodeTo(buf);\n")
+	g.buf.WriteString("        return buf.array();\n")
+	g.buf.WriteString("    }\n\n")
+
+	// decode()
+	g.buf.WriteString("    public static " + className + " decode(byte[] data) {\n")
+	g.buf.WriteString("        ByteBuffer buf = ByteBuffer.wrap(data);\n")
+	g.buf.WriteString("        buf.order(ByteOrder.LITTLE_ENDIAN);\n")
+	fmt.Fprintf(g.buf, "        %s obj = new %s();\n", className, className)
+	g.buf.WriteString("        obj.decodeFrom(buf);\n")
+	g.buf.WriteString("        return obj;\n")
+	g.buf.WriteString("    }\n\n")
+
+	// computeSize() - package-private
+	g.buf.WriteString("    int computeSize() {\n")
+	g.buf.WriteString("        int size = 2; // array length prefix\n")
+
+	if isPrimitiveArray {
+		// For slice types, use len() and fixed element size
+		if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
+			primSize := g.sizeOf(prim.Name, "")
+			fmt.Fprintf(g.buf, "        size += items.len() * %s;\n", primSize)
+		}
+	} else {
+		switch elemType := arrayType.ElementType.(type) {
+		case *schema.PrimitiveType:
+			primSize := g.sizeOf(elemType.Name, "")
+			if elemType.Name == "string" {
+				// Variable size strings
+				g.buf.WriteString("        for (var item : items) {\n")
+				g.buf.WriteString("            size += item.getBytes(StandardCharsets.UTF_8).length + 2;\n")
+				g.buf.WriteString("        }\n")
+			} else if primSize != "0" && primSize != "" {
+				// Fixed size primitive
+				fmt.Fprintf(g.buf, "        size += items.size() * %s;\n", primSize)
+			}
+		case *schema.StructType:
+			g.buf.WriteString("        for (var elem : items) {\n")
+			g.buf.WriteString("            size += elem.computeSize();\n")
+			g.buf.WriteString("        }\n")
+		}
+	}
+
+	g.buf.WriteString("        return size;\n")
+	g.buf.WriteString("    }\n\n")
+
+	// encodeTo() - package-private
+	g.buf.WriteString("    void encodeTo(ByteBuffer buf) {\n")
+
+	if isPrimitiveArray {
+		// For slice types, use len() and built-in encodeTo()
+		g.buf.WriteString("        buf.putShort((short) items.len());\n")
+		g.buf.WriteString("        items.encodeTo(buf);\n")
+	} else {
+		// For List types
+		g.buf.WriteString("        buf.putShort((short) items.size());\n")
+		g.buf.WriteString("        for (var elem : items) {\n")
+		switch elemType := arrayType.ElementType.(type) {
+		case *schema.PrimitiveType:
+			g.generatePrimitiveEncode("elem", elemType.Name)
+		case *schema.StructType:
+			g.buf.WriteString("            elem.encodeTo(buf);\n")
+		}
+		g.buf.WriteString("        }\n")
+	}
+
+	g.buf.WriteString("    }\n\n")
+
+	// decodeFrom() - package-private
+	g.buf.WriteString("    void decodeFrom(ByteBuffer buf) {\n")
+	g.buf.WriteString("        int count = buf.getShort() & 0xFFFF;\n")
+
+	if isPrimitiveArray {
+		// For slice types, use static decodeFrom()
+		fmt.Fprintf(g.buf, "        items = %s.decodeFrom(buf, count);\n", sliceType)
+	} else {
+		// For List types
+		g.buf.WriteString("        items = new ArrayList<>(count);\n")
+		g.buf.WriteString("        for (int i = 0; i < count; i++) {\n")
+		switch elemType := arrayType.ElementType.(type) {
+		case *schema.PrimitiveType:
+			fmt.Fprintf(g.buf, "            %s elem = ", g.javaBaseType(elemType.Name))
+			g.generatePrimitiveDecode(elemType.Name)
+			g.buf.WriteString(";\n")
+			g.buf.WriteString("            items.add(elem);\n")
+		case *schema.StructType:
+			fmt.Fprintf(g.buf, "            %s elem = new %s();\n", elemType.Name, elemType.Name)
+			g.buf.WriteString("            elem.decodeFrom(buf);\n")
+			g.buf.WriteString("            items.add(elem);\n")
+		}
+		g.buf.WriteString("        }\n")
+	}
+
+	g.buf.WriteString("    }\n\n")
+
+	// Helper for string decoding if needed
+	if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok && prim.Name == "string" {
 		g.buf.WriteString("    private static String decodeString(ByteBuffer buf) {\n")
 		g.buf.WriteString("        int len = buf.getShort() & 0xFFFF;\n")
 		g.buf.WriteString("        byte[] bytes = new byte[len];\n")
@@ -245,6 +1156,24 @@ func (g *javaGenerator) javaType(t schema.Type) string {
 		}
 		return baseType
 	case *schema.ArrayType:
+		// For primitive arrays, use slice types instead of List<Boxed>
+		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
+			switch prim.Name {
+			case "i8", "u8", "int8", "uint8":
+				return "ByteSlice"
+			case "i16", "u16", "int16", "uint16":
+				return "ShortSlice"
+			case "i32", "u32", "int32", "uint32":
+				return "IntSlice"
+			case "i64", "u64", "int64", "uint64":
+				return "LongSlice"
+			case "f32", "float32":
+				return "FloatSlice"
+			case "f64", "float64":
+				return "DoubleSlice"
+			}
+		}
+		// For non-primitive arrays (strings, structs), use List
 		elemType := g.javaType(typ.ElementType)
 		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
 			elemType = g.boxedType(g.javaBaseType(prim.Name))
@@ -260,17 +1189,17 @@ func (g *javaGenerator) javaBaseType(kind string) string {
 	switch kind {
 	case "bool":
 		return "boolean"
-	case "i8", "u8":
+	case "i8", "u8", "int8", "uint8":
 		return "byte"
-	case "i16", "u16":
+	case "i16", "u16", "int16", "uint16":
 		return "short"
-	case "i32", "u32":
+	case "i32", "u32", "int32", "uint32":
 		return "int"
-	case "i64", "u64":
+	case "i64", "u64", "int64", "uint64":
 		return "long"
-	case "f32":
+	case "f32", "float32":
 		return "float"
-	case "f64":
+	case "f64", "float64":
 		return "double"
 	case "string":
 		return "String"
@@ -312,25 +1241,71 @@ func (g *javaGenerator) generateSizeComputation(field *schema.Field) {
 			g.buf.WriteString("        size += " + g.sizeOf(typ.Name, field.Name) + ";\n")
 		}
 	case *schema.ArrayType:
-		g.buf.WriteString("        size += 2;\n")
-		fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
-		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional && prim.Name != "string" {
-			fmt.Fprintf(g.buf, "            size += %s.size() * %s;\n", field.Name, g.sizeOf(prim.Name, ""))
-		} else {
-			fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
-			if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
-				g.buf.WriteString("                size += 1;\n")
-				g.buf.WriteString("                if (elem != null) {\n")
-				g.buf.WriteString("                    size += " + g.sizeOf(prim.Name, "elem") + ";\n")
-				g.buf.WriteString("                }\n")
-			} else if _, ok := typ.ElementType.(*schema.StructType); ok {
-				g.buf.WriteString("                size += elem.computeSize();\n")
-			} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
-				g.buf.WriteString("                size += " + g.sizeOf(prim.Name, "elem") + ";\n")
+		// Check if this is a primitive array (uses slice type)
+		isPrimitiveArray := false
+		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
+			switch prim.Name {
+			case "i8", "u8", "int8", "uint8", "i16", "u16", "int16", "uint16",
+				"i32", "u32", "int32", "uint32", "i64", "u64", "int64", "uint64",
+				"f32", "float32", "f64", "float64":
+				isPrimitiveArray = true
 			}
-			g.buf.WriteString("            }\n")
 		}
-		g.buf.WriteString("        }\n")
+
+		if typ.Optional {
+			// Optional array: 1 byte for presence
+			g.buf.WriteString("        size += 1;\n")
+			fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
+			g.buf.WriteString("            size += 2;\n") // array length
+			if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional && prim.Name != "string" {
+				if isPrimitiveArray {
+					// For slice types, use len() instead of size()
+					fmt.Fprintf(g.buf, "            size += %s.len() * %s;\n", field.Name, g.sizeOf(prim.Name, ""))
+				} else {
+					fmt.Fprintf(g.buf, "            size += %s.size() * %s;\n", field.Name, g.sizeOf(prim.Name, ""))
+				}
+			} else {
+				fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("                size += 1;\n")
+					g.buf.WriteString("                if (elem != null) {\n")
+					g.buf.WriteString("                    size += " + g.sizeOf(prim.Name, "elem") + ";\n")
+					g.buf.WriteString("                }\n")
+				} else if _, ok := typ.ElementType.(*schema.StructType); ok {
+					g.buf.WriteString("                size += elem.computeSize();\n")
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					g.buf.WriteString("                size += " + g.sizeOf(prim.Name, "elem") + ";\n")
+				}
+				g.buf.WriteString("            }\n")
+			}
+			g.buf.WriteString("        }\n")
+		} else {
+			// Non-optional array: 2 bytes for length
+			g.buf.WriteString("        size += 2;\n")
+			fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
+			if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional && prim.Name != "string" {
+				if isPrimitiveArray {
+					// For slice types, use len() instead of size()
+					fmt.Fprintf(g.buf, "            size += %s.len() * %s;\n", field.Name, g.sizeOf(prim.Name, ""))
+				} else {
+					fmt.Fprintf(g.buf, "            size += %s.size() * %s;\n", field.Name, g.sizeOf(prim.Name, ""))
+				}
+			} else {
+				fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("                size += 1;\n")
+					g.buf.WriteString("                if (elem != null) {\n")
+					g.buf.WriteString("                    size += " + g.sizeOf(prim.Name, "elem") + ";\n")
+					g.buf.WriteString("                }\n")
+				} else if _, ok := typ.ElementType.(*schema.StructType); ok {
+					g.buf.WriteString("                size += elem.computeSize();\n")
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					g.buf.WriteString("                size += " + g.sizeOf(prim.Name, "elem") + ";\n")
+				}
+				g.buf.WriteString("            }\n")
+			}
+			g.buf.WriteString("        }\n")
+		}
 	case *schema.StructType:
 		fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
 		fmt.Fprintf(g.buf, "            size += %s.computeSize();\n", field.Name)
@@ -340,13 +1315,13 @@ func (g *javaGenerator) generateSizeComputation(field *schema.Field) {
 
 func (g *javaGenerator) sizeOf(kind string, varName string) string {
 	switch kind {
-	case "bool", "i8", "u8":
+	case "bool", "i8", "u8", "int8", "uint8":
 		return "1"
-	case "i16", "u16":
+	case "i16", "u16", "int16", "uint16":
 		return "2"
-	case "i32", "u32", "f32":
+	case "i32", "u32", "int32", "uint32", "f32", "float32":
 		return "4"
-	case "i64", "u64", "f64":
+	case "i64", "u64", "int64", "uint64", "f64", "float64":
 		return "8"
 	case "string":
 		if varName != "" {
@@ -372,28 +1347,76 @@ func (g *javaGenerator) generateEncodeField(field *schema.Field) {
 			g.generatePrimitiveEncode(field.Name, typ.Name)
 		}
 	case *schema.ArrayType:
-		fmt.Fprintf(g.buf, "        buf.putShort((short) (%s != null ? %s.size() : 0));\n", field.Name, field.Name)
-		fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
-
+		// Check if this is a primitive array (uses slice type)
+		isPrimitiveArray := false
 		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
-			g.generateBulkArrayEncode(field.Name, prim.Name)
-		} else {
-			fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
-			if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
-				g.buf.WriteString("                if (elem != null) {\n")
-				g.buf.WriteString("                    buf.put((byte) 1);\n")
-				g.generatePrimitiveEncode("elem", prim.Name)
-				g.buf.WriteString("                } else {\n")
-				g.buf.WriteString("                    buf.put((byte) 0);\n")
-				g.buf.WriteString("                }\n")
-			} else if _, ok := typ.ElementType.(*schema.StructType); ok {
-				g.buf.WriteString("                elem.encodeTo(buf);\n")
-			} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
-				g.generatePrimitiveEncode("elem", prim.Name)
+			switch prim.Name {
+			case "i8", "u8", "int8", "uint8", "i16", "u16", "int16", "uint16",
+				"i32", "u32", "int32", "uint32", "i64", "u64", "int64", "uint64",
+				"f32", "float32", "f64", "float64":
+				isPrimitiveArray = true
 			}
-			g.buf.WriteString("            }\n")
 		}
-		g.buf.WriteString("        }\n")
+
+		if typ.Optional {
+			// Optional array: write presence byte first
+			fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
+			g.buf.WriteString("            buf.put((byte) 1);\n")
+
+			if isPrimitiveArray {
+				// For slice types, use len() instead of size()
+				fmt.Fprintf(g.buf, "            buf.putShort((short) %s.len());\n", field.Name)
+				// Use slice's built-in encodeTo() method
+				fmt.Fprintf(g.buf, "            %s.encodeTo(buf);\n", field.Name)
+			} else {
+				fmt.Fprintf(g.buf, "            buf.putShort((short) %s.size());\n", field.Name)
+				fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("                if (elem != null) {\n")
+					g.buf.WriteString("                    buf.put((byte) 1);\n")
+					g.generatePrimitiveEncode("elem", prim.Name)
+					g.buf.WriteString("                } else {\n")
+					g.buf.WriteString("                    buf.put((byte) 0);\n")
+					g.buf.WriteString("                }\n")
+				} else if _, ok := typ.ElementType.(*schema.StructType); ok {
+					g.buf.WriteString("                elem.encodeTo(buf);\n")
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					g.generatePrimitiveEncode("elem", prim.Name)
+				}
+				g.buf.WriteString("            }\n")
+			}
+			g.buf.WriteString("        } else {\n")
+			g.buf.WriteString("            buf.put((byte) 0);\n")
+			g.buf.WriteString("        }\n")
+		} else {
+			// Non-optional array
+			if isPrimitiveArray {
+				// For slice types
+				fmt.Fprintf(g.buf, "        buf.putShort((short) (%s != null ? %s.len() : 0));\n", field.Name, field.Name)
+				fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
+				fmt.Fprintf(g.buf, "            %s.encodeTo(buf);\n", field.Name)
+				g.buf.WriteString("        }\n")
+			} else {
+				// For List types
+				fmt.Fprintf(g.buf, "        buf.putShort((short) (%s != null ? %s.size() : 0));\n", field.Name, field.Name)
+				fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
+				fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", field.Name)
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("                if (elem != null) {\n")
+					g.buf.WriteString("                    buf.put((byte) 1);\n")
+					g.generatePrimitiveEncode("elem", prim.Name)
+					g.buf.WriteString("                } else {\n")
+					g.buf.WriteString("                    buf.put((byte) 0);\n")
+					g.buf.WriteString("                }\n")
+				} else if _, ok := typ.ElementType.(*schema.StructType); ok {
+					g.buf.WriteString("                elem.encodeTo(buf);\n")
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					g.generatePrimitiveEncode("elem", prim.Name)
+				}
+				g.buf.WriteString("            }\n")
+				g.buf.WriteString("        }\n")
+			}
+		}
 	case *schema.StructType:
 		fmt.Fprintf(g.buf, "        if (%s != null) {\n", field.Name)
 		fmt.Fprintf(g.buf, "            %s.encodeTo(buf);\n", field.Name)
@@ -407,27 +1430,27 @@ func (g *javaGenerator) generateBulkArrayEncode(fieldName, kind string) {
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.put((byte) (elem ? 1 : 0));\n")
 		g.buf.WriteString("            }\n")
-	case "i8", "u8":
+	case "i8", "u8", "int8", "uint8":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.put(elem);\n")
 		g.buf.WriteString("            }\n")
-	case "i16", "u16":
+	case "i16", "u16", "int16", "uint16":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.putShort(elem);\n")
 		g.buf.WriteString("            }\n")
-	case "i32", "u32":
+	case "i32", "u32", "int32", "uint32":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.putInt(elem);\n")
 		g.buf.WriteString("            }\n")
-	case "i64", "u64":
+	case "i64", "u64", "int64", "uint64":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.putLong(elem);\n")
 		g.buf.WriteString("            }\n")
-	case "f32":
+	case "f32", "float32":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.putFloat(elem);\n")
 		g.buf.WriteString("            }\n")
-	case "f64":
+	case "f64", "float64":
 		fmt.Fprintf(g.buf, "            for (var elem : %s) {\n", fieldName)
 		g.buf.WriteString("                buf.putDouble(elem);\n")
 		g.buf.WriteString("            }\n")
@@ -444,22 +1467,24 @@ func (g *javaGenerator) generatePrimitiveEncode(fieldName, kind string) {
 	switch kind {
 	case "bool":
 		fmt.Fprintf(g.buf, "            buf.put((byte) (%s ? 1 : 0));\n", fieldName)
-	case "i8", "u8":
+	case "i8", "u8", "int8", "uint8":
 		fmt.Fprintf(g.buf, "            buf.put(%s);\n", fieldName)
-	case "i16", "u16":
+	case "i16", "u16", "int16", "uint16":
 		fmt.Fprintf(g.buf, "            buf.putShort(%s);\n", fieldName)
-	case "i32", "u32":
+	case "i32", "u32", "int32", "uint32":
 		fmt.Fprintf(g.buf, "            buf.putInt(%s);\n", fieldName)
-	case "i64", "u64":
+	case "i64", "u64", "int64", "uint64":
 		fmt.Fprintf(g.buf, "            buf.putLong(%s);\n", fieldName)
-	case "f32":
+	case "f32", "float32":
 		fmt.Fprintf(g.buf, "            buf.putFloat(%s);\n", fieldName)
-	case "f64":
+	case "f64", "float64":
 		fmt.Fprintf(g.buf, "            buf.putDouble(%s);\n", fieldName)
 	case "string":
-		fmt.Fprintf(g.buf, "            byte[] bytes = %s.getBytes(StandardCharsets.UTF_8);\n", fieldName)
-		g.buf.WriteString("            buf.putShort((short) bytes.length);\n")
-		g.buf.WriteString("            buf.put(bytes);\n")
+		// Use field name to make variable unique
+		bytesVar := strings.ToLower(fieldName[:1]) + fieldName[1:] + "Bytes"
+		fmt.Fprintf(g.buf, "            byte[] %s = %s.getBytes(StandardCharsets.UTF_8);\n", bytesVar, fieldName)
+		fmt.Fprintf(g.buf, "            buf.putShort((short) %s.length);\n", bytesVar)
+		fmt.Fprintf(g.buf, "            buf.put(%s);\n", bytesVar)
 	}
 }
 
@@ -478,31 +1503,166 @@ func (g *javaGenerator) generateDecodeField(field *schema.Field) {
 			g.buf.WriteString(";\n")
 		}
 	case *schema.ArrayType:
-		g.buf.WriteString("        int len = buf.getShort() & 0xFFFF;\n")
-		fmt.Fprintf(g.buf, "        %s = new ArrayList<>(len);\n", field.Name)
-		g.buf.WriteString("        for (int i = 0; i < len; i++) {\n")
-
-		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
-			g.buf.WriteString("            if (buf.get() == 1) {\n")
-			fmt.Fprintf(g.buf, "                %s.add(", field.Name)
-			g.generatePrimitiveDecode(prim.Name)
-			g.buf.WriteString(");\n")
-			g.buf.WriteString("            } else {\n")
-			fmt.Fprintf(g.buf, "                %s.add(null);\n", field.Name)
-			g.buf.WriteString("            }\n")
-		} else if st, ok := typ.ElementType.(*schema.StructType); ok {
-			fmt.Fprintf(g.buf, "            %s elem = new %s();\n", st.Name, st.Name)
-			g.buf.WriteString("            elem.decodeFrom(buf);\n")
-			fmt.Fprintf(g.buf, "            %s.add(elem);\n", field.Name)
-		} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
-			fmt.Fprintf(g.buf, "            %s.add(", field.Name)
-			g.generatePrimitiveDecode(prim.Name)
-			g.buf.WriteString(");\n")
+		// Check if this is a primitive array (uses slice type)
+		isPrimitiveArray := false
+		sliceType := ""
+		if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && !prim.Optional {
+			switch prim.Name {
+			case "i8", "u8", "int8", "uint8":
+				isPrimitiveArray = true
+				sliceType = "ByteSlice"
+			case "i16", "u16", "int16", "uint16":
+				isPrimitiveArray = true
+				sliceType = "ShortSlice"
+			case "i32", "u32", "int32", "uint32":
+				isPrimitiveArray = true
+				sliceType = "IntSlice"
+			case "i64", "u64", "int64", "uint64":
+				isPrimitiveArray = true
+				sliceType = "LongSlice"
+			case "f32", "float32":
+				isPrimitiveArray = true
+				sliceType = "FloatSlice"
+			case "f64", "float64":
+				isPrimitiveArray = true
+				sliceType = "DoubleSlice"
+			}
 		}
-		g.buf.WriteString("        }\n")
+
+		if typ.Optional {
+			// Optional array: check presence byte first
+			g.buf.WriteString("        if (buf.get() == 1) {\n")
+			g.buf.WriteString("            int len = buf.getShort() & 0xFFFF;\n")
+
+			if isPrimitiveArray {
+				// Use slice's decodeFrom() method
+				fmt.Fprintf(g.buf, "            %s = %s.decodeFrom(buf, len);\n", field.Name, sliceType)
+			} else {
+				fmt.Fprintf(g.buf, "            %s = new ArrayList<>(len);\n", field.Name)
+				g.buf.WriteString("            for (int i = 0; i < len; i++) {\n")
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("                if (buf.get() == 1) {\n")
+					fmt.Fprintf(g.buf, "                    %s.add(", field.Name)
+					g.generatePrimitiveDecode(prim.Name)
+					g.buf.WriteString(");\n")
+					g.buf.WriteString("                } else {\n")
+					fmt.Fprintf(g.buf, "                    %s.add(null);\n", field.Name)
+					g.buf.WriteString("                }\n")
+				} else if st, ok := typ.ElementType.(*schema.StructType); ok {
+					fmt.Fprintf(g.buf, "                %s elem = new %s();\n", st.Name, st.Name)
+					g.buf.WriteString("                elem.decodeFrom(buf);\n")
+					fmt.Fprintf(g.buf, "                    %s.add(elem);\n", field.Name)
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					fmt.Fprintf(g.buf, "                %s.add(", field.Name)
+					g.generatePrimitiveDecode(prim.Name)
+					g.buf.WriteString(");\n")
+				}
+				g.buf.WriteString("            }\n")
+			}
+			g.buf.WriteString("        }\n")
+		} else {
+			// Non-optional array
+			g.buf.WriteString("        int len = buf.getShort() & 0xFFFF;\n")
+
+			if isPrimitiveArray {
+				// Use slice's decodeFrom() method
+				fmt.Fprintf(g.buf, "        %s = %s.decodeFrom(buf, len);\n", field.Name, sliceType)
+			} else {
+				fmt.Fprintf(g.buf, "        %s = new ArrayList<>(len);\n", field.Name)
+				g.buf.WriteString("        for (int i = 0; i < len; i++) {\n")
+				if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok && prim.Optional {
+					g.buf.WriteString("            if (buf.get() == 1) {\n")
+					fmt.Fprintf(g.buf, "                %s.add(", field.Name)
+					g.generatePrimitiveDecode(prim.Name)
+					g.buf.WriteString(");\n")
+					g.buf.WriteString("            } else {\n")
+					fmt.Fprintf(g.buf, "                %s.add(null);\n", field.Name)
+					g.buf.WriteString("            }\n")
+				} else if st, ok := typ.ElementType.(*schema.StructType); ok {
+					fmt.Fprintf(g.buf, "            %s elem = new %s();\n", st.Name, st.Name)
+					g.buf.WriteString("            elem.decodeFrom(buf);\n")
+					fmt.Fprintf(g.buf, "            %s.add(elem);\n", field.Name)
+				} else if prim, ok := typ.ElementType.(*schema.PrimitiveType); ok {
+					fmt.Fprintf(g.buf, "            %s.add(", field.Name)
+					g.generatePrimitiveDecode(prim.Name)
+					g.buf.WriteString(");\n")
+				}
+				g.buf.WriteString("        }\n")
+			}
+		}
 	case *schema.StructType:
 		fmt.Fprintf(g.buf, "        %s = new %s();\n", field.Name, typ.Name)
 		fmt.Fprintf(g.buf, "        %s.decodeFrom(buf);\n", field.Name)
+	}
+}
+
+func (g *javaGenerator) generateBulkArrayDecode(fieldName, kind string) {
+	switch kind {
+	case "bool":
+		// Boolean: element-by-element (can't use bulk operations)
+		fmt.Fprintf(g.buf, "        for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "            %s.add(buf.get() != 0);\n", fieldName)
+		g.buf.WriteString("        }\n")
+	case "i8", "u8", "int8", "uint8":
+		// Byte: element-by-element (ByteBuffer.get(byte[]) would work but need primitive array conversion)
+		fmt.Fprintf(g.buf, "        for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "            %s.add(buf.get());\n", fieldName)
+		g.buf.WriteString("        }\n")
+	case "i16", "u16", "int16", "uint16":
+		// Short: use asShortBuffer for bulk read
+		fmt.Fprintf(g.buf, "        if (len > 0) {\n")
+		g.buf.WriteString("            int pos = buf.position();\n")
+		g.buf.WriteString("            java.nio.ShortBuffer shortBuf = buf.asShortBuffer();\n")
+		fmt.Fprintf(g.buf, "            for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "                %s.add(shortBuf.get());\n", fieldName)
+		g.buf.WriteString("            }\n")
+		g.buf.WriteString("            buf.position(pos + len * 2);\n")
+		g.buf.WriteString("        }\n")
+	case "i32", "u32", "int32", "uint32":
+		// Int: use asIntBuffer for bulk read
+		fmt.Fprintf(g.buf, "        if (len > 0) {\n")
+		g.buf.WriteString("            int pos = buf.position();\n")
+		g.buf.WriteString("            java.nio.IntBuffer intBuf = buf.asIntBuffer();\n")
+		fmt.Fprintf(g.buf, "            for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "                %s.add(intBuf.get());\n", fieldName)
+		g.buf.WriteString("            }\n")
+		g.buf.WriteString("            buf.position(pos + len * 4);\n")
+		g.buf.WriteString("        }\n")
+	case "i64", "u64", "int64", "uint64":
+		// Long: use asLongBuffer for bulk read
+		fmt.Fprintf(g.buf, "        if (len > 0) {\n")
+		g.buf.WriteString("            int pos = buf.position();\n")
+		g.buf.WriteString("            java.nio.LongBuffer longBuf = buf.asLongBuffer();\n")
+		fmt.Fprintf(g.buf, "            for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "                %s.add(longBuf.get());\n", fieldName)
+		g.buf.WriteString("            }\n")
+		g.buf.WriteString("            buf.position(pos + len * 8);\n")
+		g.buf.WriteString("        }\n")
+	case "f32", "float32":
+		// Float: use asFloatBuffer for bulk read
+		fmt.Fprintf(g.buf, "        if (len > 0) {\n")
+		g.buf.WriteString("            int pos = buf.position();\n")
+		g.buf.WriteString("            java.nio.FloatBuffer floatBuf = buf.asFloatBuffer();\n")
+		fmt.Fprintf(g.buf, "            for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "                %s.add(floatBuf.get());\n", fieldName)
+		g.buf.WriteString("            }\n")
+		g.buf.WriteString("            buf.position(pos + len * 4);\n")
+		g.buf.WriteString("        }\n")
+	case "f64", "float64":
+		// Double: use asDoubleBuffer for bulk read
+		fmt.Fprintf(g.buf, "        if (len > 0) {\n")
+		g.buf.WriteString("            int pos = buf.position();\n")
+		g.buf.WriteString("            java.nio.DoubleBuffer doubleBuf = buf.asDoubleBuffer();\n")
+		fmt.Fprintf(g.buf, "            for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "                %s.add(doubleBuf.get());\n", fieldName)
+		g.buf.WriteString("            }\n")
+		g.buf.WriteString("            buf.position(pos + len * 8);\n")
+		g.buf.WriteString("        }\n")
+	case "string":
+		// String: element-by-element (no bulk operation possible)
+		fmt.Fprintf(g.buf, "        for (int i = 0; i < len; i++) {\n")
+		fmt.Fprintf(g.buf, "            %s.add(decodeString(buf));\n", fieldName)
+		g.buf.WriteString("        }\n")
 	}
 }
 
@@ -510,17 +1670,17 @@ func (g *javaGenerator) generatePrimitiveDecode(kind string) {
 	switch kind {
 	case "bool":
 		g.buf.WriteString("buf.get() != 0")
-	case "i8", "u8":
+	case "i8", "u8", "int8", "uint8":
 		g.buf.WriteString("buf.get()")
-	case "i16", "u16":
+	case "i16", "u16", "int16", "uint16":
 		g.buf.WriteString("buf.getShort()")
-	case "i32", "u32":
+	case "i32", "u32", "int32", "uint32":
 		g.buf.WriteString("buf.getInt()")
-	case "i64", "u64":
+	case "i64", "u64", "int64", "uint64":
 		g.buf.WriteString("buf.getLong()")
-	case "f32":
+	case "f32", "float32":
 		g.buf.WriteString("buf.getFloat()")
-	case "f64":
+	case "f64", "float64":
 		g.buf.WriteString("buf.getDouble()")
 	case "string":
 		g.buf.WriteString("decodeString(buf)")

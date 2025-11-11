@@ -1,0 +1,15 @@
+/Users/shaban/Code/ffire/experimental/csharp_array_test/bin/Release/net9.0/ArrayTest
+/Users/shaban/Code/ffire/experimental/csharp_array_test/bin/Release/net9.0/ArrayTest.deps.json
+/Users/shaban/Code/ffire/experimental/csharp_array_test/bin/Release/net9.0/ArrayTest.runtimeconfig.json
+/Users/shaban/Code/ffire/experimental/csharp_array_test/bin/Release/net9.0/ArrayTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_array_test/bin/Release/net9.0/ArrayTest.pdb
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.sourcelink.json
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/refint/ArrayTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.pdb
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ArrayTest.genruntimeconfig.cache
+/Users/shaban/Code/ffire/experimental/csharp_array_test/obj/Release/net9.0/ref/ArrayTest.dll

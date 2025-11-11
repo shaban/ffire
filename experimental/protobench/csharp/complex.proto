@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package test;
+
+message PluginList {
+  repeated Plugin plugins = 1;
+}
+
+message Plugin {
+  string name = 1;
+  string manufacturer_id = 2;
+  string type = 3;
+  string subtype = 4;
+  repeated Parameter parameters = 5;
+}
+
+message Parameter {
+  string display_name = 1;
+  float default_value = 2;
+  float current_value = 3;
+  int32 address = 4;
+  float max_value = 5;
+  float min_value = 6;
+  string unit = 7;
+  string identifier = 8;
+  bool can_ramp = 9;
+  bool is_writable = 10;
+  int64 raw_flags = 11;
+  optional IndexedValues indexed_values = 12;
+  optional string indexed_values_source = 13;
+}
+
+message IndexedValues {
+  repeated string values = 1;
+}

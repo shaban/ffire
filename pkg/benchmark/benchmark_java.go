@@ -17,22 +17,22 @@ func GenerateJava(schema *schema.Schema, schemaName, messageName string, jsonDat
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Step 1: Generate the Java package
-	// Use package name (not schema filename) as module name
-	config := &generator.PackageConfig{
-		Schema:    schema,
-		Language:  "java",
-		OutputDir: outputDir,
-		Namespace: schema.Package,
-		Optimize:  2,
-		Platform:  "current",
-		Arch:      "current",
-		NoCompile: false,
-		Verbose:   false,
+	// Step 1: Generate the Java code for all message types
+	javaDir := filepath.Join(outputDir, "java")
+	if err := os.MkdirAll(javaDir, 0755); err != nil {
+		return fmt.Errorf("failed to create java directory: %w", err)
 	}
 
-	if err := generator.GeneratePackage(config); err != nil {
-		return fmt.Errorf("failed to generate Java package: %w", err)
+	// Generate Java code for the schema
+	javaCode, err := generator.GenerateJava(schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate Java code: %w", err)
+	}
+
+	// Write the generated message class
+	messagePath := filepath.Join(javaDir, messageName+"Message.java")
+	if err := os.WriteFile(messagePath, []byte(javaCode), 0644); err != nil {
+		return fmt.Errorf("failed to write message class: %w", err)
 	}
 
 	// Step 2: Convert JSON to binary fixture
@@ -42,115 +42,67 @@ func GenerateJava(schema *schema.Schema, schemaName, messageName string, jsonDat
 	}
 
 	// Step 3: Write the binary fixture
-	javaDir := filepath.Join(outputDir, "java")
 	fixturePath := filepath.Join(javaDir, "fixture.bin")
 	if err := os.WriteFile(fixturePath, binaryData, 0644); err != nil {
 		return fmt.Errorf("failed to write fixture: %w", err)
 	}
 
 	// Step 4: Generate the benchmark harness
-	benchmarkCode := generateJavaBenchmarkCode(schemaName, messageName, iterations)
-	benchPath := filepath.Join(javaDir, "Benchmark.java")
+	benchmarkCode := generateJavaBenchmarkCode(schema.Package, schemaName, messageName, iterations)
+	benchPath := filepath.Join(javaDir, "Bench.java")
 	if err := os.WriteFile(benchPath, []byte(benchmarkCode), 0644); err != nil {
 		return fmt.Errorf("failed to write benchmark: %w", err)
-	}
-
-	// Step 5: Generate a run script for convenience
-	runScript := generateJavaRunScript(schemaName)
-	runPath := filepath.Join(javaDir, "run.sh")
-	if err := os.WriteFile(runPath, []byte(runScript), 0755); err != nil {
-		return fmt.Errorf("failed to write run script: %w", err)
 	}
 
 	return nil
 }
 
-// generateJavaBenchmarkCode generates the benchmark harness code
-func generateJavaBenchmarkCode(schemaName, messageName string, iterations int) string {
+// generateJavaBenchmarkCode generates the benchmark harness code for native Java
+func generateJavaBenchmarkCode(packageName, schemaName, messageName string, iterations int) string {
 	buf := &bytes.Buffer{}
 
-	fmt.Fprintf(buf, `import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-import java.io.IOException;
+	// Write imports
+	fmt.Fprintf(buf, "import %s.%sMessage;\n", packageName, messageName)
+	buf.WriteString(`import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
-import com.google.gson.Gson;
-import java.util.HashMap;
-import java.util.Map;
 
-public class Benchmark {
-    // JNA interface for native library
-    public interface FFire%sLib extends Library {
-        String libName = Platform.isWindows() ? "%s" : 
-                        Platform.isMac() ? "lib%s" : "lib%s";
-        
-        FFire%sLib INSTANCE = Native.load(libName, FFire%sLib.class);
-        
-        Pointer ffire_decode_%s(Pointer data, int size);
-        Pointer ffire_encode_%s(Pointer msg, int flags, IntByReference size);
-        void ffire_free_%s(Pointer msg);
-    }
-    
-    private static final FFire%sLib lib = FFire%sLib.INSTANCE;
-    
-    private static Pointer decode(byte[] data) {
-        Memory mem = new Memory(data.length);
-        mem.write(0, data, 0, data.length);
-        Pointer result = lib.ffire_decode_%s(mem, data.length);
-        if (result == null) {
-            throw new RuntimeException("Decode failed");
-        }
-        return result;
-    }
-    
-    private static byte[] encode(Pointer msgPtr) {
-        IntByReference size = new IntByReference();
-        Pointer result = lib.ffire_encode_%s(msgPtr, 0, size);
-        if (result == null) {
-            throw new RuntimeException("Encode failed");
-        }
-        int len = size.getValue();
-        return result.getByteArray(0, len);
-    }
-    
-    private static void freeMessage(Pointer msgPtr) {
-        lib.ffire_free_%s(msgPtr);
-    }
-    
+public class Bench {
     public static void main(String[] args) throws IOException {
         // Load fixture
         byte[] fixtureData = Files.readAllBytes(Paths.get("fixture.bin"));
         
-        int iterations = %d;
-        boolean jsonOutput = "1".equals(System.getenv("BENCH_JSON"));
+`)
+	fmt.Fprintf(buf, "        int iterations = %d;\n", iterations)
+	buf.WriteString(`        boolean jsonOutput = "1".equals(System.getenv("BENCH_JSON"));
         
         // Warmup
         for (int i = 0; i < 1000; i++) {
-            Pointer msgPtr = decode(fixtureData);
-            byte[] encoded = encode(msgPtr);
-            freeMessage(msgPtr);
+`)
+	fmt.Fprintf(buf, "            %sMessage msg = %sMessage.decode(fixtureData);\n", messageName, messageName)
+	buf.WriteString(`            byte[] encoded = msg.encode();
         }
         
         // Benchmark decode
         long decodeStart = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
-            Pointer msgPtr = decode(fixtureData);
-            freeMessage(msgPtr);
-        }
+`)
+	fmt.Fprintf(buf, "            %sMessage msg = %sMessage.decode(fixtureData);\n", messageName, messageName)
+	buf.WriteString(`        }
         long decodeEnd = System.nanoTime();
         long decodeTimeNs = decodeEnd - decodeStart;
         
         // Benchmark encode (decode once, then encode many times)
-        Pointer msgPtr = decode(fixtureData);
-        long encodeStart = System.nanoTime();
+`)
+	fmt.Fprintf(buf, "        %sMessage msg = %sMessage.decode(fixtureData);\n", messageName, messageName)
+	buf.WriteString(`        long encodeStart = System.nanoTime();
         byte[] encoded = null;
         for (int i = 0; i < iterations; i++) {
-            encoded = encode(msgPtr);
+            encoded = msg.encode();
         }
         long encodeEnd = System.nanoTime();
         long encodeTimeNs = encodeEnd - encodeStart;
-        freeMessage(msgPtr);
         
         // Calculate metrics
         long encodeNs = encodeTimeNs / iterations;
@@ -159,79 +111,35 @@ public class Benchmark {
         
         if (jsonOutput) {
             // Output JSON for automation
-            Map<String, Object> result = new HashMap<>();
-            result.put("language", "Java");
-            result.put("format", "ffire");
-            result.put("message", "%s");
-            result.put("iterations", iterations);
-            result.put("encode_ns", encodeNs);
-            result.put("decode_ns", decodeNs);
-            result.put("total_ns", totalNs);
-            result.put("wire_size", encoded.length);
-            result.put("fixture_size", fixtureData.length);
-            result.put("timestamp", Instant.now().toString());
-            
-            Gson gson = new Gson();
-            System.out.println(gson.toJson(result));
+            System.out.println("{");
+            System.out.println("  \"language\": \"Java\",");
+            System.out.println("  \"format\": \"ffire\",");
+`)
+	fmt.Fprintf(buf, "            System.out.println(\"  \\\"message\\\": \\\"%s\\\",\");\n", schemaName)
+	buf.WriteString(`            System.out.println("  \"iterations\": " + iterations + ",");
+            System.out.println("  \"encode_ns\": " + encodeNs + ",");
+            System.out.println("  \"decode_ns\": " + decodeNs + ",");
+            System.out.println("  \"total_ns\": " + totalNs + ",");
+            System.out.println("  \"wire_size\": " + encoded.length + ",");
+            System.out.println("  \"fixture_size\": " + fixtureData.length + ",");
+            System.out.println("  \"timestamp\": \"" + Instant.now().toString() + "\"");
+            System.out.println("}");
         } else {
             // Print human-readable results
-            System.out.println("ffire benchmark: %s");
-            System.out.println("Iterations:  " + iterations);
+`)
+	fmt.Fprintf(buf, "            System.out.println(\"ffire benchmark: %s\");\n", schemaName)
+	buf.WriteString(`            System.out.println("Iterations:  " + iterations);
             System.out.println("Encode:      " + encodeNs + " ns/op");
             System.out.println("Decode:      " + decodeNs + " ns/op");
             System.out.println("Total:       " + totalNs + " ns/op");
             System.out.println("Wire size:   " + encoded.length + " bytes");
             System.out.println("Fixture:     " + fixtureData.length + " bytes");
             double totalTimeS = (encodeTimeNs + decodeTimeNs) / 1e9;
-            System.out.printf("Total time:  %%.3fs%%n", totalTimeS);
+            System.out.printf("Total time:  %.3fs%n", totalTimeS);
         }
     }
 }
-`, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName,
-		schemaName, schemaName, schemaName, schemaName, schemaName, iterations, schemaName, schemaName)
+`)
 
 	return buf.String()
-}
-
-// generateJavaRunScript generates a convenience run script
-func generateJavaRunScript(schemaName string) string {
-	_ = schemaName // Reserved for future use
-	return `#!/bin/bash
-# Convenience script to run Java benchmark
-
-# Check if java is available
-if ! command -v java &> /dev/null; then
-    echo "Error: java not found"
-    exit 1
-fi
-
-if ! command -v javac &> /dev/null; then
-    echo "Error: javac not found"
-    exit 1
-fi
-
-# Download dependencies if needed
-if [ ! -f "jna-5.13.0.jar" ]; then
-    echo "Downloading JNA..."
-    curl -L -o jna-5.13.0.jar https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.13.0/jna-5.13.0.jar
-fi
-
-if [ ! -f "gson-2.10.1.jar" ]; then
-    echo "Downloading Gson..."
-    curl -L -o gson-2.10.1.jar https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar
-fi
-
-# Compile if needed
-if [ ! -f "Benchmark.class" ] || [ "Benchmark.java" -nt "Benchmark.class" ]; then
-    echo "Compiling..."
-    javac -cp ".:jna-5.13.0.jar:gson-2.10.1.jar" Benchmark.java
-fi
-
-# Set library path
-export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-export DYLD_LIBRARY_PATH=.:$DYLD_LIBRARY_PATH
-
-# Run benchmark
-java -cp ".:jna-5.13.0.jar:gson-2.10.1.jar" Benchmark "$@"
-`
 }

@@ -15,7 +15,7 @@ func runFixture(args []string) {
 	schemaFile := fs.String("schema", "", "Path to .ffi schema file (required)")
 	jsonFile := fs.String("json", "", "Path to JSON fixture file (required)")
 	outputFile := fs.String("output", "", "Path to output binary file (required)")
-	messageName := fs.String("message", "Message", "Message type name to encode (default: Message)")
+	messageName := fs.String("message", "", "Message type name to encode (auto-detected if only one root type)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ffire fixture [options]
@@ -53,6 +53,24 @@ Examples:
 	if err := validator.ValidateSchema(schema); err != nil {
 		fmt.Fprintf(os.Stderr, "Error validating schema: %s\n", formatError(err))
 		os.Exit(1)
+	}
+
+	// Auto-detect message name if not specified
+	if *messageName == "" {
+		if len(schema.Messages) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No root types found in schema\n")
+			os.Exit(1)
+		}
+		if len(schema.Messages) == 1 {
+			*messageName = schema.Messages[0].Name
+			fmt.Printf("Auto-detected root type: %s\n", *messageName)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: Multiple root types found, please specify --message:\n")
+			for _, msg := range schema.Messages {
+				fmt.Fprintf(os.Stderr, "  - %s\n", msg.Name)
+			}
+			os.Exit(1)
+		}
 	}
 
 	// Read JSON file

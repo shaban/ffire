@@ -22,7 +22,7 @@ func GenerateGo(s *schema.Schema, schemaName string, messageName string, jsonDat
 	}
 
 	// Generate the encoder/decoder code as package main
-	generatedCode, err := generator.Generate(s, generator.LanguageGo)
+	generatedCode, err := generator.GenerateGo(s)
 	if err != nil {
 		return fmt.Errorf("failed to generate code: %w", err)
 	}

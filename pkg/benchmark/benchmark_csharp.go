@@ -1,38 +1,34 @@
 package benchmark
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode"
 
 	"github.com/shaban/ffire/pkg/fixture"
 	"github.com/shaban/ffire/pkg/generator"
 	"github.com/shaban/ffire/pkg/schema"
 )
 
-// GenerateCSharp generates a C# benchmark with embedded fixture
+// GenerateCSharp generates a native C# benchmark with embedded fixture
 func GenerateCSharp(schema *schema.Schema, schemaName, messageName string, jsonData []byte, outputDir string, iterations int) error {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	// Create output directories
+	csharpDir := filepath.Join(outputDir, "csharp")
+	if err := os.MkdirAll(csharpDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Step 1: Generate the C# package
-	// Use package name (not schema filename) as module name
-	config := &generator.PackageConfig{
-		Schema:    schema,
-		Language:  "csharp",
-		OutputDir: outputDir,
-		Namespace: schema.Package,
-		Optimize:  2,
-		Platform:  "current",
-		Arch:      "current",
-		NoCompile: false,
-		Verbose:   false,
+	// Step 1: Generate C# code
+	csCode, err := generator.GenerateCSharp(schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate C# code: %w", err)
 	}
 
-	if err := generator.GeneratePackage(config); err != nil {
-		return fmt.Errorf("failed to generate C# package: %w", err)
+	csPath := filepath.Join(csharpDir, "Generated.cs")
+	if err := os.WriteFile(csPath, csCode, 0644); err != nil {
+		return fmt.Errorf("failed to write C# code: %w", err)
 	}
 
 	// Step 2: Convert JSON to binary fixture
@@ -41,219 +37,142 @@ func GenerateCSharp(schema *schema.Schema, schemaName, messageName string, jsonD
 		return fmt.Errorf("failed to convert JSON to binary: %w", err)
 	}
 
-	// Step 3: Write the binary fixture
-	csharpDir := filepath.Join(outputDir, "csharp")
 	fixturePath := filepath.Join(csharpDir, "fixture.bin")
 	if err := os.WriteFile(fixturePath, binaryData, 0644); err != nil {
 		return fmt.Errorf("failed to write fixture: %w", err)
 	}
 
-	// Step 4: Generate the benchmark harness
-	benchmarkCode := generateCSharpBenchmarkCode(schemaName, messageName, iterations)
-	benchPath := filepath.Join(csharpDir, "Benchmark.cs")
+	// Step 3: Generate benchmark harness
+	namespace := schema.Package
+	if namespace == "" {
+		namespace = "FFire.Generated"
+	} else {
+		namespace = toPascalCase(namespace)
+	}
+	benchmarkCode := generateCSharpBenchmarkCode(namespace, messageName, iterations, schemaName)
+	benchPath := filepath.Join(csharpDir, "Bench.cs")
 	if err := os.WriteFile(benchPath, []byte(benchmarkCode), 0644); err != nil {
 		return fmt.Errorf("failed to write benchmark: %w", err)
 	}
 
-	// Step 5: Generate project file
-	projectCode := generateCSharpProjectFile(schemaName)
-	projectPath := filepath.Join(csharpDir, "Benchmark.csproj")
+	// Step 4: Generate project file
+	projectCode := generateCSharpProjectFile()
+	projectPath := filepath.Join(csharpDir, "Bench.csproj")
 	if err := os.WriteFile(projectPath, []byte(projectCode), 0644); err != nil {
 		return fmt.Errorf("failed to write project file: %w", err)
-	}
-
-	// Step 6: Generate a run script for convenience
-	runScript := generateCSharpRunScript()
-	runPath := filepath.Join(csharpDir, "run.sh")
-	if err := os.WriteFile(runPath, []byte(runScript), 0755); err != nil {
-		return fmt.Errorf("failed to write run script: %w", err)
 	}
 
 	return nil
 }
 
+// toPascalCase converts a string to PascalCase (capitalize first letter)
+func toPascalCase(s string) string {
+	if s == "" {
+		return s
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
 // generateCSharpBenchmarkCode generates the benchmark harness code
-func generateCSharpBenchmarkCode(schemaName, messageName string, iterations int) string {
-	buf := &bytes.Buffer{}
+func generateCSharpBenchmarkCode(namespace, messageName string, iterations int, benchName string) string {
+	// Append "Message" if not already present (C# generator adds it)
+	csMessageName := messageName
+	if !strings.HasSuffix(messageName, "Message") {
+		csMessageName = messageName + "Message"
+	}
 
-	fmt.Fprintf(buf, `using System;
-using System.IO;
-using System.Runtime.InteropServices;
+	return fmt.Sprintf(`using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
-using System.Collections.Generic;
 
-class Benchmark
+namespace FFire.Benchmark
 {
-    // P/Invoke declarations
-    private const string LibName = "lib%s";
-    
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr ffire_decode_%s(IntPtr data, int size);
-    
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr ffire_encode_%s(IntPtr msg, int flags, out int size);
-    
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void ffire_free_%s(IntPtr msg);
-    
-    private static IntPtr Decode(byte[] data)
+    public class Bench
     {
-        IntPtr dataPtr = Marshal.AllocHGlobal(data.Length);
-        Marshal.Copy(data, 0, dataPtr, data.Length);
-        IntPtr result = ffire_decode_%s(dataPtr, data.Length);
-        Marshal.FreeHGlobal(dataPtr);
-        
-        if (result == IntPtr.Zero)
+        public static void Main(string[] args)
         {
-            throw new Exception("Decode failed");
-        }
-        return result;
-    }
-    
-    private static byte[] Encode(IntPtr msgPtr)
-    {
-        int size;
-        IntPtr result = ffire_encode_%s(msgPtr, 0, out size);
-        
-        if (result == IntPtr.Zero)
-        {
-            throw new Exception("Encode failed");
-        }
-        
-        byte[] encoded = new byte[size];
-        Marshal.Copy(result, encoded, 0, size);
-        return encoded;
-    }
-    
-    private static void FreeMessage(IntPtr msgPtr)
-    {
-        ffire_free_%s(msgPtr);
-    }
-    
-    static void Main(string[] args)
-    {
-        // Load fixture
-        byte[] fixtureData = File.ReadAllBytes("fixture.bin");
-        
-        int iterations = %d;
-        bool jsonOutput = Environment.GetEnvironmentVariable("BENCH_JSON") == "1";
-        
-        // Warmup
-        for (int i = 0; i < 1000; i++)
-        {
-            IntPtr msgPtr = Decode(fixtureData);
-            byte[] encoded = Encode(msgPtr);
-            FreeMessage(msgPtr);
-        }
-        
-        // Benchmark decode
-        Stopwatch decodeWatch = Stopwatch.StartNew();
-        for (int i = 0; i < iterations; i++)
-        {
-            IntPtr msgPtr = Decode(fixtureData);
-            FreeMessage(msgPtr);
-        }
-        decodeWatch.Stop();
-        long decodeTimeNs = decodeWatch.ElapsedTicks * 1000000000 / Stopwatch.Frequency;
-        
-        // Benchmark encode (decode once, then encode many times)
-        IntPtr msg = Decode(fixtureData);
-        Stopwatch encodeWatch = Stopwatch.StartNew();
-        byte[] encoded = null;
-        for (int i = 0; i < iterations; i++)
-        {
-            encoded = Encode(msg);
-        }
-        encodeWatch.Stop();
-        long encodeTimeNs = encodeWatch.ElapsedTicks * 1000000000 / Stopwatch.Frequency;
-        FreeMessage(msg);
-        
-        // Calculate metrics
-        long encodeNs = encodeTimeNs / iterations;
-        long decodeNs = decodeTimeNs / iterations;
-        long totalNs = encodeNs + decodeNs;
-        
-        if (jsonOutput)
-        {
-            // Output JSON for automation
-            var result = new Dictionary<string, object>
+            const int iterations = %d;
+            byte[] fixture = File.ReadAllBytes("fixture.bin");
+
+            // Warmup
+            for (int i = 0; i < 100; i++)
             {
-                ["language"] = "C#",
-                ["format"] = "ffire",
-                ["message"] = "%s",
-                ["iterations"] = iterations,
-                ["encode_ns"] = encodeNs,
-                ["decode_ns"] = decodeNs,
-                ["total_ns"] = totalNs,
-                ["wire_size"] = encoded.Length,
-                ["fixture_size"] = fixtureData.Length,
-                ["timestamp"] = DateTime.UtcNow.ToString("o")
+                Decode(fixture);
+                Encode(fixture);
+            }
+
+            // Measure decode
+            Stopwatch decodeTimer = Stopwatch.StartNew();
+            for (int i = 0; i < iterations; i++)
+            {
+                Decode(fixture);
+            }
+            decodeTimer.Stop();
+            long decodeNs = (long)((double)decodeTimer.ElapsedTicks / Stopwatch.Frequency * 1_000_000_000);
+
+            // Measure encode
+            Stopwatch encodeTimer = Stopwatch.StartNew();
+            for (int i = 0; i < iterations; i++)
+            {
+                Encode(fixture);
+            }
+            encodeTimer.Stop();
+            long encodeNs = (long)((double)encodeTimer.ElapsedTicks / Stopwatch.Frequency * 1_000_000_000);
+
+            // Get wire size
+            %s.%s msg = %s.%s.Decode(fixture);
+            byte[] encoded = msg.Encode();
+
+            // Calculate per-operation metrics
+            long encodeNsPerOp = encodeNs / iterations;
+            long decodeNsPerOp = decodeNs / iterations;
+            long totalNsPerOp = encodeNsPerOp + decodeNsPerOp;
+
+            var result = new
+            {
+                language = "C#",
+                format = "ffire",
+                message = "%s",
+                iterations = iterations,
+                encode_ns = encodeNsPerOp,
+                decode_ns = decodeNsPerOp,
+                total_ns = totalNsPerOp,
+                wire_size = encoded.Length,
+                fixture_size = fixture.Length,
+                timestamp = ""
             };
+
             Console.WriteLine(JsonSerializer.Serialize(result));
         }
-        else
+
+        private static void Decode(byte[] data)
         {
-            // Print human-readable results
-            Console.WriteLine("ffire benchmark: %s");
-            Console.WriteLine($"Iterations:  {iterations}");
-            Console.WriteLine($"Encode:      {encodeNs} ns/op");
-            Console.WriteLine($"Decode:      {decodeNs} ns/op");
-            Console.WriteLine($"Total:       {totalNs} ns/op");
-            Console.WriteLine($"Wire size:   {encoded.Length} bytes");
-            Console.WriteLine($"Fixture:     {fixtureData.Length} bytes");
-            double totalTimeS = (encodeTimeNs + decodeTimeNs) / 1e9;
-            Console.WriteLine($"Total time:  {totalTimeS:F3}s");
+            %s.%s msg = %s.%s.Decode(data);
+        }
+
+        private static void Encode(byte[] data)
+        {
+            %s.%s msg = %s.%s.Decode(data);
+            byte[] encoded = msg.Encode();
         }
     }
 }
-`, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, schemaName, iterations, schemaName, schemaName)
-
-	return buf.String()
+`, iterations, namespace, csMessageName, namespace, csMessageName, benchName, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName)
 }
 
 // generateCSharpProjectFile generates the .csproj file
-func generateCSharpProjectFile(schemaName string) string {
-	_ = schemaName // Reserved for future use
+func generateCSharpProjectFile() string {
 	return `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 </Project>
-`
-}
-
-// generateCSharpRunScript generates a convenience run script
-func generateCSharpRunScript() string {
-	return `#!/bin/bash
-# Convenience script to run C# benchmark
-
-# Check if dotnet is available
-if ! command -v dotnet &> /dev/null; then
-    echo "Error: dotnet not found"
-    exit 1
-fi
-
-# Check .NET version
-DOTNET_VERSION=$(dotnet --version | cut -d. -f1)
-if [ "$DOTNET_VERSION" -lt 6 ]; then
-    echo "Error: .NET 6.0+ required"
-    exit 1
-fi
-
-# Build if needed
-if [ ! -d "bin" ] || [ "Benchmark.cs" -nt "bin" ]; then
-    echo "Building..."
-    dotnet build -c Release
-fi
-
-# Set library path
-export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-export DYLD_LIBRARY_PATH=.:$DYLD_LIBRARY_PATH
-
-# Run benchmark
-dotnet run -c Release --no-build "$@"
 `
 }

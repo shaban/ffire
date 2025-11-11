@@ -1,0 +1,6 @@
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.csproj.AssemblyReference.cache
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/protobench/obj/Release/net9.0/ProtoBenchCSharp.sourcelink.json

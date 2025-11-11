@@ -1,0 +1,15 @@
+/Users/shaban/Code/ffire/experimental/csharp_perf/bin/Release/net8.0/CSharpPerfTest
+/Users/shaban/Code/ffire/experimental/csharp_perf/bin/Release/net8.0/CSharpPerfTest.deps.json
+/Users/shaban/Code/ffire/experimental/csharp_perf/bin/Release/net8.0/CSharpPerfTest.runtimeconfig.json
+/Users/shaban/Code/ffire/experimental/csharp_perf/bin/Release/net8.0/CSharpPerfTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_perf/bin/Release/net8.0/CSharpPerfTest.pdb
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.sourcelink.json
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/refint/CSharpPerfTest.dll
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.pdb
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/CSharpPerfTest.genruntimeconfig.cache
+/Users/shaban/Code/ffire/experimental/csharp_perf/obj/Release/net8.0/ref/CSharpPerfTest.dll

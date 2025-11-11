@@ -162,9 +162,13 @@ func (g *goGenerator) generate() ([]byte, error) {
 		if structType, ok := msg.TargetType.(*schema.StructType); ok {
 			g.generateMessageStruct(structType)
 		} else if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
-			// Array type alias: type IntListMessage []int32
+			// Array type alias: type IntListMessage []int32 or *[]int32 for optional
 			elementTypeStr := g.goTypeString(arrayType.ElementType)
-			fmt.Fprintf(g.buf, "type %sMessage []%s\n\n", msg.Name, elementTypeStr)
+			if arrayType.Optional {
+				fmt.Fprintf(g.buf, "type %sMessage *[]%s\n\n", msg.Name, elementTypeStr)
+			} else {
+				fmt.Fprintf(g.buf, "type %sMessage []%s\n\n", msg.Name, elementTypeStr)
+			}
 		} else {
 			// Primitive type alias: type Int32Message int32
 			typeStr := g.goTypeString(msg.TargetType)

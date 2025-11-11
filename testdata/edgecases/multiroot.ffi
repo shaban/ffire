@@ -1,0 +1,15 @@
+package multiroot
+
+// Two separate root types (both exported, unreferenced)
+
+type UserProfile struct {
+	UserId int32
+	Name string
+	Email string
+}
+
+type DeviceInfo struct {
+	DeviceId string
+	Model string
+	Version int32
+}

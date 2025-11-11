@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "9ZaqW5G2QEU=",
+  "success": true,
+  "projectFilePath": "/Users/shaban/Code/ffire/experimental/protobench/ProtoBenchCSharp.csproj",
+  "expectedPackageFiles": [
+    "/Users/shaban/.nuget/packages/google.protobuf/3.28.3/google.protobuf.3.28.3.nupkg.sha512"
+  ],
+  "logs": []
+}

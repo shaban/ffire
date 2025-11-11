@@ -553,9 +553,9 @@ func TestRoundtripOptionalArray(t *testing.T) {
 
 	t.Logf("Generated code:\n%s", codeStr)
 
-	// Optional arrays should use pointer type
-	if !strings.Contains(codeStr, "v *[]int32") {
-		t.Errorf("Optional array parameter should use pointer type")
+	// Optional arrays should use pointer type in the type alias
+	if !strings.Contains(codeStr, "type OptionalArrayMessage *[]int32") {
+		t.Errorf("Optional array should be defined as pointer type alias")
 	}
 
 	// Should have nil check
@@ -586,33 +586,27 @@ func TestGenerateLanguageSwitching(t *testing.T) {
 	}
 
 	// Test Go generation works
-	codeGo, err := Generate(s, "go")
+	codeGo, err := GenerateGo(s)
 	if err != nil {
-		t.Fatalf("Generate(go) failed: %v", err)
+		t.Fatalf("GenerateGo() failed: %v", err)
 	}
 	if len(codeGo) == 0 {
-		t.Errorf("Generate(go) returned empty code")
+		t.Errorf("GenerateGo() returned empty code")
 	}
 
 	// Test C++ generation works
-	codeCpp, err := Generate(s, "cpp")
+	codeCpp, err := GenerateCpp(s)
 	if err != nil {
-		t.Fatalf("Generate(cpp) failed: %v", err)
+		t.Fatalf("GenerateCpp() failed: %v", err)
 	}
 	if len(codeCpp) == 0 {
-		t.Errorf("Generate(cpp) returned empty code")
+		t.Errorf("GenerateCpp() returned empty code")
 	}
 
 	// Test Swift returns error (not implemented)
-	_, err = Generate(s, "swift")
+	_, err = GenerateSwift(s)
 	if err == nil {
-		t.Errorf("Generate(swift) should return error (not implemented)")
-	}
-
-	// Test unknown language returns error
-	_, err = Generate(s, "rust")
-	if err == nil {
-		t.Errorf("Generate(rust) should return error (unknown language)")
+		t.Errorf("GenerateSwift() should return error (not implemented)")
 	}
 }
 
@@ -829,8 +823,9 @@ func TestGenerateCppArray(t *testing.T) {
 	if !strings.Contains(codeStr, "uint16_t len = static_cast<uint16_t>(value.size())") {
 		t.Errorf("missing array length encoding")
 	}
-	if !strings.Contains(codeStr, "for (const auto& elem : value)") {
-		t.Errorf("missing array element loop")
+	// int32 arrays use bulk optimization
+	if !strings.Contains(codeStr, "enc.write_bulk_int32(value)") {
+		t.Errorf("missing bulk array write")
 	}
 
 	// Check array decoding

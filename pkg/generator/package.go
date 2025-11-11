@@ -48,19 +48,22 @@ func GeneratePackage(config *PackageConfig) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
+	// Normalize language to lowercase for case-insensitive matching
+	lang := strings.ToLower(config.Language)
+
 	// Handle Go as Tier 0 (native reference implementation)
-	if config.Language == "go" {
+	if lang == "go" {
 		return generateGoPackage(config)
 	}
 
 	// Determine package type (Tier A vs Tier B)
-	switch config.Language {
-	case "c", "cpp", "c++", "rust", "zig", "d", "nim", "crystal", "odin", "v":
+	switch lang {
+	case "c", "cpp", "c++", "rust", "zig":
 		return generateTierAPackage(config)
-	case "python", "javascript", "js", "node", "swift", "ruby", "java", "csharp", "cs", "c#", "dart", "php", "perl", "lua", "r":
+	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php":
 		return generateTierBPackage(config)
 	default:
-		return fmt.Errorf("unsupported language: %s", config.Language)
+		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust)", config.Language)
 	}
 }
 
@@ -127,18 +130,26 @@ func generateTierBPackage(config *PackageConfig) error {
 		fmt.Println("Generating Tier B package (with language wrapper)")
 	}
 
+	// Normalize language to lowercase
+	lang := strings.ToLower(config.Language)
+
 	// Route to language-specific generator
-	switch config.Language {
-	case "python", "py":
-		return generatePythonPackage(config)
-	case "javascript", "js", "node", "nodejs":
+	switch lang {
+	case "python":
+		// Pure Python (default)
+		return generatePythonPurePackage(config)
+	case "js":
 		return generateJavaScriptPackage(config)
 	case "swift":
 		return generateSwiftPackage(config)
 	case "dart":
 		return generateDartPackage(config)
+	case "java":
+		return generateJavaPackage(config)
+	case "csharp":
+		return generateCSharpPackage(config)
 	default:
-		return fmt.Errorf("Tier B package generation not yet implemented for %s", config.Language)
+		return fmt.Errorf("Tier B package generation not yet implemented for %s (TODO: ruby, php, rust)", config.Language)
 	}
 }
 
@@ -314,13 +325,106 @@ func generateGoPackage(config *PackageConfig) error {
 	return nil
 }
 
-// generatePythonPackage generates a complete Python package with pybind11 wrapper
-func generatePythonPackage(config *PackageConfig) error {
-	return GeneratePythonPybind11Package(config)
+func generatePythonPurePackage(config *PackageConfig) error {
+	// Generate pure Python (no C++ bridge)
+	pyCode, err := GeneratePythonPure(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate Python code: %w", err)
+	}
+
+	// Create output directory
+	outDir := filepath.Join(config.OutputDir, config.Schema.Package)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Write Python file
+	pyPath := filepath.Join(outDir, "__init__.py")
+	if err := os.WriteFile(pyPath, pyCode, 0644); err != nil {
+		return fmt.Errorf("failed to write Python file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated pure Python: %s\n", pyPath)
+
+	// Generate setup.py
+	setupPy := fmt.Sprintf(`from setuptools import setup
+
+setup(
+    name='%s',
+    version='1.0.0',
+    description='Pure Python ffire codec (no native bindings)',
+    packages=['%s'],
+    python_requires='>=3.7',
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+    ],
+)
+`, config.Schema.Package, config.Schema.Package)
+
+	setupPath := filepath.Join(config.OutputDir, "setup.py")
+	if err := os.WriteFile(setupPath, []byte(setupPy), 0644); err != nil {
+		return fmt.Errorf("failed to write setup.py: %w", err)
+	}
+
+	fmt.Printf("✓ Generated setup.py: %s\n", setupPath)
+	fmt.Printf("\n✅ Pure Python package ready at: %s\n", outDir)
+	fmt.Printf("   No compilation needed - pure Python implementation\n")
+	fmt.Printf("   Install with: pip install %s\n", config.OutputDir)
+
+	return nil
 }
 
 func generateJavaScriptPackage(config *PackageConfig) error {
-	return GenerateJavaScriptPackage(config)
+	// Generate pure JavaScript (no C++ bridge)
+	jsCode, err := GenerateJavaScript(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate JavaScript code: %w", err)
+	}
+
+	// Create output directory
+	outDir := filepath.Join(config.OutputDir, config.Schema.Package)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Write JavaScript file
+	jsPath := filepath.Join(outDir, "index.js")
+	if err := os.WriteFile(jsPath, jsCode, 0644); err != nil {
+		return fmt.Errorf("failed to write JavaScript file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated pure JavaScript: %s\n", jsPath)
+
+	// Generate package.json
+	packageJSON := fmt.Sprintf(`{
+  "name": "@ffire/%s",
+  "version": "1.0.0",
+  "description": "Pure JavaScript ffire codec (no native bindings)",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": ["ffire", "serialization", "codec", "binary"]
+}
+`, config.Schema.Package)
+
+	packagePath := filepath.Join(outDir, "package.json")
+	if err := os.WriteFile(packagePath, []byte(packageJSON), 0644); err != nil {
+		return fmt.Errorf("failed to write package.json: %w", err)
+	}
+
+	fmt.Printf("✓ Generated package.json: %s\n", packagePath)
+	fmt.Printf("\n✅ Pure JavaScript package ready at: %s\n", outDir)
+	fmt.Printf("   No compilation needed - pure JS implementation\n")
+
+	return nil
 }
 
 func generateSwiftPackage(config *PackageConfig) error {
@@ -329,4 +433,80 @@ func generateSwiftPackage(config *PackageConfig) error {
 
 func generateDartPackage(config *PackageConfig) error {
 	return GenerateDartPackage(config)
+}
+
+func generateJavaPackage(config *PackageConfig) error {
+	// Generate Java code
+	javaCode, err := GenerateJava(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate Java code: %w", err)
+	}
+
+	// Create output directory structure
+	packagePath := strings.ReplaceAll(config.Schema.Package, ".", "/")
+	outDir := filepath.Join(config.OutputDir, "src", packagePath)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Write Java file (use last part of package name as class prefix)
+	parts := strings.Split(config.Schema.Package, ".")
+	className := parts[len(parts)-1]
+	javaPath := filepath.Join(outDir, className+".java")
+	if err := os.WriteFile(javaPath, javaCode, 0644); err != nil {
+		return fmt.Errorf("failed to write Java file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated Java code: %s\n", javaPath)
+	fmt.Printf("\n✅ Java package ready at: %s\n", outDir)
+	fmt.Printf("   No native compilation needed - pure Java implementation\n")
+
+	return nil
+}
+
+func generateCSharpPackage(config *PackageConfig) error {
+	// Generate C# code
+	csCode, err := GenerateCSharp(config.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to generate C# code: %w", err)
+	}
+
+	// Create output directory
+	outDir := filepath.Join(config.OutputDir, config.Schema.Package)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Write C# file
+	csPath := filepath.Join(outDir, "Generated.cs")
+	if err := os.WriteFile(csPath, csCode, 0644); err != nil {
+		return fmt.Errorf("failed to write C# file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated C# code: %s\n", csPath)
+
+	// Generate .csproj file
+	csprojContent := fmt.Sprintf(`<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>%s</RootNamespace>
+  </PropertyGroup>
+
+</Project>
+`, config.Schema.Package)
+
+	csprojPath := filepath.Join(outDir, config.Schema.Package+".csproj")
+	if err := os.WriteFile(csprojPath, []byte(csprojContent), 0644); err != nil {
+		return fmt.Errorf("failed to write .csproj file: %w", err)
+	}
+
+	fmt.Printf("✓ Generated .csproj: %s\n", csprojPath)
+	fmt.Printf("\n✅ C# package ready at: %s\n", outDir)
+	fmt.Printf("   No native compilation needed - pure C# implementation with Span<byte>\n")
+	fmt.Printf("   Build with: dotnet build %s\n", csprojPath)
+
+	return nil
 }

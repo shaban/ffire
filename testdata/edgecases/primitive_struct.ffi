@@ -1,0 +1,8 @@
+package test
+
+// Point is a primitive-only struct (int32 + float32)
+type Point struct {
+        X int32
+        Y int32
+        Z float32
+}

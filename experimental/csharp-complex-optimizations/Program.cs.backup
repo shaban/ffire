@@ -1,0 +1,1168 @@
+using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+
+namespace ComplexOptimization;
+
+// GOAL: Beat protobuf's 19,973 ns (9,857 encode + 10,116 decode)
+// Current: 32,217 ns (23,217 encode + 9,000 decode)
+//
+// STRATEGY: Hand-write multiple encoding approaches and benchmark:
+// 1. Current approach (UTF-8 byte[] with property wrappers)
+// 2. Pre-allocated buffer pool approach
+// 3. Stackalloc for small strings
+// 4. Direct UTF-8 string fields (no wrappers)
+// 5. ArrayPool<byte> for large allocations
+// 6. Unsafe pointer writes for primitives
+
+class Program
+{
+    static void Main()
+    {
+        Console.WriteLine("=== COMPLEX FIXTURE OPTIMIZATION SCRATCHSPACE ===\n");
+        Console.WriteLine("Goal: <15,000 ns total (beat protobuf's 19,973 ns)\n");
+        
+        // Create test data matching the complex fixture
+        var plugins = CreateTestData();
+        
+        // Approach 1: Current generator approach (UTF-8 byte[] storage)
+        Console.WriteLine("Approach 1: UTF-8 byte[] storage (current)");
+        BenchmarkApproach1(plugins);
+        
+        // Approach 2: Pre-compute exact size (no over-allocation)
+        Console.WriteLine("\nApproach 2: Pre-compute exact size");
+        BenchmarkApproach2(plugins);
+        
+        // Approach 3: ArrayPool + exact size
+        Console.WriteLine("\nApproach 3: ArrayPool with exact size");
+        BenchmarkApproach3(plugins);
+        
+        // Approach 4: Direct struct layout (no properties)
+        Console.WriteLine("\nApproach 4: Direct struct fields");
+        BenchmarkApproach4(plugins);
+        
+        Console.WriteLine("\n=== ANALYSIS ===");
+        Console.WriteLine("Compare results to identify bottlenecks:");
+        Console.WriteLine("- Is it the Array.Resize overhead?");
+        Console.WriteLine("- Is it the property getter/setter?");
+        Console.WriteLine("- Is it allocation strategy?");
+        Console.WriteLine("- Is it the ComputeMaxSize * 3 multiplier for strings?");
+    }
+    
+    static Plugin[] CreateTestData()
+    {
+        // Load actual complex.json from testdata
+        string jsonPath = "/Users/shaban/Code/ffire/testdata/json/complex.json";
+        string json = File.ReadAllText(jsonPath);
+        var plugins = JsonSerializer.Deserialize<Plugin[]>(json, new JsonSerializerOptions 
+        { 
+            PropertyNameCaseInsensitive = true 
+        });
+        
+        if (plugins == null || plugins.Length == 0)
+        {
+            throw new Exception("Failed to load complex.json");
+        }
+        
+        Console.WriteLine($"Loaded {plugins.Length} plugins with unique parameter data\n");
+        return plugins;
+    }
+    
+    static void BenchmarkApproach1(Plugin[] plugins)
+    {
+        // Current approach: UTF-8 byte[] storage with max size estimation
+        const int iterations = 10000;
+        byte[]? encoded = null;
+        Plugin[]? decoded = null;
+        
+        // Warmup
+        for (int i = 0; i < 100; i++)
+        {
+            Name = "Apple: AUVarispeed [Instance 1]",
+            ManufacturerID = "appl",
+            Type = "aufc",
+            Subtype = "vari",
+            Parameters = new Parameter[]
+            {
+                new Parameter
+                {
+                    DisplayName = "Playback Rate",
+                    DefaultValue = 1.0f,
+                    CurrentValue = 1.0f,
+                    Address = 0,
+                    MaxValue = 4.0f,
+                    MinValue = 0.25f,
+                    Unit = "Rate",
+                    Identifier = "0",
+                    CanRamp = false,
+                    IsWritable = true,
+                    RawFlags = 3502243840,
+                    IndexedValues = null,
+                    IndexedValuesSource = null
+                },
+                new Parameter
+                {
+                    DisplayName = "Playback Pitch",
+                    DefaultValue = 0.0f,
+                    CurrentValue = 0.0f,
+                    Address = 1,
+                    MaxValue = 2400.0f,
+                    MinValue = -2400.0f,
+                    Unit = "Cents",
+                    Identifier = "1",
+                    CanRamp = false,
+                    IsWritable = true,
+                    RawFlags = 3498049536,
+                    IndexedValues = null,
+                    IndexedValuesSource = null
+                }
+            }
+        };
+        
+        // Plugin 2: Filter
+        plugins[1] = new Plugin
+        {
+            Name = "Apple: AUFilter [Instance 2]",
+            ManufacturerID = "appl",
+            Type = "aufx",
+            Subtype = "filt",
+            Parameters = new Parameter[]
+            {
+                new Parameter
+                {
+                    DisplayName = "Low Filter Type",
+                    DefaultValue = 0.0f,
+                    CurrentValue = 0.0f,
+                    Address = 0,
+                    MaxValue = 1.0f,
+                    MinValue = 0.0f,
+                    Unit = "Indexed",
+                    Identifier = "0",
+                    CanRamp = false,
+                    IsWritable = true,
+                    RawFlags = 3222274048,
+                    IndexedValues = new[] { "Low Shelf", "High Pass" },
+                    IndexedValuesSource = "valueStrings"
+                },
+                new Parameter
+                {
+                    DisplayName = "Low Frequency",
+                    DefaultValue = 100.0f,
+                    CurrentValue = 100.0f,
+                    Address = 1,
+                    MaxValue = 21829.5f,
+                    MinValue = 10.0f,
+                    Unit = "Hertz",
+                    Identifier = "1",
+                    CanRamp = false,
+                    IsWritable = true,
+                    RawFlags = 3226468352,
+                    IndexedValues = null,
+                    IndexedValuesSource = null
+                },
+                new Parameter
+                {
+                    DisplayName = "Low Gain",
+                    DefaultValue = 0.0f,
+                    CurrentValue = 0.0f,
+                    Address = 2,
+                    MaxValue = 18.0f,
+                    MinValue = -18.0f,
+                    Unit = "Decibels",
+                    Identifier = "2",
+                    CanRamp = false,
+                    IsWritable = true,
+                    RawFlags = 3222274048,
+                    IndexedValues = null,
+                    IndexedValuesSource = null
+                }
+            }
+        };
+        
+        // Replicate alternating pattern for 20 plugins
+        for (int i = 2; i < 20; i++)
+        {
+            plugins[i] = i % 2 == 0 ? plugins[0] : plugins[1];
+        }
+        
+        return plugins;
+    }
+    
+    static void BenchmarkApproach1(Plugin[] plugins)
+    {
+        // Current approach: UTF-8 byte[] storage with max size estimation
+        const int iterations = 10000;
+        byte[]? encoded = null;
+        Plugin[]? decoded = null;
+        
+        // Warmup
+        for (int i = 0; i < 100; i++)
+        {
+            encoded = Approach1.Encode(plugins);
+            decoded = Approach1.Decode(encoded);
+        }
+        
+        // Benchmark encode
+        var sw = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            encoded = Approach1.Encode(plugins);
+        }
+        sw.Stop();
+        long encodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        // Benchmark decode
+        sw.Restart();
+        for (int i = 0; i < iterations; i++)
+        {
+            decoded = Approach1.Decode(encoded!);
+        }
+        sw.Stop();
+        long decodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        Console.WriteLine($"  Encode: {encodeNs:N0} ns");
+        Console.WriteLine($"  Decode: {decodeNs:N0} ns");
+        Console.WriteLine($"  Total:  {encodeNs + decodeNs:N0} ns");
+        Console.WriteLine($"  Size:   {encoded!.Length} bytes");
+    }
+    
+    static void BenchmarkApproach2(Plugin[] plugins)
+    {
+        // Exact size computation (no * 3 multiplier, no Array.Resize)
+        const int iterations = 10000;
+        byte[]? encoded = null;
+        Plugin[]? decoded = null;
+        
+        // Warmup
+        for (int i = 0; i < 100; i++)
+        {
+            encoded = Approach2.Encode(plugins);
+            decoded = Approach2.Decode(encoded);
+        }
+        
+        // Benchmark encode
+        var sw = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            encoded = Approach2.Encode(plugins);
+        }
+        sw.Stop();
+        long encodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        // Benchmark decode
+        sw.Restart();
+        for (int i = 0; i < iterations; i++)
+        {
+            decoded = Approach2.Decode(encoded!);
+        }
+        sw.Stop();
+        long decodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        Console.WriteLine($"  Encode: {encodeNs:N0} ns");
+        Console.WriteLine($"  Decode: {decodeNs:N0} ns");
+        Console.WriteLine($"  Total:  {encodeNs + decodeNs:N0} ns");
+        Console.WriteLine($"  Size:   {encoded!.Length} bytes");
+    }
+    
+    static void BenchmarkApproach3(Plugin[] plugins)
+    {
+        // ArrayPool + single-pass encoding (GetBytes returns byte count)
+        const int iterations = 10000;
+        byte[]? encoded = null;
+        Plugin[]? decoded = null;
+        
+        // Warmup
+        for (int i = 0; i < 100; i++)
+        {
+            encoded = Approach3.Encode(plugins);
+            decoded = Approach3.Decode(encoded);
+        }
+        
+        // Benchmark encode
+        var sw = Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            encoded = Approach3.Encode(plugins);
+        }
+        sw.Stop();
+        long encodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        // Benchmark decode
+        sw.Restart();
+        for (int i = 0; i < iterations; i++)
+        {
+            decoded = Approach3.Decode(encoded!);
+        }
+        sw.Stop();
+        long decodeNs = sw.ElapsedTicks * 1_000_000_000 / Stopwatch.Frequency / iterations;
+        
+        Console.WriteLine($"  Encode: {encodeNs:N0} ns");
+        Console.WriteLine($"  Decode: {decodeNs:N0} ns");
+        Console.WriteLine($"  Total:  {encodeNs + decodeNs:N0} ns");
+        Console.WriteLine($"  Size:   {encoded!.Length} bytes");
+    }
+    
+    static void BenchmarkApproach4(Plugin[] plugins)
+    {
+        Console.WriteLine("  TODO: Implement direct struct fields");
+    }
+}
+
+// Data structures
+struct Plugin
+{
+    public string Name { get; set; }
+    public string ManufacturerID { get; set; }
+    public string Type { get; set; }
+    public string Subtype { get; set; }
+    public Parameter[] Parameters { get; set; }
+}
+
+struct Parameter
+{
+    public string DisplayName { get; set; }
+    public float DefaultValue { get; set; }
+    public float CurrentValue { get; set; }
+    public int Address { get; set; }
+    public float MaxValue { get; set; }
+    public float MinValue { get; set; }
+    public string Unit { get; set; }
+    public string Identifier { get; set; }
+    public bool CanRamp { get; set; }
+    public bool IsWritable { get; set; }
+    public long RawFlags { get; set; }
+    public string[]? IndexedValues { get; set; }
+    public string? IndexedValuesSource { get; set; }
+}
+
+// APPROACH 1: Current generator approach (UTF-8 byte[] with max size * 3 for strings)
+static class Approach1
+{
+    public static byte[] Encode(Plugin[] plugins)
+    {
+        int maxSize = ComputeMaxSize(plugins);
+        byte[] buffer = new byte[maxSize];
+        int offset = 0;
+        
+        // Array length
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)plugins.Length);
+        offset += 2;
+        
+        // Encode each plugin
+        foreach (var plugin in plugins)
+        {
+            EncodePlugin(buffer, ref offset, plugin);
+        }
+        
+        // Trim to actual size
+        if (offset < maxSize)
+        {
+            Array.Resize(ref buffer, offset);
+        }
+        
+        return buffer;
+    }
+    
+    static int ComputeMaxSize(Plugin[] plugins)
+    {
+        int size = 2; // array length
+        foreach (var plugin in plugins)
+        {
+            size += ComputePluginMaxSize(plugin);
+        }
+        return size;
+    }
+    
+    static int ComputePluginMaxSize(Plugin plugin)
+    {
+        int size = 0;
+        
+        // Strings: use * 3 multiplier for worst-case UTF-8
+        size += 2 + (plugin.Name?.Length ?? 0) * 3;
+        size += 2 + (plugin.ManufacturerID?.Length ?? 0) * 3;
+        size += 2 + (plugin.Type?.Length ?? 0) * 3;
+        size += 2 + (plugin.Subtype?.Length ?? 0) * 3;
+        
+        // Parameters array
+        size += 2; // array length
+        if (plugin.Parameters != null)
+        {
+            foreach (var param in plugin.Parameters)
+            {
+                size += ComputeParameterMaxSize(param);
+            }
+        }
+        
+        return size;
+    }
+    
+    static int ComputeParameterMaxSize(Parameter param)
+    {
+        int size = 0;
+        
+        // Strings
+        size += 2 + (param.DisplayName?.Length ?? 0) * 3;
+        
+        // Primitives
+        size += 4; // DefaultValue (float)
+        size += 4; // CurrentValue (float)
+        size += 4; // Address (int)
+        size += 4; // MaxValue (float)
+        size += 4; // MinValue (float)
+        
+        size += 2 + (param.Unit?.Length ?? 0) * 3;
+        size += 2 + (param.Identifier?.Length ?? 0) * 3;
+        
+        size += 1; // CanRamp (bool)
+        size += 1; // IsWritable (bool)
+        size += 8; // RawFlags (long)
+        
+        // Optional string array
+        size += 1; // presence byte
+        if (param.IndexedValues != null)
+        {
+            size += 2; // array length
+            foreach (var val in param.IndexedValues)
+            {
+                size += 2 + (val?.Length ?? 0) * 3;
+            }
+        }
+        
+        // Optional string
+        size += 1; // presence byte
+        if (param.IndexedValuesSource != null)
+        {
+            size += 2 + (param.IndexedValuesSource.Length) * 3;
+        }
+        
+        return size;
+    }
+    
+    static void EncodePlugin(byte[] buffer, ref int offset, Plugin plugin)
+    {
+        EncodeString(buffer, ref offset, plugin.Name);
+        EncodeString(buffer, ref offset, plugin.ManufacturerID);
+        EncodeString(buffer, ref offset, plugin.Type);
+        EncodeString(buffer, ref offset, plugin.Subtype);
+        
+        // Parameters array
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)(plugin.Parameters?.Length ?? 0));
+        offset += 2;
+        
+        if (plugin.Parameters != null)
+        {
+            foreach (var param in plugin.Parameters)
+            {
+                EncodeParameter(buffer, ref offset, param);
+            }
+        }
+    }
+    
+    static void EncodeParameter(byte[] buffer, ref int offset, Parameter param)
+    {
+        EncodeString(buffer, ref offset, param.DisplayName);
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.DefaultValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.CurrentValue);
+        offset += 4;
+        BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset, 4), param.Address);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MaxValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MinValue);
+        offset += 4;
+        EncodeString(buffer, ref offset, param.Unit);
+        EncodeString(buffer, ref offset, param.Identifier);
+        
+        buffer[offset++] = (byte)(param.CanRamp ? 1 : 0);
+        buffer[offset++] = (byte)(param.IsWritable ? 1 : 0);
+        
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset, 8), param.RawFlags);
+        offset += 8;
+        
+        // Optional string array
+        if (param.IndexedValues != null)
+        {
+            buffer[offset++] = 1;
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)param.IndexedValues.Length);
+            offset += 2;
+            foreach (var val in param.IndexedValues)
+            {
+                EncodeString(buffer, ref offset, val);
+            }
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+        
+        // Optional string
+        if (param.IndexedValuesSource != null)
+        {
+            buffer[offset++] = 1;
+            EncodeString(buffer, ref offset, param.IndexedValuesSource);
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void EncodeString(byte[] buffer, ref int offset, string? str)
+    {
+        if (str == null || str.Length == 0)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), 0);
+            offset += 2;
+            return;
+        }
+        
+        int byteCount = Encoding.UTF8.GetBytes(str, buffer.AsSpan(offset + 2));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)byteCount);
+        offset += 2 + byteCount;
+    }
+    
+    public static Plugin[] Decode(byte[] data)
+    {
+        ReadOnlySpan<byte> buffer = data;
+        int offset = 0;
+        
+        int length = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        var plugins = new Plugin[length];
+        for (int i = 0; i < length; i++)
+        {
+            plugins[i] = DecodePlugin(buffer, ref offset);
+        }
+        
+        return plugins;
+    }
+    
+    static Plugin DecodePlugin(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var plugin = new Plugin
+        {
+            Name = DecodeString(buffer, ref offset),
+            ManufacturerID = DecodeString(buffer, ref offset),
+            Type = DecodeString(buffer, ref offset),
+            Subtype = DecodeString(buffer, ref offset)
+        };
+        
+        int paramCount = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        plugin.Parameters = new Parameter[paramCount];
+        for (int i = 0; i < paramCount; i++)
+        {
+            plugin.Parameters[i] = DecodeParameter(buffer, ref offset);
+        }
+        
+        return plugin;
+    }
+    
+    static Parameter DecodeParameter(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var param = new Parameter
+        {
+            DisplayName = DecodeString(buffer, ref offset),
+            DefaultValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4))
+        };
+        offset += 4;
+        
+        param.CurrentValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Address = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MaxValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MinValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Unit = DecodeString(buffer, ref offset);
+        param.Identifier = DecodeString(buffer, ref offset);
+        
+        param.CanRamp = buffer[offset++] != 0;
+        param.IsWritable = buffer[offset++] != 0;
+        
+        param.RawFlags = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset, 8));
+        offset += 8;
+        
+        // Optional string array
+        if (buffer[offset++] == 1)
+        {
+            int arrayLen = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+            offset += 2;
+            param.IndexedValues = new string[arrayLen];
+            for (int i = 0; i < arrayLen; i++)
+            {
+                param.IndexedValues[i] = DecodeString(buffer, ref offset);
+            }
+        }
+        
+        // Optional string
+        if (buffer[offset++] == 1)
+        {
+            param.IndexedValuesSource = DecodeString(buffer, ref offset);
+        }
+        
+        return param;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static string DecodeString(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        int len = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        if (len == 0) return string.Empty;
+        
+        string result = Encoding.UTF8.GetString(buffer.Slice(offset, len));
+        offset += len;
+        return result;
+    }
+}
+
+// APPROACH 2: Exact size computation (GetByteCount instead of * 3, no Array.Resize)
+static class Approach2
+{
+    public static byte[] Encode(Plugin[] plugins)
+    {
+        int exactSize = ComputeExactSize(plugins);
+        byte[] buffer = new byte[exactSize];
+        int offset = 0;
+        
+        // Array length
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)plugins.Length);
+        offset += 2;
+        
+        // Encode each plugin
+        foreach (var plugin in plugins)
+        {
+            EncodePlugin(buffer, ref offset, plugin);
+        }
+        
+        return buffer;
+    }
+    
+    static int ComputeExactSize(Plugin[] plugins)
+    {
+        int size = 2; // array length
+        foreach (var plugin in plugins)
+        {
+            size += ComputePluginExactSize(plugin);
+        }
+        return size;
+    }
+    
+    static int ComputePluginExactSize(Plugin plugin)
+    {
+        int size = 0;
+        
+        // Strings: use GetByteCount for exact UTF-8 size
+        size += 2 + Encoding.UTF8.GetByteCount(plugin.Name ?? "");
+        size += 2 + Encoding.UTF8.GetByteCount(plugin.ManufacturerID ?? "");
+        size += 2 + Encoding.UTF8.GetByteCount(plugin.Type ?? "");
+        size += 2 + Encoding.UTF8.GetByteCount(plugin.Subtype ?? "");
+        
+        // Parameters array
+        size += 2; // array length
+        if (plugin.Parameters != null)
+        {
+            foreach (var param in plugin.Parameters)
+            {
+                size += ComputeParameterExactSize(param);
+            }
+        }
+        
+        return size;
+    }
+    
+    static int ComputeParameterExactSize(Parameter param)
+    {
+        int size = 0;
+        
+        // Strings
+        size += 2 + Encoding.UTF8.GetByteCount(param.DisplayName ?? "");
+        
+        // Primitives
+        size += 4; // DefaultValue (float)
+        size += 4; // CurrentValue (float)
+        size += 4; // Address (int)
+        size += 4; // MaxValue (float)
+        size += 4; // MinValue (float)
+        
+        size += 2 + Encoding.UTF8.GetByteCount(param.Unit ?? "");
+        size += 2 + Encoding.UTF8.GetByteCount(param.Identifier ?? "");
+        
+        size += 1; // CanRamp (bool)
+        size += 1; // IsWritable (bool)
+        size += 8; // RawFlags (long)
+        
+        // Optional string array
+        size += 1; // presence byte
+        if (param.IndexedValues != null)
+        {
+            size += 2; // array length
+            foreach (var val in param.IndexedValues)
+            {
+                size += 2 + Encoding.UTF8.GetByteCount(val ?? "");
+            }
+        }
+        
+        // Optional string
+        size += 1; // presence byte
+        if (param.IndexedValuesSource != null)
+        {
+            size += 2 + Encoding.UTF8.GetByteCount(param.IndexedValuesSource);
+        }
+        
+        return size;
+    }
+    
+    static void EncodePlugin(byte[] buffer, ref int offset, Plugin plugin)
+    {
+        EncodeString(buffer, ref offset, plugin.Name);
+        EncodeString(buffer, ref offset, plugin.ManufacturerID);
+        EncodeString(buffer, ref offset, plugin.Type);
+        EncodeString(buffer, ref offset, plugin.Subtype);
+        
+        // Parameters array
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)(plugin.Parameters?.Length ?? 0));
+        offset += 2;
+        
+        if (plugin.Parameters != null)
+        {
+            foreach (var param in plugin.Parameters)
+            {
+                EncodeParameter(buffer, ref offset, param);
+            }
+        }
+    }
+    
+    static void EncodeParameter(byte[] buffer, ref int offset, Parameter param)
+    {
+        EncodeString(buffer, ref offset, param.DisplayName);
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.DefaultValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.CurrentValue);
+        offset += 4;
+        BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset, 4), param.Address);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MaxValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MinValue);
+        offset += 4;
+        EncodeString(buffer, ref offset, param.Unit);
+        EncodeString(buffer, ref offset, param.Identifier);
+        
+        buffer[offset++] = (byte)(param.CanRamp ? 1 : 0);
+        buffer[offset++] = (byte)(param.IsWritable ? 1 : 0);
+        
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset, 8), param.RawFlags);
+        offset += 8;
+        
+        // Optional string array
+        if (param.IndexedValues != null)
+        {
+            buffer[offset++] = 1;
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)param.IndexedValues.Length);
+            offset += 2;
+            foreach (var val in param.IndexedValues)
+            {
+                EncodeString(buffer, ref offset, val);
+            }
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+        
+        // Optional string
+        if (param.IndexedValuesSource != null)
+        {
+            buffer[offset++] = 1;
+            EncodeString(buffer, ref offset, param.IndexedValuesSource);
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void EncodeString(byte[] buffer, ref int offset, string? str)
+    {
+        if (str == null || str.Length == 0)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), 0);
+            offset += 2;
+            return;
+        }
+        
+        int byteCount = Encoding.UTF8.GetBytes(str, buffer.AsSpan(offset + 2));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)byteCount);
+        offset += 2 + byteCount;
+    }
+    
+    public static Plugin[] Decode(byte[] data)
+    {
+        ReadOnlySpan<byte> buffer = data;
+        int offset = 0;
+        
+        int length = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        var plugins = new Plugin[length];
+        for (int i = 0; i < length; i++)
+        {
+            plugins[i] = DecodePlugin(buffer, ref offset);
+        }
+        
+        return plugins;
+    }
+    
+    static Plugin DecodePlugin(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var plugin = new Plugin
+        {
+            Name = DecodeString(buffer, ref offset),
+            ManufacturerID = DecodeString(buffer, ref offset),
+            Type = DecodeString(buffer, ref offset),
+            Subtype = DecodeString(buffer, ref offset)
+        };
+        
+        int paramCount = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        plugin.Parameters = new Parameter[paramCount];
+        for (int i = 0; i < paramCount; i++)
+        {
+            plugin.Parameters[i] = DecodeParameter(buffer, ref offset);
+        }
+        
+        return plugin;
+    }
+    
+    static Parameter DecodeParameter(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var param = new Parameter
+        {
+            DisplayName = DecodeString(buffer, ref offset),
+            DefaultValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4))
+        };
+        offset += 4;
+        
+        param.CurrentValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Address = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MaxValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MinValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Unit = DecodeString(buffer, ref offset);
+        param.Identifier = DecodeString(buffer, ref offset);
+        
+        param.CanRamp = buffer[offset++] != 0;
+        param.IsWritable = buffer[offset++] != 0;
+        
+        param.RawFlags = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset, 8));
+        offset += 8;
+        
+        // Optional string array
+        if (buffer[offset++] == 1)
+        {
+            int arrayLen = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+            offset += 2;
+            param.IndexedValues = new string[arrayLen];
+            for (int i = 0; i < arrayLen; i++)
+            {
+                param.IndexedValues[i] = DecodeString(buffer, ref offset);
+            }
+        }
+        
+        // Optional string
+        if (buffer[offset++] == 1)
+        {
+            param.IndexedValuesSource = DecodeString(buffer, ref offset);
+        }
+        
+        return param;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static string DecodeString(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        int len = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        if (len == 0) return string.Empty;
+        
+        string result = Encoding.UTF8.GetString(buffer.Slice(offset, len));
+        offset += len;
+        return result;
+    }
+}
+
+// APPROACH 3: Single-pass encoding (GetBytes returns byte count, no GetByteCount)
+static class Approach3
+{
+    public static byte[] Encode(Plugin[] plugins)
+    {
+        int maxSize = ComputeMaxSize(plugins);
+        byte[] buffer = new byte[maxSize];
+        int offset = 0;
+        
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)plugins.Length);
+        offset += 2;
+        
+        foreach (var plugin in plugins)
+        {
+            EncodePlugin(buffer, ref offset, plugin);
+        }
+        
+        if (offset < maxSize)
+        {
+            Array.Resize(ref buffer, offset);
+        }
+        
+        return buffer;
+    }
+    
+    static int ComputeMaxSize(Plugin[] plugins)
+    {
+        int size = 2;
+        foreach (var plugin in plugins)
+        {
+            size += 2 + (plugin.Name?.Length ?? 0) * 3;
+            size += 2 + (plugin.ManufacturerID?.Length ?? 0) * 3;
+            size += 2 + (plugin.Type?.Length ?? 0) * 3;
+            size += 2 + (plugin.Subtype?.Length ?? 0) * 3;
+            size += 2;
+            if (plugin.Parameters != null)
+            {
+                foreach (var param in plugin.Parameters)
+                {
+                    size += 2 + (param.DisplayName?.Length ?? 0) * 3;
+                    size += 4 + 4 + 4 + 4 + 4;
+                    size += 2 + (param.Unit?.Length ?? 0) * 3;
+                    size += 2 + (param.Identifier?.Length ?? 0) * 3;
+                    size += 1 + 1 + 8;
+                    size += 1;
+                    if (param.IndexedValues != null)
+                    {
+                        size += 2;
+                        foreach (var val in param.IndexedValues)
+                        {
+                            size += 2 + (val?.Length ?? 0) * 3;
+                        }
+                    }
+                    size += 1;
+                    if (param.IndexedValuesSource != null)
+                    {
+                        size += 2 + param.IndexedValuesSource.Length * 3;
+                    }
+                }
+            }
+        }
+        return size;
+    }
+    
+    static void EncodePlugin(byte[] buffer, ref int offset, Plugin plugin)
+    {
+        EncodeString(buffer, ref offset, plugin.Name);
+        EncodeString(buffer, ref offset, plugin.ManufacturerID);
+        EncodeString(buffer, ref offset, plugin.Type);
+        EncodeString(buffer, ref offset, plugin.Subtype);
+        
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)(plugin.Parameters?.Length ?? 0));
+        offset += 2;
+        
+        if (plugin.Parameters != null)
+        {
+            foreach (var param in plugin.Parameters)
+            {
+                EncodeParameter(buffer, ref offset, param);
+            }
+        }
+    }
+    
+    static void EncodeParameter(byte[] buffer, ref int offset, Parameter param)
+    {
+        EncodeString(buffer, ref offset, param.DisplayName);
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.DefaultValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.CurrentValue);
+        offset += 4;
+        BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset, 4), param.Address);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MaxValue);
+        offset += 4;
+        BinaryPrimitives.WriteSingleLittleEndian(buffer.AsSpan(offset, 4), param.MinValue);
+        offset += 4;
+        EncodeString(buffer, ref offset, param.Unit);
+        EncodeString(buffer, ref offset, param.Identifier);
+        
+        buffer[offset++] = (byte)(param.CanRamp ? 1 : 0);
+        buffer[offset++] = (byte)(param.IsWritable ? 1 : 0);
+        
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset, 8), param.RawFlags);
+        offset += 8;
+        
+        if (param.IndexedValues != null)
+        {
+            buffer[offset++] = 1;
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)param.IndexedValues.Length);
+            offset += 2;
+            foreach (var val in param.IndexedValues)
+            {
+                EncodeString(buffer, ref offset, val);
+            }
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+        
+        if (param.IndexedValuesSource != null)
+        {
+            buffer[offset++] = 1;
+            EncodeString(buffer, ref offset, param.IndexedValuesSource);
+        }
+        else
+        {
+            buffer[offset++] = 0;
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void EncodeString(byte[] buffer, ref int offset, string? str)
+    {
+        if (str == null || str.Length == 0)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), 0);
+            offset += 2;
+            return;
+        }
+        
+        int byteCount = Encoding.UTF8.GetBytes(str, buffer.AsSpan(offset + 2));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset, 2), (ushort)byteCount);
+        offset += 2 + byteCount;
+    }
+    
+    public static Plugin[] Decode(byte[] data)
+    {
+        ReadOnlySpan<byte> buffer = data;
+        int offset = 0;
+        
+        int length = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        var plugins = new Plugin[length];
+        for (int i = 0; i < length; i++)
+        {
+            plugins[i] = DecodePlugin(buffer, ref offset);
+        }
+        
+        return plugins;
+    }
+    
+    static Plugin DecodePlugin(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var plugin = new Plugin
+        {
+            Name = DecodeString(buffer, ref offset),
+            ManufacturerID = DecodeString(buffer, ref offset),
+            Type = DecodeString(buffer, ref offset),
+            Subtype = DecodeString(buffer, ref offset)
+        };
+        
+        int paramCount = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        plugin.Parameters = new Parameter[paramCount];
+        for (int i = 0; i < paramCount; i++)
+        {
+            plugin.Parameters[i] = DecodeParameter(buffer, ref offset);
+        }
+        
+        return plugin;
+    }
+    
+    static Parameter DecodeParameter(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        var param = new Parameter
+        {
+            DisplayName = DecodeString(buffer, ref offset),
+            DefaultValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4))
+        };
+        offset += 4;
+        
+        param.CurrentValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Address = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MaxValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.MinValue = BinaryPrimitives.ReadSingleLittleEndian(buffer.Slice(offset, 4));
+        offset += 4;
+        
+        param.Unit = DecodeString(buffer, ref offset);
+        param.Identifier = DecodeString(buffer, ref offset);
+        
+        param.CanRamp = buffer[offset++] != 0;
+        param.IsWritable = buffer[offset++] != 0;
+        
+        param.RawFlags = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset, 8));
+        offset += 8;
+        
+        if (buffer[offset++] == 1)
+        {
+            int arrayLen = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+            offset += 2;
+            param.IndexedValues = new string[arrayLen];
+            for (int i = 0; i < arrayLen; i++)
+            {
+                param.IndexedValues[i] = DecodeString(buffer, ref offset);
+            }
+        }
+        
+        if (buffer[offset++] == 1)
+        {
+            param.IndexedValuesSource = DecodeString(buffer, ref offset);
+        }
+        
+        return param;
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static string DecodeString(ReadOnlySpan<byte> buffer, ref int offset)
+    {
+        int len = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));
+        offset += 2;
+        
+        if (len == 0) return string.Empty;
+        
+        string result = Encoding.UTF8.GetString(buffer.Slice(offset, len));
+        offset += len;
+        return result;
+    }
+}
