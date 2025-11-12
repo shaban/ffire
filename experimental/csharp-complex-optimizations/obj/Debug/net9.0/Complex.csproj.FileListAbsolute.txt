@@ -1,5 +1,0 @@
-/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Debug/net9.0/Complex.GeneratedMSBuildEditorConfig.editorconfig
-/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Debug/net9.0/Complex.AssemblyInfoInputs.cache
-/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Debug/net9.0/Complex.AssemblyInfo.cs
-/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Debug/net9.0/Complex.csproj.CoreCompileInputs.cache
-/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/obj/Debug/net9.0/Complex.sourcelink.json

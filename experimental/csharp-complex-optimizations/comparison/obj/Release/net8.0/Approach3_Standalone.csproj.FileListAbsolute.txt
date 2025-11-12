@@ -1,0 +1,5 @@
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/obj/Release/net8.0/Approach3_Standalone.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/obj/Release/net8.0/Approach3_Standalone.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/obj/Release/net8.0/Approach3_Standalone.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/obj/Release/net8.0/Approach3_Standalone.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/obj/Release/net8.0/Approach3_Standalone.sourcelink.json

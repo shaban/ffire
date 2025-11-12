@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "pa9ODaeftpY=",
+  "success": true,
+  "projectFilePath": "/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/comparison/Approach3_Standalone.csproj",
+  "expectedPackageFiles": [
+    "/Users/shaban/.nuget/packages/microsoft.netcore.app.ref/8.0.19/microsoft.netcore.app.ref.8.0.19.nupkg.sha512",
+    "/Users/shaban/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.19/microsoft.aspnetcore.app.ref.8.0.19.nupkg.sha512",
+    "/Users/shaban/.nuget/packages/microsoft.netcore.app.host.osx-arm64/8.0.19/microsoft.netcore.app.host.osx-arm64.8.0.19.nupkg.sha512"
+  ],
+  "logs": []
+}

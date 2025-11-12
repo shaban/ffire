@@ -1,0 +1,284 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 2 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/" /p:OutDir="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0/" /p:OutputPath="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0/" /p:PublishDir="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/publish/" in /Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1
+// command took 0.87 sec and exited with 0
+// start dotnet  build -c Release --no-restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/" /p:OutDir="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0/" /p:OutputPath="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0/" /p:PublishDir="/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/publish/" --output "/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0/" in /Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1
+// command took 3.92 sec and exited with 0
+// ***** Done, took 00:00:04 (4.83 sec)   *****
+// Found 2 benchmarks:
+//   Approach3Benchmark.Encode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+//   Approach3Benchmark.Decode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+
+// **************************
+// Benchmark: Approach3Benchmark.Encode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet Approach3_Standalone-Job-YFEFPZ-1.dll --anonymousPipes 117 118 --benchmarkName Approach3Benchmark.Encode --job "IterationCount=10, WarmupCount=3" --benchmarkId 0 in /Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0
+// Failed to set up high priority (Permission denied). In order to run benchmarks with high priority, make sure you have the right permissions.
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.15.6
+// Runtime=.NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+// GC=Concurrent Workstation
+// HardwareIntrinsics=ArmBase+AdvSimd,AES,CRC32,DP,RDM,SHA1,SHA256 VectorSize=128
+// Job: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+
+Loaded 20 plugins with 50 parameters
+Encoded size: 4293 bytes
+OverheadJitting  1: 1 op, 122208.00 ns, 122.2080 us/op
+WorkloadJitting  1: 1 op, 268416.00 ns, 268.4160 us/op
+
+OverheadJitting  2: 16 op, 450000.00 ns, 28.1250 us/op
+WorkloadJitting  2: 16 op, 715167.00 ns, 44.6979 us/op
+
+WorkloadPilot    1: 16 op, 298209.00 ns, 18.6381 us/op
+WorkloadPilot    2: 32 op, 581709.00 ns, 18.1784 us/op
+WorkloadPilot    3: 64 op, 1093541.00 ns, 17.0866 us/op
+WorkloadPilot    4: 128 op, 3131542.00 ns, 24.4652 us/op
+WorkloadPilot    5: 256 op, 5985833.00 ns, 23.3822 us/op
+WorkloadPilot    6: 512 op, 11545416.00 ns, 22.5496 us/op
+WorkloadPilot    7: 1024 op, 21195917.00 ns, 20.6991 us/op
+WorkloadPilot    8: 2048 op, 42107875.00 ns, 20.5605 us/op
+WorkloadPilot    9: 4096 op, 70968500.00 ns, 17.3263 us/op
+WorkloadPilot   10: 8192 op, 60161292.00 ns, 7.3439 us/op
+WorkloadPilot   11: 16384 op, 74863916.00 ns, 4.5693 us/op
+WorkloadPilot   12: 32768 op, 148304125.00 ns, 4.5259 us/op
+WorkloadPilot   13: 65536 op, 298619292.00 ns, 4.5566 us/op
+WorkloadPilot   14: 131072 op, 598557375.00 ns, 4.5666 us/op
+
+OverheadWarmup   1: 131072 op, 701125.00 ns, 5.3492 ns/op
+OverheadWarmup   2: 131072 op, 682916.00 ns, 5.2102 ns/op
+OverheadWarmup   3: 131072 op, 705292.00 ns, 5.3810 ns/op
+OverheadWarmup   4: 131072 op, 674083.00 ns, 5.1428 ns/op
+OverheadWarmup   5: 131072 op, 710000.00 ns, 5.4169 ns/op
+OverheadWarmup   6: 131072 op, 702334.00 ns, 5.3584 ns/op
+
+OverheadActual   1: 131072 op, 695791.00 ns, 5.3085 ns/op
+OverheadActual   2: 131072 op, 720875.00 ns, 5.4998 ns/op
+OverheadActual   3: 131072 op, 693000.00 ns, 5.2872 ns/op
+OverheadActual   4: 131072 op, 687208.00 ns, 5.2430 ns/op
+OverheadActual   5: 131072 op, 699417.00 ns, 5.3361 ns/op
+OverheadActual   6: 131072 op, 705833.00 ns, 5.3851 ns/op
+OverheadActual   7: 131072 op, 673750.00 ns, 5.1403 ns/op
+OverheadActual   8: 131072 op, 672541.00 ns, 5.1311 ns/op
+OverheadActual   9: 131072 op, 703167.00 ns, 5.3647 ns/op
+OverheadActual  10: 131072 op, 705542.00 ns, 5.3829 ns/op
+OverheadActual  11: 131072 op, 680041.00 ns, 5.1883 ns/op
+OverheadActual  12: 131072 op, 700584.00 ns, 5.3450 ns/op
+OverheadActual  13: 131072 op, 703542.00 ns, 5.3676 ns/op
+OverheadActual  14: 131072 op, 696833.00 ns, 5.3164 ns/op
+OverheadActual  15: 131072 op, 705833.00 ns, 5.3851 ns/op
+
+WorkloadWarmup   1: 131072 op, 598224333.00 ns, 4.5641 us/op
+WorkloadWarmup   2: 131072 op, 599008333.00 ns, 4.5701 us/op
+WorkloadWarmup   3: 131072 op, 598366542.00 ns, 4.5652 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 131072 op, 595449708.00 ns, 4.5429 us/op
+WorkloadActual   2: 131072 op, 594452750.00 ns, 4.5353 us/op
+WorkloadActual   3: 131072 op, 599746416.00 ns, 4.5757 us/op
+WorkloadActual   4: 131072 op, 597486042.00 ns, 4.5585 us/op
+WorkloadActual   5: 131072 op, 677893625.00 ns, 5.1719 us/op
+WorkloadActual   6: 131072 op, 680124417.00 ns, 5.1889 us/op
+WorkloadActual   7: 131072 op, 617647333.00 ns, 4.7123 us/op
+WorkloadActual   8: 131072 op, 595437208.00 ns, 4.5428 us/op
+WorkloadActual   9: 131072 op, 592855709.00 ns, 4.5231 us/op
+WorkloadActual  10: 131072 op, 599297375.00 ns, 4.5723 us/op
+
+// AfterActualRun
+WorkloadResult   1: 131072 op, 594750291.00 ns, 4.5376 us/op
+WorkloadResult   2: 131072 op, 593753333.00 ns, 4.5300 us/op
+WorkloadResult   3: 131072 op, 599046999.00 ns, 4.5704 us/op
+WorkloadResult   4: 131072 op, 596786625.00 ns, 4.5531 us/op
+WorkloadResult   5: 131072 op, 616947916.00 ns, 4.7069 us/op
+WorkloadResult   6: 131072 op, 594737791.00 ns, 4.5375 us/op
+WorkloadResult   7: 131072 op, 592156292.00 ns, 4.5178 us/op
+WorkloadResult   8: 131072 op, 598597958.00 ns, 4.5669 us/op
+// GC:  268 0 0 1686110208 131072
+// Threading:  0 0 131072
+
+// AfterAll
+// Benchmark Process 65052 has exited with code 0.
+
+Mean = 4.565 μs, StdErr = 0.021 μs (0.47%), N = 8, StdDev = 0.060 μs
+Min = 4.518 μs, Q1 = 4.536 μs, Median = 4.545 μs, Q3 = 4.568 μs, Max = 4.707 μs
+IQR = 0.032 μs, LowerFence = 4.487 μs, UpperFence = 4.616 μs
+ConfidenceInterval = [4.450 μs; 4.680 μs] (CI 99.9%), Margin = 0.115 μs (2.52% of Mean)
+Skewness = 1.54, Kurtosis = 3.96, MValue = 2
+
+// ** Remained 1 (50,0 %) benchmark(s) to run. Estimated finish 2025-11-11 23:43 (0h 0m from now) **
+// **************************
+// Benchmark: Approach3Benchmark.Decode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet Approach3_Standalone-Job-YFEFPZ-1.dll --anonymousPipes 117 118 --benchmarkName Approach3Benchmark.Decode --job "IterationCount=10, WarmupCount=3" --benchmarkId 1 in /Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net9.0/Approach3_Standalone-Job-YFEFPZ-1/bin/Release/net9.0
+// Failed to set up high priority (Permission denied). In order to run benchmarks with high priority, make sure you have the right permissions.
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.15.6
+// Runtime=.NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+// GC=Concurrent Workstation
+// HardwareIntrinsics=ArmBase+AdvSimd,AES,CRC32,DP,RDM,SHA1,SHA256 VectorSize=128
+// Job: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+
+Loaded 20 plugins with 50 parameters
+Encoded size: 4293 bytes
+OverheadJitting  1: 1 op, 125583.00 ns, 125.5830 us/op
+WorkloadJitting  1: 1 op, 865000.00 ns, 865.0000 us/op
+
+OverheadJitting  2: 16 op, 481958.00 ns, 30.1224 us/op
+WorkloadJitting  2: 16 op, 662334.00 ns, 41.3959 us/op
+
+WorkloadPilot    1: 16 op, 235500.00 ns, 14.7188 us/op
+WorkloadPilot    2: 32 op, 485250.00 ns, 15.1641 us/op
+WorkloadPilot    3: 64 op, 987292.00 ns, 15.4264 us/op
+WorkloadPilot    4: 128 op, 2027584.00 ns, 15.8405 us/op
+WorkloadPilot    5: 256 op, 4104417.00 ns, 16.0329 us/op
+WorkloadPilot    6: 512 op, 8309125.00 ns, 16.2288 us/op
+WorkloadPilot    7: 1024 op, 16068958.00 ns, 15.6923 us/op
+WorkloadPilot    8: 2048 op, 30422750.00 ns, 14.8549 us/op
+WorkloadPilot    9: 4096 op, 61561250.00 ns, 15.0296 us/op
+WorkloadPilot   10: 8192 op, 114510084.00 ns, 13.9783 us/op
+WorkloadPilot   11: 16384 op, 84364125.00 ns, 5.1492 us/op
+WorkloadPilot   12: 32768 op, 174999000.00 ns, 5.3405 us/op
+WorkloadPilot   13: 65536 op, 360984583.00 ns, 5.5082 us/op
+WorkloadPilot   14: 131072 op, 697922458.00 ns, 5.3247 us/op
+
+OverheadWarmup   1: 131072 op, 330625.00 ns, 2.5225 ns/op
+OverheadWarmup   2: 131072 op, 330000.00 ns, 2.5177 ns/op
+OverheadWarmup   3: 131072 op, 329667.00 ns, 2.5152 ns/op
+OverheadWarmup   4: 131072 op, 329542.00 ns, 2.5142 ns/op
+OverheadWarmup   5: 131072 op, 329708.00 ns, 2.5155 ns/op
+OverheadWarmup   6: 131072 op, 329625.00 ns, 2.5148 ns/op
+OverheadWarmup   7: 131072 op, 444875.00 ns, 3.3941 ns/op
+OverheadWarmup   8: 131072 op, 328417.00 ns, 2.5056 ns/op
+
+OverheadActual   1: 131072 op, 330792.00 ns, 2.5237 ns/op
+OverheadActual   2: 131072 op, 330083.00 ns, 2.5183 ns/op
+OverheadActual   3: 131072 op, 329833.00 ns, 2.5164 ns/op
+OverheadActual   4: 131072 op, 330541.00 ns, 2.5218 ns/op
+OverheadActual   5: 131072 op, 330125.00 ns, 2.5187 ns/op
+OverheadActual   6: 131072 op, 329666.00 ns, 2.5152 ns/op
+OverheadActual   7: 131072 op, 329750.00 ns, 2.5158 ns/op
+OverheadActual   8: 131072 op, 329750.00 ns, 2.5158 ns/op
+OverheadActual   9: 131072 op, 330084.00 ns, 2.5183 ns/op
+OverheadActual  10: 131072 op, 329792.00 ns, 2.5161 ns/op
+OverheadActual  11: 131072 op, 329625.00 ns, 2.5148 ns/op
+OverheadActual  12: 131072 op, 329709.00 ns, 2.5155 ns/op
+OverheadActual  13: 131072 op, 435375.00 ns, 3.3216 ns/op
+OverheadActual  14: 131072 op, 330500.00 ns, 2.5215 ns/op
+OverheadActual  15: 131072 op, 329709.00 ns, 2.5155 ns/op
+
+WorkloadWarmup   1: 131072 op, 664644959.00 ns, 5.0708 us/op
+WorkloadWarmup   2: 131072 op, 663461291.00 ns, 5.0618 us/op
+WorkloadWarmup   3: 131072 op, 664922291.00 ns, 5.0730 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 131072 op, 662286250.00 ns, 5.0528 us/op
+WorkloadActual   2: 131072 op, 662892292.00 ns, 5.0575 us/op
+WorkloadActual   3: 131072 op, 692875000.00 ns, 5.2862 us/op
+WorkloadActual   4: 131072 op, 963350542.00 ns, 7.3498 us/op
+WorkloadActual   5: 131072 op, 662502708.00 ns, 5.0545 us/op
+WorkloadActual   6: 131072 op, 664263000.00 ns, 5.0679 us/op
+WorkloadActual   7: 131072 op, 670816834.00 ns, 5.1179 us/op
+WorkloadActual   8: 131072 op, 767683917.00 ns, 5.8570 us/op
+WorkloadActual   9: 131072 op, 706585292.00 ns, 5.3908 us/op
+WorkloadActual  10: 131072 op, 720475500.00 ns, 5.4968 us/op
+
+// AfterActualRun
+WorkloadResult   1: 131072 op, 661956417.00 ns, 5.0503 us/op
+WorkloadResult   2: 131072 op, 662562459.00 ns, 5.0550 us/op
+WorkloadResult   3: 131072 op, 692545167.00 ns, 5.2837 us/op
+WorkloadResult   4: 131072 op, 662172875.00 ns, 5.0520 us/op
+WorkloadResult   5: 131072 op, 663933167.00 ns, 5.0654 us/op
+WorkloadResult   6: 131072 op, 670487001.00 ns, 5.1154 us/op
+WorkloadResult   7: 131072 op, 767354084.00 ns, 5.8544 us/op
+WorkloadResult   8: 131072 op, 706255459.00 ns, 5.3883 us/op
+WorkloadResult   9: 131072 op, 720145667.00 ns, 5.4943 us/op
+// GC:  326 17 0 2047868928 131072
+// Threading:  0 0 131072
+
+// AfterAll
+// Benchmark Process 65059 has exited with code 0.
+
+Mean = 5.262 μs, StdErr = 0.092 μs (1.75%), N = 9, StdDev = 0.277 μs
+Min = 5.050 μs, Q1 = 5.055 μs, Median = 5.115 μs, Q3 = 5.388 μs, Max = 5.854 μs
+IQR = 0.333 μs, LowerFence = 4.555 μs, UpperFence = 5.888 μs
+ConfidenceInterval = [4.797 μs; 5.727 μs] (CI 99.9%), Margin = 0.465 μs (8.84% of Mean)
+Skewness = 0.96, Kurtosis = 2.53, MValue = 2
+
+// ** Remained 0 (0,0 %) benchmark(s) to run. Estimated finish 2025-11-11 23:43 (0h 0m from now) **
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts/results/Approach3Benchmark-report.csv
+  BenchmarkDotNet.Artifacts/results/Approach3Benchmark-report-github.md
+  BenchmarkDotNet.Artifacts/results/Approach3Benchmark-report.html
+
+// * Detailed results *
+Approach3Benchmark.Encode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+Runtime = .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a; GC = Concurrent Workstation
+Mean = 4.565 μs, StdErr = 0.021 μs (0.47%), N = 8, StdDev = 0.060 μs
+Min = 4.518 μs, Q1 = 4.536 μs, Median = 4.545 μs, Q3 = 4.568 μs, Max = 4.707 μs
+IQR = 0.032 μs, LowerFence = 4.487 μs, UpperFence = 4.616 μs
+ConfidenceInterval = [4.450 μs; 4.680 μs] (CI 99.9%), Margin = 0.115 μs (2.52% of Mean)
+Skewness = 1.54, Kurtosis = 3.96, MValue = 2
+-------------------- Histogram --------------------
+[4.499 μs ; 4.746 μs) | @@@@@@@@
+---------------------------------------------------
+
+Approach3Benchmark.Decode: Job-YFEFPZ(IterationCount=10, WarmupCount=3)
+Runtime = .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a; GC = Concurrent Workstation
+Mean = 5.262 μs, StdErr = 0.092 μs (1.75%), N = 9, StdDev = 0.277 μs
+Min = 5.050 μs, Q1 = 5.055 μs, Median = 5.115 μs, Q3 = 5.388 μs, Max = 5.854 μs
+IQR = 0.333 μs, LowerFence = 4.555 μs, UpperFence = 5.888 μs
+ConfidenceInterval = [4.797 μs; 5.727 μs] (CI 99.9%), Margin = 0.465 μs (8.84% of Mean)
+Skewness = 0.96, Kurtosis = 2.53, MValue = 2
+-------------------- Histogram --------------------
+[5.045 μs ; 5.394 μs) | @@@@@@@
+[5.394 μs ; 5.669 μs) | @
+[5.669 μs ; 6.029 μs) | @
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet v0.15.6, macOS 26.0.1 (25A362) [Darwin 25.0.0]
+Apple M1 Pro, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.109
+  [Host]     : .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+  Job-YFEFPZ : .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+
+IterationCount=10  WarmupCount=3  
+
+| Method | Mean     | Error     | StdDev    | Gen0   | Gen1   | Allocated |
+|------- |---------:|----------:|----------:|-------:|-------:|----------:|
+| Encode | 4.565 μs | 0.1149 μs | 0.0601 μs | 2.0447 |      - |  12.56 KB |
+| Decode | 5.262 μs | 0.4653 μs | 0.2769 μs | 2.4872 | 0.1297 |  15.26 KB |
+
+// * Hints *
+Outliers
+  Approach3Benchmark.Encode: IterationCount=10, WarmupCount=3 -> 2 outliers were removed (5.17 μs, 5.19 μs)
+  Approach3Benchmark.Decode: IterationCount=10, WarmupCount=3 -> 1 outlier  was  removed (7.35 μs)
+
+// * Legends *
+  Mean      : Arithmetic mean of all measurements
+  Error     : Half of 99.9% confidence interval
+  StdDev    : Standard deviation of all measurements
+  Gen0      : GC Generation 0 collects per 1000 operations
+  Gen1      : GC Generation 1 collects per 1000 operations
+  Allocated : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  1 μs      : 1 Microsecond (0.000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:21 (21.88 sec), executed benchmarks: 2
+
+Global total time: 00:00:27 (27.08 sec), executed benchmarks: 2
+// * Artifacts cleanup *
+Artifacts cleanup is finished

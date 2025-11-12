@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Approach3Benchmark-20251111-234305</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.6, macOS 26.0.1 (25A362) [Darwin 25.0.0]
+Apple M1 Pro, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.109
+  [Host]     : .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+  Job-YFEFPZ : .NET 9.0.8 (9.0.8, 9.0.825.36511), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code>IterationCount=10  WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>Encode</td><td>4.565 &mu;s</td><td>0.1149 &mu;s</td><td>0.0601 &mu;s</td><td>2.0447</td><td>-</td><td>12.56 KB</td>
+</tr><tr><td>Decode</td><td>5.262 &mu;s</td><td>0.4653 &mu;s</td><td>0.2769 &mu;s</td><td>2.4872</td><td>0.1297</td><td>15.26 KB</td>
+</tr></tbody></table>
+</body>
+</html>

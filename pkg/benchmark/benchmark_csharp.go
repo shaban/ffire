@@ -98,33 +98,34 @@ namespace FFire.Benchmark
             byte[] fixture = File.ReadAllBytes("fixture.bin");
 
             // Warmup
+            %s.%s warmupMsg = default;
+            byte[] warmupEncoded = null;
             for (int i = 0; i < 100; i++)
             {
-                Decode(fixture);
-                Encode(fixture);
+                warmupMsg = %s.%s.Decode(fixture);
+                warmupEncoded = warmupMsg.Encode();
             }
 
-            // Measure decode
-            Stopwatch decodeTimer = Stopwatch.StartNew();
+            // Measure: decode then encode
+            Stopwatch sw = Stopwatch.StartNew();
+            long t0 = sw.ElapsedTicks;
+            
+            %s.%s msg = default;
+            byte[] encoded = null;
             for (int i = 0; i < iterations; i++)
             {
-                Decode(fixture);
+                msg = %s.%s.Decode(fixture);
             }
-            decodeTimer.Stop();
-            long decodeNs = (long)((double)decodeTimer.ElapsedTicks / Stopwatch.Frequency * 1_000_000_000);
-
-            // Measure encode
-            Stopwatch encodeTimer = Stopwatch.StartNew();
+            long t1 = sw.ElapsedTicks;
+            
             for (int i = 0; i < iterations; i++)
             {
-                Encode(fixture);
+                encoded = msg.Encode();
             }
-            encodeTimer.Stop();
-            long encodeNs = (long)((double)encodeTimer.ElapsedTicks / Stopwatch.Frequency * 1_000_000_000);
+            long t2 = sw.ElapsedTicks;
 
-            // Get wire size
-            %s.%s msg = %s.%s.Decode(fixture);
-            byte[] encoded = msg.Encode();
+            long decodeNs = (long)((double)(t1 - t0) / Stopwatch.Frequency * 1_000_000_000);
+            long encodeNs = (long)((double)(t2 - t1) / Stopwatch.Frequency * 1_000_000_000);
 
             // Calculate per-operation metrics
             long encodeNsPerOp = encodeNs / iterations;
@@ -147,20 +148,9 @@ namespace FFire.Benchmark
 
             Console.WriteLine(JsonSerializer.Serialize(result));
         }
-
-        private static void Decode(byte[] data)
-        {
-            %s.%s msg = %s.%s.Decode(data);
-        }
-
-        private static void Encode(byte[] data)
-        {
-            %s.%s msg = %s.%s.Decode(data);
-            byte[] encoded = msg.Encode();
-        }
     }
 }
-`, iterations, namespace, csMessageName, namespace, csMessageName, benchName, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName)
+`, iterations, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName, namespace, csMessageName, benchName)
 }
 
 // generateCSharpProjectFile generates the .csproj file

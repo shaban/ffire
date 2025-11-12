@@ -331,15 +331,15 @@ func (g *csharpGenerator) generateStructClassWithName(structType *schema.StructT
 	}
 	g.buf.WriteString("        }\n\n")
 
-	// EncodeTo method
+	// EncodeTo method - uses byte[] like blueprint for better performance
 	g.buf.WriteString("        [MethodImpl(MethodImplOptions.AggressiveInlining)]\n")
-	g.buf.WriteString("        internal unsafe void EncodeTo(Span<byte> buffer, ref int offset)\n")
+	g.buf.WriteString("        internal unsafe void EncodeTo(byte[] buffer, ref int offset)\n")
 	g.buf.WriteString("        {\n")
 
 	// Use fast bulk copy for primitive-only structs
 	if g.isPrimitiveOnlyStruct(structType) {
 		g.buf.WriteString("            // Fast path: bulk copy for primitive-only struct\n")
-		fmt.Fprintf(g.buf, "            Span<%s> structSpan = MemoryMarshal.Cast<byte, %s>(buffer.Slice(offset));\n", className, className)
+		fmt.Fprintf(g.buf, "            Span<%s> structSpan = MemoryMarshal.Cast<byte, %s>(buffer.AsSpan(offset));\n", className, className)
 		g.buf.WriteString("            structSpan[0] = this;\n")
 		fmt.Fprintf(g.buf, "            offset += sizeof(%s);\n", className)
 	} else {
@@ -395,9 +395,8 @@ func (g *csharpGenerator) generateArrayMessageClass(msgName string, arrayType *s
 	g.buf.WriteString("        {\n")
 	g.buf.WriteString("            int maxSize = ComputeMaxSize();\n")
 	g.buf.WriteString("            byte[] buffer = new byte[maxSize];\n")
-	g.buf.WriteString("            Span<byte> span = buffer;\n")
 	g.buf.WriteString("            int offset = 0;\n")
-	g.buf.WriteString("            EncodeTo(span, ref offset);\n")
+	g.buf.WriteString("            EncodeTo(buffer, ref offset);\n")
 	g.buf.WriteString("            if (offset < maxSize)\n")
 	g.buf.WriteString("            {\n")
 	g.buf.WriteString("                Array.Resize(ref buffer, offset);\n")
@@ -438,10 +437,9 @@ func (g *csharpGenerator) generateArrayMessageClass(msgName string, arrayType *s
 	g.buf.WriteString("        }\n\n")
 
 	// EncodeTo
-	g.buf.WriteString("        internal unsafe void EncodeTo(Span<byte> buffer, ref int offset)\n")
+	g.buf.WriteString("        internal unsafe void EncodeTo(byte[] buffer, ref int offset)\n")
 	g.buf.WriteString("        {\n")
-	g.buf.WriteString("            BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(offset, 2), (ushort)(Items?.Length ?? 0));\n")
-	g.buf.WriteString("            offset += 2;\n")
+	g.buf.WriteString("            { ushort len = (ushort)(Items?.Length ?? 0); buffer[offset++] = (byte)len; buffer[offset++] = (byte)(len >> 8); }\n")
 	g.buf.WriteString("            if (Items != null)\n")
 	g.buf.WriteString("            {\n")
 
@@ -772,8 +770,7 @@ func (g *csharpGenerator) generateEncodeField(field *schema.Field) {
 			fmt.Fprintf(g.buf, "            if (%s != null)\n", fieldName)
 			g.buf.WriteString("            {\n")
 			g.buf.WriteString("                buffer[offset++] = 1;\n")
-			fmt.Fprintf(g.buf, "                BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(offset, 2), (ushort)%s.Length);\n", fieldName)
-			g.buf.WriteString("                offset += 2;\n")
+			fmt.Fprintf(g.buf, "                { ushort len = (ushort)%s.Length; buffer[offset++] = (byte)len; buffer[offset++] = (byte)(len >> 8); }\n", fieldName)
 			g.generateArrayEncodeLogic(fieldName, typ, "                ")
 			g.buf.WriteString("            }\n")
 			g.buf.WriteString("            else\n")
@@ -781,8 +778,7 @@ func (g *csharpGenerator) generateEncodeField(field *schema.Field) {
 			g.buf.WriteString("                buffer[offset++] = 0;\n")
 			g.buf.WriteString("            }\n")
 		} else {
-			fmt.Fprintf(g.buf, "            BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(offset, 2), (ushort)(%s?.Length ?? 0));\n", fieldName)
-			g.buf.WriteString("            offset += 2;\n")
+			fmt.Fprintf(g.buf, "            { ushort len = (ushort)(%s?.Length ?? 0); buffer[offset++] = (byte)len; buffer[offset++] = (byte)(len >> 8); }\n", fieldName)
 			fmt.Fprintf(g.buf, "            if (%s != null)\n", fieldName)
 			g.buf.WriteString("            {\n")
 			g.generateArrayEncodeLogic(fieldName, typ, "                ")
@@ -854,10 +850,11 @@ func (g *csharpGenerator) generatePrimitiveEncode(fieldName, kind, indent string
 	case "f64", "float64":
 		fmt.Fprintf(g.buf, "%s{ double d = %s; ulong v = *(ulong*)&d; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
 	case "string":
-		// Single-pass encoding: GetBytes writes directly to buffer and returns byte count (like Approach 3)
+		// Single-pass encoding: GetBytes writes directly to buffer and returns byte count (matches blueprint exactly)
 		cleanFieldName := strings.TrimSuffix(fieldName, ".Value")
-		fmt.Fprintf(g.buf, "%sint byteCount_%s = Encoding.UTF8.GetBytes(%s ?? \"\", buffer.Slice(offset + 2));\n", indent, cleanFieldName, fieldName)
-		fmt.Fprintf(g.buf, "%s{ ushort len = (ushort)byteCount_%s; buffer[offset++] = (byte)len; buffer[offset++] = (byte)(len >> 8); }\n", indent, cleanFieldName)
+		fmt.Fprintf(g.buf, "%sint byteCount_%s = Encoding.UTF8.GetBytes(%s ?? \"\", buffer.AsSpan(offset + 2));\n", indent, cleanFieldName, fieldName)
+		fmt.Fprintf(g.buf, "%sbuffer[offset++] = (byte)byteCount_%s;\n", indent, cleanFieldName)
+		fmt.Fprintf(g.buf, "%sbuffer[offset++] = (byte)(byteCount_%s >> 8);\n", indent, cleanFieldName)
 		fmt.Fprintf(g.buf, "%soffset += byteCount_%s;\n", indent, cleanFieldName)
 	}
 }
@@ -887,11 +884,12 @@ func (g *csharpGenerator) generatePrimitiveEncodeNoCache(fieldName, kind, indent
 	case "f64", "float64":
 		fmt.Fprintf(g.buf, "%s{ double d = %s; ulong v = *(ulong*)&d; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
 	case "string":
-		// Single-pass encoding: GetBytes writes directly to buffer and returns byte count (like Approach 3)
+		// Single-pass encoding: GetBytes writes directly to buffer and returns byte count (matches blueprint exactly)
 		cleanFieldName := strings.TrimSuffix(fieldName, ".Value")
 		varName := fmt.Sprintf("byteCount_%s", strings.ToLower(cleanFieldName))
-		fmt.Fprintf(g.buf, "%sint %s = Encoding.UTF8.GetBytes(%s ?? \"\", buffer.Slice(offset + 2));\n", indent, varName, fieldName)
-		fmt.Fprintf(g.buf, "%s{ ushort len = (ushort)%s; buffer[offset++] = (byte)len; buffer[offset++] = (byte)(len >> 8); }\n", indent, varName)
+		fmt.Fprintf(g.buf, "%sint %s = Encoding.UTF8.GetBytes(%s ?? \"\", buffer.AsSpan(offset + 2));\n", indent, varName, fieldName)
+		fmt.Fprintf(g.buf, "%sbuffer[offset++] = (byte)%s;\n", indent, varName)
+		fmt.Fprintf(g.buf, "%sbuffer[offset++] = (byte)(%s >> 8);\n", indent, varName)
 		fmt.Fprintf(g.buf, "%soffset += %s;\n", indent, varName)
 	}
 }
@@ -904,14 +902,32 @@ func (g *csharpGenerator) generateDecodeField(field *schema.Field) {
 		if typ.Optional {
 			g.buf.WriteString("            if (buffer[offset++] == 1)\n")
 			g.buf.WriteString("            {\n")
-			fmt.Fprintf(g.buf, "                obj.%s = ", fieldName)
-			g.generatePrimitiveDecode(typ.Name)
-			g.buf.WriteString(";\n")
+			if typ.Name == "string" {
+				// Inline string decoding (like blueprint) for better performance
+				lenVar := fmt.Sprintf("_len_%s", strings.ToLower(fieldName))
+				fmt.Fprintf(g.buf, "                int %s = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));\n", lenVar)
+				g.buf.WriteString("                offset += 2;\n")
+				fmt.Fprintf(g.buf, "                obj.%s = %s > 0 ? Encoding.UTF8.GetString(buffer.Slice(offset, %s)) : \"\";\n", fieldName, lenVar, lenVar)
+				fmt.Fprintf(g.buf, "                offset += %s;\n", lenVar)
+			} else {
+				fmt.Fprintf(g.buf, "                obj.%s = ", fieldName)
+				g.generatePrimitiveDecode(typ.Name)
+				g.buf.WriteString(";\n")
+			}
 			g.buf.WriteString("            }\n")
 		} else {
-			fmt.Fprintf(g.buf, "            obj.%s = ", fieldName)
-			g.generatePrimitiveDecode(typ.Name)
-			g.buf.WriteString(";\n")
+			if typ.Name == "string" {
+				// Inline string decoding (like blueprint) for better performance
+				lenVar := fmt.Sprintf("_len_%s", strings.ToLower(fieldName))
+				fmt.Fprintf(g.buf, "            int %s = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));\n", lenVar)
+				g.buf.WriteString("            offset += 2;\n")
+				fmt.Fprintf(g.buf, "            obj.%s = %s > 0 ? Encoding.UTF8.GetString(buffer.Slice(offset, %s)) : \"\";\n", fieldName, lenVar, lenVar)
+				fmt.Fprintf(g.buf, "            offset += %s;\n", lenVar)
+			} else {
+				fmt.Fprintf(g.buf, "            obj.%s = ", fieldName)
+				g.generatePrimitiveDecode(typ.Name)
+				g.buf.WriteString(";\n")
+			}
 		}
 	case *schema.ArrayType:
 		if typ.Optional {
@@ -943,9 +959,17 @@ func (g *csharpGenerator) generateArrayDecodeLogic(fieldName string, arrayType *
 		fmt.Fprintf(g.buf, "%sfor (int i = 0; i < length; i++)\n", indent)
 		fmt.Fprintf(g.buf, "%s{\n", indent)
 		if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
-			fmt.Fprintf(g.buf, "%s    %s[i] = ", indent, fieldName)
-			g.generatePrimitiveDecode(prim.Name)
-			g.buf.WriteString(";\n")
+			if prim.Name == "string" {
+				// Inline string decoding for better performance (use unique variable name per loop iteration)
+				fmt.Fprintf(g.buf, "%s    int _itemLen = BinaryPrimitives.ReadUInt16LittleEndian(buffer.Slice(offset, 2));\n", indent)
+				fmt.Fprintf(g.buf, "%s    offset += 2;\n", indent)
+				fmt.Fprintf(g.buf, "%s    %s[i] = _itemLen > 0 ? Encoding.UTF8.GetString(buffer.Slice(offset, _itemLen)) : \"\";\n", indent, fieldName)
+				fmt.Fprintf(g.buf, "%s    offset += _itemLen;\n", indent)
+			} else {
+				fmt.Fprintf(g.buf, "%s    %s[i] = ", indent, fieldName)
+				g.generatePrimitiveDecode(prim.Name)
+				g.buf.WriteString(";\n")
+			}
 		} else if st, ok := arrayType.ElementType.(*schema.StructType); ok {
 			fmt.Fprintf(g.buf, "%s    %s[i] = %s.DecodeFrom(buffer, ref offset);\n", indent, fieldName, st.Name)
 		}

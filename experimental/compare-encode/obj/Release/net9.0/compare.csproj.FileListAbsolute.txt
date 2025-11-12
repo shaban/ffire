@@ -1,0 +1,5 @@
+/Users/shaban/Code/ffire/experimental/compare-encode/obj/Release/net9.0/compare.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/compare-encode/obj/Release/net9.0/compare.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/compare-encode/obj/Release/net9.0/compare.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/compare-encode/obj/Release/net9.0/compare.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/compare-encode/obj/Release/net9.0/compare.sourcelink.json

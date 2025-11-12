@@ -1,0 +1,15 @@
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/bin/Release/net9.0/bench
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/bin/Release/net9.0/bench.deps.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/bin/Release/net9.0/bench.runtimeconfig.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/bin/Release/net9.0/bench.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/bin/Release/net9.0/bench.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.sourcelink.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/refint/bench.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/bench.genruntimeconfig.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/manual-bench/obj/Release/net9.0/ref/bench.dll

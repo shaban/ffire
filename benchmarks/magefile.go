@@ -135,7 +135,7 @@ func genAll() error {
 
 	// Ensure ffire is built and installed
 	fmt.Println("🔨 Building ffire...")
-	if err := sh.RunV("sh", "-c", "cd .. && go install ./cmd/ffire"); err != nil {
+	if err := sh.RunV("sh", "-c", "cd .. && go install -buildvcs=false ./cmd/ffire"); err != nil {
 		return fmt.Errorf("failed to build ffire: %w", err)
 	}
 
@@ -147,7 +147,7 @@ func genAll() error {
 			"--schema", suite.SchemaFile,
 			"--json", suite.JSONFile,
 			"--output", filepath.Join(genDir, "ffire_"+suite.Name),
-			"--iterations", "10000",
+			"--iterations", "100000",
 		); err != nil {
 			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
 			continue
@@ -162,27 +162,15 @@ func genAll() error {
 			"--schema", suite.SchemaFile,
 			"--json", suite.JSONFile,
 			"--output", filepath.Join(genDir, "ffire_cpp_"+suite.Name),
-			"--iterations", "10000",
+			"--iterations", "100000",
 		); err != nil {
 			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
 			continue
 		}
 	}
 
-	// Generate ffire Python benchmarks
-	for _, suite := range suites {
-		fmt.Printf("🐍 Generating ffire Python benchmark: %s\n", suite.Name)
-		if err := sh.Run("ffire", "bench",
-			"--lang", "python",
-			"--schema", suite.SchemaFile,
-			"--json", suite.JSONFile,
-			"--output", filepath.Join(genDir, "ffire_python_"+suite.Name),
-			"--iterations", "10000",
-		); err != nil {
-			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
-			continue
-		}
-	}
+	// NOTE: Python and JavaScript excluded from 'all' - use explicit targets
+	// Generate them with: mage gen python, mage gen javascript
 
 	// Generate ffire Dart benchmarks
 	for _, suite := range suites {
@@ -192,7 +180,7 @@ func genAll() error {
 			"--schema", suite.SchemaFile,
 			"--json", suite.JSONFile,
 			"--output", filepath.Join(genDir, "ffire_dart_"+suite.Name),
-			"--iterations", "10000",
+			"--iterations", "100000",
 		); err != nil {
 			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
 			continue
@@ -207,22 +195,7 @@ func genAll() error {
 			"--schema", suite.SchemaFile,
 			"--json", suite.JSONFile,
 			"--output", filepath.Join(genDir, "ffire_swift_"+suite.Name),
-			"--iterations", "10000",
-		); err != nil {
-			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
-			continue
-		}
-	}
-
-	// Generate ffire JavaScript benchmarks
-	for _, suite := range suites {
-		fmt.Printf("🟨 Generating ffire JavaScript benchmark: %s\n", suite.Name)
-		if err := sh.Run("ffire", "bench",
-			"--lang", "javascript",
-			"--schema", suite.SchemaFile,
-			"--json", suite.JSONFile,
-			"--output", filepath.Join(genDir, "ffire_javascript_"+suite.Name),
-			"--iterations", "10000",
+			"--iterations", "100000",
 		); err != nil {
 			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
 			continue
@@ -237,7 +210,22 @@ func genAll() error {
 			"--schema", suite.SchemaFile,
 			"--json", suite.JSONFile,
 			"--output", filepath.Join(genDir, "ffire_java_"+suite.Name),
-			"--iterations", "10000",
+			"--iterations", "100000",
+		); err != nil {
+			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
+			continue
+		}
+	}
+
+	// Generate ffire C# benchmarks
+	for _, suite := range suites {
+		fmt.Printf("💜 Generating ffire C# benchmark: %s\n", suite.Name)
+		if err := sh.Run("ffire", "bench",
+			"--lang", "csharp",
+			"--schema", suite.SchemaFile,
+			"--json", suite.JSONFile,
+			"--output", filepath.Join(genDir, "ffire_csharp_"+suite.Name),
+			"--iterations", "100000",
 		); err != nil {
 			fmt.Printf("  ⚠️  Skipping %s: %v\n", suite.Name, err)
 			continue
@@ -321,7 +309,7 @@ func Gen(target string) error {
 
 	// Build ffire
 	fmt.Println("🔨 Building ffire...")
-	if err := sh.RunV("sh", "-c", "cd .. && go install ./cmd/ffire"); err != nil {
+	if err := sh.RunV("sh", "-c", "cd .. && go install -buildvcs=false ./cmd/ffire"); err != nil {
 		return fmt.Errorf("failed to build ffire: %w", err)
 	}
 
@@ -345,9 +333,10 @@ func Gen(target string) error {
 func Run(target string) error {
 	target = strings.ToLower(target)
 
-	// Handle 'all' target - run everything
+	// Handle 'all' target - run stable languages (exclude js, python)
 	if target == "all" {
-		fmt.Println("🏃 Running all benchmarks...")
+		fmt.Println("🏃 Running all benchmarks (stable languages)...")
+		fmt.Println("    Note: Python and JavaScript excluded - run with explicit targets")
 
 		if err := runGo(); err != nil {
 			fmt.Printf("⚠️  Go benchmarks failed: %v\n", err)
@@ -361,17 +350,11 @@ func Run(target string) error {
 		if err := runCSharp(); err != nil {
 			fmt.Printf("⚠️  C# benchmarks failed: %v\n", err)
 		}
-		if err := runPython(); err != nil {
-			fmt.Printf("⚠️  Python benchmarks failed: %v\n", err)
-		}
 		if err := runDart(); err != nil {
 			fmt.Printf("⚠️  Dart benchmarks failed: %v\n", err)
 		}
 		if err := runSwift(); err != nil {
 			fmt.Printf("⚠️  Swift benchmarks failed: %v\n", err)
-		}
-		if err := runJavaScript(); err != nil {
-			fmt.Printf("⚠️  JavaScript benchmarks failed: %v\n", err)
 		}
 		if err := runProto(); err != nil {
 			fmt.Printf("⚠️  Proto benchmarks failed: %v\n", err)
@@ -503,7 +486,8 @@ func runGo() error {
 			!strings.HasPrefix(base, "ffire_dart_") &&
 			!strings.HasPrefix(base, "ffire_swift_") &&
 			!strings.HasPrefix(base, "ffire_javascript_") &&
-			!strings.HasPrefix(base, "ffire_java_") {
+			!strings.HasPrefix(base, "ffire_java_") &&
+			!strings.HasPrefix(base, "ffire_csharp_") {
 			dirs = append(dirs, dir)
 		}
 	}
@@ -922,7 +906,7 @@ func runCSharp() error {
 //	mage compare           - Compare all languages
 //	mage compare go java   - Compare specific languages
 func Compare() error {
-	fmt.Println("\n📊 Generating comparison table...")
+	fmt.Println("\n📊 Generating comparison table (stable languages)...")
 
 	// Load all result files
 	files, err := filepath.Glob(filepath.Join(resultsDir, "*.json"))
@@ -932,6 +916,12 @@ func Compare() error {
 
 	var allResults []BenchResult
 	for _, file := range files {
+		// Skip python and javascript results
+		base := filepath.Base(file)
+		if strings.Contains(base, "python") || strings.Contains(base, "javascript") {
+			continue
+		}
+
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
@@ -945,7 +935,7 @@ func Compare() error {
 	}
 
 	if len(allResults) == 0 {
-		return fmt.Errorf("no results found - run 'mage runGo' first")
+		return fmt.Errorf("no results found - run 'mage run all' first")
 	}
 
 	// Sort alphabetically by message name, then by format
@@ -968,9 +958,12 @@ func Compare() error {
 	return nil
 }
 
-// Bench is the full workflow: generate, run, compare
+// Bench is the full workflow: generate, run, compare (stable languages only)
+// Excludes Python and JavaScript - use explicit mage run python/javascript
 func Bench() error {
-	fmt.Println("🚀 Running full benchmark workflow...")
+	fmt.Println("🚀 Running full benchmark workflow (stable languages)...")
+	fmt.Println("    Note: Python and JavaScript excluded from 'all'")
+
 	if err := genAll(); err != nil {
 		return err
 	}
@@ -983,10 +976,6 @@ func Bench() error {
 		return err
 	}
 
-	if err := runPython(); err != nil {
-		return err
-	}
-
 	if err := runDart(); err != nil {
 		return err
 	}
@@ -995,11 +984,11 @@ func Bench() error {
 		return err
 	}
 
-	if err := runJavaScript(); err != nil {
+	if err := runJava(); err != nil {
 		return err
 	}
 
-	if err := runJava(); err != nil {
+	if err := runCSharp(); err != nil {
 		return err
 	}
 
@@ -1010,10 +999,10 @@ func Bench() error {
 	return Compare()
 }
 
-// Graph displays a terminal graph of decode times from benchmark results
+// Graph displays terminal graphs for encode/decode/total times from benchmark results
 // Usage:
 //
-//	mage graph all         - Show average across all schemas
+//	mage graph all         - Show average across all schemas (encode, decode, total)
 //	mage graph struct      - Show comparison for 'struct' schema only
 //	mage graph array_int   - Show comparison for 'array_int' schema only
 func Graph(target string) error {
@@ -1025,9 +1014,9 @@ func Graph(target string) error {
 	}
 
 	if targetSchema != "" {
-		fmt.Printf("\n📈 Generating decode time graph for '%s'...\n", targetSchema)
+		fmt.Printf("\n📈 Generating performance graphs for '%s' (stable languages)...\n", targetSchema)
 	} else {
-		fmt.Println("\n📈 Generating decode time graph (average across all schemas)...")
+		fmt.Println("\n📈 Generating performance graphs (average across all schemas, stable languages)...")
 	}
 
 	// Load all result files
@@ -1038,6 +1027,12 @@ func Graph(target string) error {
 
 	var allResults []BenchResult
 	for _, file := range files {
+		// Skip python and javascript results
+		base := filepath.Base(file)
+		if strings.Contains(base, "python") || strings.Contains(base, "javascript") {
+			continue
+		}
+
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
@@ -1074,13 +1069,24 @@ func Graph(target string) error {
 		format   string
 	}
 
-	langFormatData := make(map[LangFormat][]float64)
+	type LangFormatData struct {
+		encodeNs []float64
+		decodeNs []float64
+		totalNs  []float64
+	}
+
+	langFormatData := make(map[LangFormat]*LangFormatData)
 	messageNames := make(map[string]bool)
 
 	for _, r := range allResults {
 		messageNames[r.Message] = true
 		key := LangFormat{language: r.Language, format: r.Format}
-		langFormatData[key] = append(langFormatData[key], float64(r.DecodeNs))
+		if langFormatData[key] == nil {
+			langFormatData[key] = &LangFormatData{}
+		}
+		langFormatData[key].encodeNs = append(langFormatData[key].encodeNs, float64(r.EncodeNs))
+		langFormatData[key].decodeNs = append(langFormatData[key].decodeNs, float64(r.DecodeNs))
+		langFormatData[key].totalNs = append(langFormatData[key].totalNs, float64(r.TotalNs))
 	}
 
 	// Calculate averages for each language+format
@@ -1088,83 +1094,127 @@ func Graph(target string) error {
 		language string
 		format   string
 		label    string
-		avgNs    float64
+		encodeNs float64
+		decodeNs float64
+		totalNs  float64
 	}
 
 	var langFormatAvgs []LangFormatAvg
-	for key, values := range langFormatData {
-		sum := 0.0
-		for _, v := range values {
-			sum += v
+	for key, data := range langFormatData {
+		encodeSum := 0.0
+		for _, v := range data.encodeNs {
+			encodeSum += v
 		}
-		avg := sum / float64(len(values))
+		decodeSum := 0.0
+		for _, v := range data.decodeNs {
+			decodeSum += v
+		}
+		totalSum := 0.0
+		for _, v := range data.totalNs {
+			totalSum += v
+		}
+
+		count := float64(len(data.encodeNs))
 		label := fmt.Sprintf("%s %s", key.format, key.language)
 		langFormatAvgs = append(langFormatAvgs, LangFormatAvg{
 			language: key.language,
 			format:   key.format,
 			label:    label,
-			avgNs:    avg,
+			encodeNs: encodeSum / count,
+			decodeNs: decodeSum / count,
+			totalNs:  totalSum / count,
 		})
 	}
 
-	// Sort by average decode time
-	sort.Slice(langFormatAvgs, func(i, j int) bool {
-		return langFormatAvgs[i].avgNs < langFormatAvgs[j].avgNs
-	})
+	// Helper function to display a chart
+	displayChart := func(title string, getValue func(LangFormatAvg) float64) {
+		// Sort by the metric
+		sorted := make([]LangFormatAvg, len(langFormatAvgs))
+		copy(sorted, langFormatAvgs)
+		sort.Slice(sorted, func(i, j int) bool {
+			return getValue(sorted[i]) < getValue(sorted[j])
+		})
 
-	// Print summary
+		// Print header
+		fmt.Println("\n╔══════════════════════════════════════════════════════════════════╗")
+		centerText := func(text string, width int) string {
+			padding := width - len(text)
+			if padding <= 0 {
+				return text
+			}
+			leftPad := padding / 2
+			rightPad := padding - leftPad
+			return strings.Repeat(" ", leftPad) + text + strings.Repeat(" ", rightPad)
+		}
+		fmt.Printf("║%s║\n", centerText(title, 66))
+		fmt.Println("╚══════════════════════════════════════════════════════════════════╝")
+		fmt.Println()
+
+		// Find max for scaling
+		maxVal := getValue(sorted[len(sorted)-1])
+		barWidth := 50
+
+		// Draw bars
+		for i, lf := range sorted {
+			val := getValue(lf)
+			usVal := val / 1000.0 // Convert to microseconds
+			barLen := int((val / maxVal) * float64(barWidth))
+			if barLen < 1 {
+				barLen = 1
+			}
+
+			bar := strings.Repeat("█", barLen)
+
+			// Color coding
+			var color string
+			if i == 0 {
+				color = "\033[32m" // Green
+			} else if float64(i) < float64(len(sorted))/2 {
+				color = "\033[33m" // Yellow
+			} else {
+				color = "\033[31m" // Red
+			}
+			resetColor := "\033[0m"
+
+			fmt.Printf("  %-15s %s%s%s %.2f μs", lf.label, color, bar, resetColor, usVal)
+			if i > 0 {
+				ratio := val / getValue(sorted[0])
+				fmt.Printf("  (%.2fx)", ratio)
+			}
+			fmt.Println()
+		}
+
+		fmt.Println()
+
+		// Show comparison only for same language (e.g., ffire Go vs proto Go)
+		// Find ffire and proto implementations of the same language
+		for _, ffireLf := range sorted {
+			if ffireLf.format == "ffire" {
+				// Look for proto version of the same language
+				for _, protoLf := range sorted {
+					if protoLf.format == "proto" && protoLf.language == ffireLf.language {
+						ratio := getValue(protoLf) / getValue(ffireLf)
+						ffireVal := getValue(ffireLf) / 1000.0
+						protoVal := getValue(protoLf) / 1000.0
+						fmt.Printf("  → %s (%.2f μs) is %.2fx faster than %s (%.2f μs)\n",
+							ffireLf.label, ffireVal, ratio, protoLf.label, protoVal)
+					}
+				}
+			}
+		}
+	}
+
+	// Display schema context
 	if targetSchema != "" {
-		fmt.Printf("\nDecode Time (ns/op) for '%s':\n", targetSchema)
+		fmt.Printf("\nPerformance Metrics for '%s':\n", targetSchema)
 	} else {
-		fmt.Println("\nDecode Time (ns/op) - Average across", len(messageNames), "schemas:")
-	}
-	fmt.Println()
-
-	maxLen := 0
-	for _, lf := range langFormatAvgs {
-		if len(lf.label) > maxLen {
-			maxLen = len(lf.label)
-		}
+		fmt.Printf("\nPerformance Metrics - Average across %d schemas:\n", len(messageNames))
 	}
 
-	for _, lf := range langFormatAvgs {
-		fmt.Printf("  %-*s: %8.0f ns/op\n", maxLen, lf.label, lf.avgNs)
-	}
-
-	// Create visual bar chart
-	fmt.Println("\nVisual Comparison:")
-	fmt.Println()
-
-	// Find the maximum value for scaling
-	maxVal := 0.0
-	for _, lf := range langFormatAvgs {
-		if lf.avgNs > maxVal {
-			maxVal = lf.avgNs
-		}
-	}
-
-	// Draw horizontal bars
-	barWidth := 50
-	for _, lf := range langFormatAvgs {
-		usVal := lf.avgNs / 1000.0 // Convert to microseconds
-		barLen := int((lf.avgNs / maxVal) * float64(barWidth))
-		if barLen < 1 {
-			barLen = 1
-		}
-
-		bar := strings.Repeat("█", barLen)
-		fmt.Printf("  %-15s %s %.2f μs\n", lf.label, bar, usVal)
-	}
-
-	fmt.Println()
-
-	// Show performance ratio for fastest vs slowest
-	if len(langFormatAvgs) >= 2 {
-		fastest := langFormatAvgs[0].label
-		slowest := langFormatAvgs[len(langFormatAvgs)-1].label
-		ratio := langFormatAvgs[len(langFormatAvgs)-1].avgNs / langFormatAvgs[0].avgNs
-		fmt.Printf("  → %s is %.2fx faster than %s\n", fastest, ratio, slowest)
-	}
+	// Display three charts
+	displayChart("Encode Time (μs) - Lower is Better", func(lf LangFormatAvg) float64 { return lf.encodeNs })
+	displayChart("Decode Time (μs) - Lower is Better", func(lf LangFormatAvg) float64 { return lf.decodeNs })
+	displayChart("Total Time (μs) - Lower is Better", func(lf LangFormatAvg) float64 { return lf.totalNs })
 
 	return nil
 }
@@ -1762,7 +1812,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1775,7 +1825,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_cpp_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1788,7 +1838,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_java_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1801,7 +1851,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_csharp_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1814,7 +1864,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_swift_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1827,7 +1877,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_dart_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1840,7 +1890,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_python_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1853,7 +1903,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_python_pybind11_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}
@@ -1866,7 +1916,7 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_js_"+suite.Name),
-				"--iterations", "10000",
+				"--iterations", "100000",
 			); err != nil {
 				return err
 			}

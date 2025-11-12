@@ -1,0 +1,15 @@
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net8.0/Approach3_Standalone
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net8.0/Approach3_Standalone.deps.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net8.0/Approach3_Standalone.runtimeconfig.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net8.0/Approach3_Standalone.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/bin/Release/net8.0/Approach3_Standalone.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.AssemblyInfoInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.AssemblyInfo.cs
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.csproj.CoreCompileInputs.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.sourcelink.json
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/refint/Approach3_Standalone.dll
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.pdb
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/Approach3_Standalone.genruntimeconfig.cache
+/Users/shaban/Code/ffire/experimental/csharp-complex-optimizations/approach3-test/obj/Release/net8.0/ref/Approach3_Standalone.dll
