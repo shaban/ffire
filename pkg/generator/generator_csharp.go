@@ -834,17 +834,17 @@ func (g *csharpGenerator) generatePrimitiveEncode(fieldName, kind, indent string
 	case "u8", "uint8":
 		fmt.Fprintf(g.buf, "%sbuffer[offset++] = %s;\n", indent, fieldName)
 	case "i16", "int16":
-		fmt.Fprintf(g.buf, "%s{ short v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(offset), %s); offset += 2;\n", indent, fieldName)
 	case "u16", "uint16":
-		fmt.Fprintf(g.buf, "%s{ ushort v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset), %s); offset += 2;\n", indent, fieldName)
 	case "i32", "int32":
-		fmt.Fprintf(g.buf, "%s{ int v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset), %s); offset += 4;\n", indent, fieldName)
 	case "u32", "uint32":
-		fmt.Fprintf(g.buf, "%s{ uint v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(offset), %s); offset += 4;\n", indent, fieldName)
 	case "i64", "int64":
-		fmt.Fprintf(g.buf, "%s{ long v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset), %s); offset += 8;\n", indent, fieldName)
 	case "u64", "uint64":
-		fmt.Fprintf(g.buf, "%s{ ulong v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(offset), %s); offset += 8;\n", indent, fieldName)
 	case "f32", "float32":
 		fmt.Fprintf(g.buf, "%s{ float f = %s; uint v = *(uint*)&f; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
 	case "f64", "float64":
@@ -868,17 +868,17 @@ func (g *csharpGenerator) generatePrimitiveEncodeNoCache(fieldName, kind, indent
 	case "u8", "uint8":
 		fmt.Fprintf(g.buf, "%sbuffer[offset++] = %s;\n", indent, fieldName)
 	case "i16", "int16":
-		fmt.Fprintf(g.buf, "%s{ short v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(offset), %s); offset += 2;\n", indent, fieldName)
 	case "u16", "uint16":
-		fmt.Fprintf(g.buf, "%s{ ushort v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(offset), %s); offset += 2;\n", indent, fieldName)
 	case "i32", "int32":
-		fmt.Fprintf(g.buf, "%s{ int v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset), %s); offset += 4;\n", indent, fieldName)
 	case "u32", "uint32":
-		fmt.Fprintf(g.buf, "%s{ uint v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(offset), %s); offset += 4;\n", indent, fieldName)
 	case "i64", "int64":
-		fmt.Fprintf(g.buf, "%s{ long v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset), %s); offset += 8;\n", indent, fieldName)
 	case "u64", "uint64":
-		fmt.Fprintf(g.buf, "%s{ ulong v = %s; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); buffer[offset++] = (byte)(v >> 32); buffer[offset++] = (byte)(v >> 40); buffer[offset++] = (byte)(v >> 48); buffer[offset++] = (byte)(v >> 56); }\n", indent, fieldName)
+		fmt.Fprintf(g.buf, "%sBinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(offset), %s); offset += 8;\n", indent, fieldName)
 	case "f32", "float32":
 		fmt.Fprintf(g.buf, "%s{ float f = %s; uint v = *(uint*)&f; buffer[offset++] = (byte)v; buffer[offset++] = (byte)(v >> 8); buffer[offset++] = (byte)(v >> 16); buffer[offset++] = (byte)(v >> 24); }\n", indent, fieldName)
 	case "f64", "float64":
