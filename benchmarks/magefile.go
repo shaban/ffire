@@ -135,7 +135,7 @@ func genAll() error {
 
 	// Ensure ffire is built and installed
 	fmt.Println("🔨 Building ffire...")
-	if err := sh.RunV("sh", "-c", "cd .. && go install -buildvcs=false ./cmd/ffire"); err != nil {
+	if err := sh.RunV("sh", "-c", "cd .. && go install ./cmd/ffire"); err != nil {
 		return fmt.Errorf("failed to build ffire: %w", err)
 	}
 
@@ -309,7 +309,7 @@ func Gen(target string) error {
 
 	// Build ffire
 	fmt.Println("🔨 Building ffire...")
-	if err := sh.RunV("sh", "-c", "cd .. && go install -buildvcs=false ./cmd/ffire"); err != nil {
+	if err := sh.RunV("sh", "-c", "cd .. && go install ./cmd/ffire"); err != nil {
 		return fmt.Errorf("failed to build ffire: %w", err)
 	}
 
@@ -477,17 +477,25 @@ func runGo() error {
 		return err
 	}
 
-	// Filter to only pure Go benchmarks (exclude other language variants)
+	// Filter to only ffire Go benchmarks (whitelist: starts with "ffire_" without language prefix)
 	var dirs []string
+	languagePrefixes := []string{
+		"ffire_cpp_", "ffire_python_", "ffire_dart_", "ffire_swift_",
+		"ffire_javascript_", "ffire_java_", "ffire_csharp_",
+	}
+	
 	for _, dir := range allDirs {
 		base := filepath.Base(dir)
-		if !strings.HasPrefix(base, "ffire_cpp_") &&
-			!strings.HasPrefix(base, "ffire_python_") &&
-			!strings.HasPrefix(base, "ffire_dart_") &&
-			!strings.HasPrefix(base, "ffire_swift_") &&
-			!strings.HasPrefix(base, "ffire_javascript_") &&
-			!strings.HasPrefix(base, "ffire_java_") &&
-			!strings.HasPrefix(base, "ffire_csharp_") {
+		// Skip if it matches any language-specific prefix
+		isLanguageSpecific := false
+		for _, prefix := range languagePrefixes {
+			if strings.HasPrefix(base, prefix) {
+				isLanguageSpecific = true
+				break
+			}
+		}
+		// Include only if it starts with "ffire_" and isn't language-specific
+		if strings.HasPrefix(base, "ffire_") && !isLanguageSpecific {
 			dirs = append(dirs, dir)
 		}
 	}
