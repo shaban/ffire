@@ -811,7 +811,7 @@ func (g *csharpGenerator) generateBulkArrayEncode(fieldName, kind string) {
 	g.buf.WriteString("                // Bulk copy using MemoryMarshal for zero-copy performance\n")
 	fmt.Fprintf(g.buf, "                Span<%s> span = %s;\n", g.csharpBaseType(kind), fieldName)
 	g.buf.WriteString("                ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(span);\n")
-	g.buf.WriteString("                bytes.CopyTo(buffer.Slice(offset));\n")
+	g.buf.WriteString("                bytes.CopyTo(buffer.AsSpan(offset));\n")
 	g.buf.WriteString("                offset += bytes.Length;\n")
 }
 
