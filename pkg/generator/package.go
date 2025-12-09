@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/shaban/ffire/pkg/generator/igniffi"
 	"github.com/shaban/ffire/pkg/schema"
 )
 
@@ -56,6 +57,11 @@ func GeneratePackage(config *PackageConfig) error {
 		return generateGoPackage(config)
 	}
 
+	// Handle igniffi (micro C API)
+	if lang == "igniffi" {
+		return generateIgniffiPackage(config)
+	}
+
 	// Determine package type (Tier A vs Tier B)
 	switch lang {
 	case "c", "cpp", "c++", "rust", "zig":
@@ -63,7 +69,7 @@ func GeneratePackage(config *PackageConfig) error {
 	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php":
 		return generateTierBPackage(config)
 	default:
-		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust)", config.Language)
+		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust, igniffi)", config.Language)
 	}
 }
 
@@ -141,7 +147,8 @@ func generateTierBPackage(config *PackageConfig) error {
 	case "js":
 		return generateJavaScriptPackage(config)
 	case "swift":
-		return generateSwiftPackage(config)
+		// Swift uses C++ interop - route to C++ generator with Swift packaging
+		return generateCppWithSwiftPackaging(config)
 	case "dart":
 		return generateDartPackage(config)
 	case "java":
@@ -151,6 +158,43 @@ func generateTierBPackage(config *PackageConfig) error {
 	default:
 		return fmt.Errorf("Tier B package generation not yet implemented for %s (TODO: ruby, php, rust)", config.Language)
 	}
+}
+
+// generateIgniffiPackage generates the micro ffire C API (igniffi)
+func generateIgniffiPackage(config *PackageConfig) error {
+	if config.Verbose {
+		fmt.Println("Generating igniffi package (micro C API)")
+	}
+
+	// Create igniffi directory
+	igniffiDir := filepath.Join(config.OutputDir, "igniffi")
+	if err := os.MkdirAll(igniffiDir, 0755); err != nil {
+		return fmt.Errorf("failed to create igniffi directory: %w", err)
+	}
+
+	// Generate igniffi code
+	if err := igniffi.Generate(config.Schema, igniffiDir); err != nil {
+		return fmt.Errorf("failed to generate igniffi code: %w", err)
+	}
+
+	fmt.Printf("✓ Generated igniffi C API: %s\n", igniffiDir)
+	fmt.Printf("\nTo use igniffi:\n")
+	fmt.Printf("  1. Include header: #include \"igniffi.h\"\n")
+	fmt.Printf("  2. Compile: gcc -c src/*.c -Iinclude\n")
+	fmt.Printf("  3. Link: gcc -o myapp myapp.o *.o\n")
+	fmt.Printf("\nFor Python/PHP/JS/Ruby bindings, see documentation.\n")
+
+	return nil
+}
+
+// generateCppWithSwiftPackaging generates C++ code with Swift package wrapping
+func generateCppWithSwiftPackaging(config *PackageConfig) error {
+	if config.Verbose {
+		fmt.Println("Generating C++ code with Swift packaging")
+	}
+
+	// Use the existing Swift package generator but it will call C++ generation
+	return GenerateSwiftPackage(config)
 }
 
 // generateCABI generates C ABI wrapper files
