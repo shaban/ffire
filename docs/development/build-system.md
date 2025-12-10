@@ -28,7 +28,7 @@ Auto-discovers benchmark suites by matching `.ffi` + `.json` files.
 - Calls `ffire bench` for each (suite × language) combination
 - Creates `generated/ffire_LANG_SUITE/` directories
 - Converts JSON fixtures to binary
-- Go, C++, Swift, Dart, Python, Proto
+- Go, C++, C#, Java, Swift, Dart, Rust, Zig
 
 **Language-specific generators:**
 - `genGoSuite()` → `ffire bench --lang go`
@@ -165,11 +165,12 @@ mage -j 4 runGo runCpp runSwift runDart  # Run 4 languages concurrently
 Required for full benchmark suite:
 - `go` - Go benchmarks
 - `g++` or `clang++` - C++ benchmarks
-- `cmake` - C++ build
+- `dotnet` - C# benchmarks
+- `javac` - Java benchmarks
 - `swift` - Swift benchmarks (macOS)
 - `dart` - Dart benchmarks
-- `python3` - Python benchmarks
+- `rustc`/`cargo` - Rust benchmarks
+- `zig` - Zig benchmarks
 - `protoc` - Protobuf comparison
-- `protoc-gen-go` - Protobuf Go code generation
 
 Missing dependencies are skipped with warnings.

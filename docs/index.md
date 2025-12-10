@@ -22,19 +22,24 @@ msg, _ := Message.Decode(data)
 
 - **Fast**: Optimized bulk array encoding, zero-copy where possible
 - **Compact**: Efficient wire format, minimal overhead
-- **Multi-language**: Go, C++, Swift, Dart, Python, JavaScript, PHP, Ruby
+- **Multi-language**: Go, C++, C#, Java, Swift, Dart, Rust, Zig
 - **Type-safe**: Strongly typed schemas in Go syntax
 - **Portable**: Cross-platform, cross-language serialization
 
 ## Performance
 
-Array of 5000 int32 values:
+Array of 5000 float32 values (encode + decode):
 
-| Language | Encode | Decode | Wire Size |
-|----------|--------|--------|-----------|
-| Go       | 1.6 µs | 8.6 µs | 20 KB     |
-| C++      | 1.4 µs | 2.7 µs | 20 KB     |
-| Swift    | 1.5 µs | 10.4 µs| 20 KB     |
+| Language | Total   | 
+|----------|---------|
+| Rust     | 967 ns  |
+| C++      | 1,321 ns|
+| Swift    | 1,339 ns|
+| Zig      | 1,632 ns|
+| C#       | 1,701 ns|
+| Java     | 2,343 ns|
+| Go       | 3,384 ns|
+| Dart     | 10,188 ns|
 
 See [Benchmarks](development/benchmarks.md) for full results.
 

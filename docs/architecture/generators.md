@@ -2,33 +2,29 @@
 
 How to implement a new language generator for ffire.
 
-## Implementation Status
+## Supported Languages
 
-| Language | Package Generator | Benchmark Generator | Magefile Runner | Status |
-|----------|------------------|---------------------|-----------------|--------|
-| **Go** | ✅ Full | ✅ Yes | ✅ `mage runGo` | Production Ready |
-| **C++** | ✅ Full | ✅ Yes | ✅ `mage runCpp` | Production Ready |
-| **Python** | ✅ Full | ✅ Yes | ✅ `mage runPython` | Production Ready |
-| **Swift** | ✅ Full | ✅ Yes | ✅ `mage runSwift` | Production Ready |
-| **Dart** | ✅ Full | ✅ Yes | ✅ `mage runDart` | Production Ready |
-| **JavaScript** | ✅ Full | ✅ Yes | ❌ Not integrated | Ready for integration |
-| **Ruby** | ✅ Full | ✅ Yes | ❌ Not integrated | Ready for integration |
-| **Java** | ✅ Full | ✅ Yes | ❌ Not integrated | Ready for integration |
-| **C#** | ✅ Full | ✅ Yes | ❌ Not integrated | Ready for integration |
-| **PHP** | ✅ Full | ✅ Yes | ❌ Not integrated | Ready for integration |
+| Language | Implementation | Status |
+|----------|----------------|--------|
+| **Go** | Native | ✅ Production Ready |
+| **C++** | Native | ✅ Production Ready |
+| **C#** | Native | ✅ Production Ready |
+| **Java** | Native | ✅ Production Ready |
+| **Swift** | Native | ✅ Production Ready |
+| **Dart** | Native | ✅ Production Ready |
+| **Rust** | Native | ✅ Production Ready |
+| **Zig** | Native | ✅ Production Ready |
 
-**Legend:**
-- ✅ **Full**: Complete implementation with all features
-- ✅ **Yes**: Benchmark harness generator exists
-- ✅ **mage run***: Automated test runner integrated
-- ❌ **Not integrated**: Exists but not in automated benchmark suite
+All generators produce native code with no FFI dependencies.
 
-**Tested Performance (10k iterations, struct benchmark):**
-- Go: 178 ns/op (native, no FFI)
-- C++: 255 ns/op (native, -O3 -march=native)
-- Swift: 420 ns/op (FFI via C ABI)
-- Dart: 2,370 ns/op (FFI via dart:ffi)
-- Python: 1,619 ns/op (FFI via ctypes/pybind11)
+**Performance Leaders (array_float benchmark, total encode+decode):**
+
+| Language | Time |
+|----------|------|
+| Rust | 967 ns |
+| C++ | 1,321 ns |
+| Swift | 1,339 ns |
+| Zig | 1,632 ns |
 
 See [Benchmarks](../development/benchmarks.md) for detailed performance analysis.
 

@@ -19,11 +19,9 @@ ffire gen --lang go --schema types.ffi --output ./generated
 ```
 
 **Options:**
-- `--lang` - Target language: `go`, `cpp`, `swift`, `dart`, `python`, `js`, `php`, `ruby`
+- `--lang` - Target language: `go`, `cpp`, `csharp`, `java`, `swift`, `dart`, `rust`, `zig`
 - `--schema` - Input schema file (`.ffi`)
 - `--output` - Output directory
-- `--optimize` - Optimization level: `0`, `1`, `2` (default: 2)
-- `--no-compile` - Skip dylib compilation (C++/Swift only)
 
 ### `ffire bench`
 
@@ -60,7 +58,7 @@ cd swift && swift build
 
 **Multi-language:**
 ```bash
-for lang in go cpp swift dart python; do
+for lang in go cpp csharp java swift dart rust zig; do
   ffire gen --lang $lang --schema schema.ffi --output ./gen/$lang
 done
 ```

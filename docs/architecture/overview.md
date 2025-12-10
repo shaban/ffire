@@ -5,16 +5,15 @@ ffire is a binary serialization system with three main components:
 ```
 ┌──────────┐     ┌───────────┐     ┌─────────┐
 │  Schema  │ --> │ Generator │ --> │  Codec  │
-│ (.ffi)   │     │           │     │ (Go/C++/│
-└──────────┘     └───────────┘     │ Swift)  │
-                                    └─────────┘
+│ (.ffi)   │     │           │     │ (Native)│
+└──────────┘     └───────────┘     └─────────┘
 ```
 
 ## Pipeline
 
 1. **Parse**: Schema file → AST
 2. **Generate**: AST → Language-specific code
-3. **Compile**: Code → Binary codec (Go/C++/etc)
+3. **Compile**: Code → Binary codec
 4. **Use**: Codec → Encode/Decode messages
 
 ## Components
@@ -26,15 +25,17 @@ Reads `.ffi` files (Go syntax) and builds schema AST.
 In-memory representation of types, messages, and structure.
 
 ### Generators (`pkg/generator`)
-Per-language code generation:
-- `generator_go.go` - Native Go codec
-- `generator_cpp.go` - C++ with header/implementation
-- `generator_swift.go` - Swift package + C ABI
-- `generator_dart.go` - Dart package + FFI
-- etc.
+Native code generation for 8 languages:
+- `generator_go.go` - Go
+- `generator_cpp.go` - C++
+- `generator_csharp.go` - C#
+- `generator_java.go` - Java
+- `generator_swift.go` - Swift
+- `generator_dart.go` - Dart
+- `generator_rust.go` - Rust
+- `generator_zig.go` - Zig
 
-### Encoder/Decoder
-Runtime libraries for each language implementing the wire format.
+All generators produce standalone native code with no FFI dependencies.
 
 ## Data Flow
 

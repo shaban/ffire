@@ -7,17 +7,16 @@ Cross-language benchmark system for measuring encoding/decoding performance.
 ```
 testdata/                    benchmarks/
 ├── schema/array_int.ffi    ├── magefile.go (orchestration)
-├── json/array_int.json  ───→ mage genAll ───→ generated/
-└── proto/array_int.proto   │                   ├── ffire_array_int/
+├── json/array_int.json  ───→ mage gen all ───→ generated/
+└── proto/array_int.proto   │                   ├── ffire_go_array_int/
                             │                   ├── ffire_cpp_array_int/
-                            │                   ├── ffire_swift_array_int/
-                            │                   ├── proto_array_int/
+                            │                   ├── ffire_rust_array_int/
                             │                   └── ...
                             │
-                            └── mage runGo ───→ results/
-                                mage runCpp      ├── ffire_go.json
-                                mage compare     ├── ffire_cpp.json
-                                                └── ...
+                            └── mage run all ───→ results/
+                                mage compare      ├── ffire_go.json
+                                                 ├── ffire_cpp.json
+                                                 └── ...
 ```
 
 ## Mage Commands
@@ -29,50 +28,35 @@ cd benchmarks
 mage bench              # Generate + run all + compare
 
 # Generation
-mage genAll             # Generate benchmarks for all languages
+mage gen all            # Generate benchmarks for all languages
+mage gen rust           # Generate benchmarks for one language
 
-# Execution (run after genAll)
-mage runGo              # Run Go benchmarks ✅
-mage runCpp             # Run C++ benchmarks ✅
-mage runSwift           # Run Swift benchmarks ✅
-mage runDart            # Run Dart benchmarks ✅
-mage runPython          # Run Python benchmarks ✅
-mage runProto           # Run protobuf benchmarks (baseline) ✅
+# Execution
+mage run all            # Run all language benchmarks
+mage run rust           # Run benchmarks for one language
 
 # Analysis
 mage compare            # Show comparison table from results/
 
 # Cleanup
-mage clean              # Remove generated/ (keeps results/)
-mage cleanAll           # Remove generated/ AND results/
+mage clean all          # Remove all generated benchmarks
+mage clean rust         # Remove generated benchmarks for one language
 ```
 
-**Note:** JavaScript, Ruby, Java, C#, and PHP have benchmark generators but aren't integrated into the automated test suite yet. They can be run manually using `ffire bench --lang X`.
+## Supported Languages
 
-## Testdata Organization
+All 8 languages have native implementations (no FFI):
 
-```
-testdata/
-├── schema/          # ffire schemas (.ffi files)
-│   ├── array_int.ffi
-│   ├── array_float.ffi
-│   └── ...
-├── json/            # Test fixtures (JSON format)
-│   ├── array_int.json
-│   ├── array_float.json
-│   └── ...
-└── proto/           # Protobuf equivalent (for comparison)
-    ├── array_int.proto
-    ├── array_float.proto
-    └── ...
-```
-
-**Three parallel directories:**
-- `.ffi` = ffire schema definition
-- `.json` = fixture data (converted to binary for benchmarks)
-- `.proto` = protobuf schema (used for `mage runProto` comparison)
-
-**Naming convention:** `array_int.ffi` + `array_int.json` + `array_int.proto` form a benchmark suite.
+| Language | Command | Status |
+|----------|---------|--------|
+| Go | `mage run go` | ✅ Native |
+| C++ | `mage run cpp` | ✅ Native |
+| C# | `mage run csharp` | ✅ Native |
+| Java | `mage run java` | ✅ Native |
+| Swift | `mage run swift` | ✅ Native |
+| Dart | `mage run dart` | ✅ Native |
+| Rust | `mage run rust` | ✅ Native |
+| Zig | `mage run zig` | ✅ Native |
 
 ## Benchmark Suites
 
@@ -99,72 +83,46 @@ Each benchmark reports:
 
 ## Performance Comparison
 
-**Simple Struct Benchmark (10,000 iterations):**
-
-| Language | Total (ns/op) | vs C++ | Architecture |
-|----------|---------------|--------|--------------|
-| **C++** | 255 | baseline | Native (-O3 -march=native) |
-| **Go** | 178 | **30% faster** | Native (no FFI) |
-| **Swift** | 420 | 1.6x slower | FFI (C ABI wrapper) |
-| **Dart** | 2,370 | 9.3x slower | FFI (dart:ffi) |
-| **Python** | 1,619 | 6.3x slower | FFI (ctypes/pybind11) |
-
-**Array of Primitives (5000 int32):**
+**Array of 5000 float32 values (encode + decode):**
 
 | Language | Encode | Decode | Total |
 |----------|--------|--------|-------|
-| **C++** | 1,709 | 3,336 | 5,045 |
-| **Go** | 1,476 | 3,267 | 4,743 |
-| **Swift** | 1,481 | 10,372 | 11,853 |
-| **Dart** | 2,719 | 13,423 | 16,142 |
-| **Python** | 63,907 | 83,538 | 147,445 |
+| **Rust** | 446 ns | 521 ns | 967 ns |
+| **C++** | 784 ns | 537 ns | 1,321 ns |
+| **Swift** | 769 ns | 570 ns | 1,339 ns |
+| **Zig** | 1,076 ns | 556 ns | 1,632 ns |
+| **C#** | 832 ns | 869 ns | 1,701 ns |
+| **Java** | 1,017 ns | 1,326 ns | 2,343 ns |
+| **Go** | 1,854 ns | 1,530 ns | 3,384 ns |
+| **Dart** | 2,504 ns | 7,684 ns | 10,188 ns |
 
 **Key Insights:**
-- **Native implementations** (Go, C++) are fastest (~200-300 ns for simple structs)
-- **Swift FFI overhead** is acceptable (2-3x slower for primitives, but encode is actually faster!)
-- **Swift use case**: iOS/macOS apps encoding data to send to backend (encode-heavy workload)
-- **Python**: Slower but still sub-millisecond for most operations
-- **All languages** are production-ready with sub-microsecond performance on typical workloads
-
-## Recent Optimizations
-
-### String Arrays (Go)
-Pre-calculate buffer size, single `Grow()` call:
-- Before: 10,838 ns/op
-- After: 6,157 ns/op
-- **Improvement: 43% faster**
-
-### String Arrays (C++)
-Pre-calculate size, single `reserve()` call:
-- Before: 9,607 ns/op
-- After: 8,944 ns/op
-- **Improvement: 7% faster**
+- **Rust** is fastest due to unsafe bulk memcpy optimization
+- **C++, Swift, Zig** are within 2x of Rust (excellent)
+- **C#, Java** use managed memory but still very fast
+- **Go** uses safe bounds checking, still sub-4μs
+- **All languages** are production-ready with sub-20μs for 20KB payloads
 
 ## Generated Structure
 
-After `mage genAll`, benchmarks land in `generated/`:
+After `mage gen all`, benchmarks land in `generated/`:
 
 ```
 generated/
-├── ffire_array_int/          # Go native
+├── ffire_go_array_int/       # Go native
 │   ├── bench.go
 │   ├── generated.go
 │   ├── fixture.bin
 │   └── go.mod
 ├── ffire_cpp_array_int/      # C++ native
-│   ├── cpp/
-│   │   ├── bench.cpp
-│   │   ├── generated.h
-│   │   ├── generated.cpp
-│   │   └── fixture.bin
-│   └── CMakeLists.txt
-├── ffire_swift_array_int/    # Swift + C ABI
-│   └── swift/
-│       ├── Package.swift
-│       ├── Sources/
-│       │   ├── array_int/array_int.swift
-│       │   └── bench/main.swift
-│       ├── lib/libtest.dylib  # C ABI library
+│   └── cpp/
+│       ├── bench.cpp
+│       ├── generated.h
+│       └── fixture.bin
+├── ffire_rust_array_int/     # Rust native
+│   └── rust/
+│       ├── Cargo.toml
+│       ├── src/lib.rs
 │       └── fixture.bin
 └── proto_array_int/          # Protobuf reference
     ├── bench.go
@@ -172,38 +130,17 @@ generated/
     └── fixture.bin
 ```
 
-**Naming pattern:** `{format}_{language}_{suite}`
-- `ffire_array_int` - Go (native, no language suffix)
-- `ffire_cpp_array_int` - C++
-- `ffire_swift_array_int` - Swift
-- `proto_array_int` - Protobuf
-
-## Implementation Flow
-
-1. **Discovery**: `magefile.go` finds all `testdata/schema/*.ffi` files
-2. **Generation**: For each suite + language:
-   - Call `ffire bench --lang X --schema Y.ffi --json Y.json`
-   - Creates `generated/ffire_X_Y/` with codec + harness
-   - Converts JSON → binary fixture
-3. **Execution**: Each language runner:
-   - Compiles benchmark if needed
-   - Warmup: 1000 iterations
-   - Measure: 10,000 iterations (decode, then encode)
-   - Output JSON to stdout
-4. **Collection**: Parse JSON, save to `results/ffire_X.json`
-5. **Comparison**: Merge all `results/*.json`, generate table
-
 ## Adding Benchmarks
 
 **New test case:**
 1. Create: `testdata/schema/my_test.ffi`
 2. Create: `testdata/json/my_test.json`
 3. (Optional) Create: `testdata/proto/my_test.proto`
-4. Run: `mage genAll`
+4. Run: `mage gen all`
 5. Auto-discovered by filename matching
 
 **New language:**
 1. Implement: `pkg/benchmark/benchmark_LANG.go`
 2. Add to: `cmd/ffire/bench.go` (switch case)
-3. Add: `RunLANG()` function in `magefile.go`
-4. Run: `mage genAll && mage runLANG`
+3. Add runner in: `benchmarks/magefile.go`
+4. Run: `mage gen LANG && mage run LANG`

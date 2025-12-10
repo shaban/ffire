@@ -51,7 +51,6 @@ nav:
       - Generators: architecture/generators.md
       - Generator Patterns: architecture/generator-patterns.md
       - Codebase Structure: architecture/codebase.md
-      - Swift C++ Interop: architecture/swift-cpp-interop.md
   - Development:
       - Testing: development/testing.md
       - Benchmarks: development/benchmarks.md

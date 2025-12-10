@@ -349,12 +349,14 @@ func runBench(schemaPath, jsonPath, lang, output string, iterations int) error {
 5. **analyzer** - Analyze schemas for optimization ✅
 6. **generator** (Go) - Generate Go code ✅
 7. **generator** (C++) - Generate C++ code ✅
-8. **generator** (C ABI) - C wrapper layer ✅
-9. **generator** (Multi-language packages) - Python, JS, Ruby ✅
-10. **fixture** - JSON to binary conversion ✅
-11. **benchmark** (Go) - Generate Go benchmarks ✅
-12. **benchmark** (C++) - Generate C++ benchmarks ✅
-13. **generator** (Swift) - Swift package wrapper ✅
+8. **generator** (C#) - Generate C# code ✅
+9. **generator** (Java) - Generate Java code ✅
+10. **generator** (Swift) - Generate Swift code ✅
+11. **generator** (Dart) - Generate Dart code ✅
+12. **generator** (Rust) - Generate Rust code ✅
+13. **generator** (Zig) - Generate Zig code ✅
+14. **fixture** - JSON to binary conversion ✅
+15. **benchmark** - Generate benchmarks for all languages ✅
 
 ## Testing Strategy
 
@@ -388,56 +390,3 @@ cmd/ffire/testdata/
 ✅ **Clear dependencies** - Bottom-up, no cycles  
 ✅ **Maintainable** - Changes isolated to single package  
 ✅ **Reusable** - Packages usable as library (not just CLI)
-
-## Multi-Language Package Generation
-
-### Tier System
-
-**Tier A: Native Languages** - Languages that use C ABI directly
-- C, C++, Rust, Zig
-- Output: Dylib + headers only
-
-**Tier B: FFI Wrapper Languages** - Languages that need wrapper code
-- Python, JavaScript, Ruby, Swift
-- Output: Dylib + wrapper + package metadata
-
-### Package Structure
-
-Each generated package follows ecosystem conventions:
-
-**Python:**
-```
-python/
-├── setup.py                    # setuptools config
-├── <package>/
-│   ├── __init__.py            # Main exports
-│   ├── bindings.py            # ctypes wrapper
-│   └── lib/libffire.dylib     # Compiled binary
-└── README.md
-```
-
-**JavaScript/Node.js:**
-```
-javascript/
-├── package.json               # npm config
-├── index.js                   # ffi-napi wrapper
-├── index.d.ts                 # TypeScript definitions
-├── lib/libffire.dylib        # Compiled binary
-└── README.md
-```
-
-**Ruby:**
-```
-ruby/
-├── <package>.gemspec          # gem config
-├── Gemfile                    # bundler dependencies
-├── lib/
-│   ├── <package>.rb          # Main module
-│   ├── <package>/
-│   │   ├── bindings.rb       # FFI declarations
-│   │   └── message.rb        # Wrapper classes
-│   └── libffire.dylib        # Compiled binary
-└── README.md
-```
-
-See [Multi-Language Packaging](../api/cli.md#multi-language-packaging) for CLI usage details.

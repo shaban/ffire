@@ -2,293 +2,72 @@
 
 Common patterns across language generators.
 
-## Generation Modes
+## Generation Approach
 
-ffire generators fall into three categories:
+All ffire generators produce **native implementations** - complete encoder/decoder code in the target language with no FFI or external dependencies.
 
-### 1. Native Implementation
-**Languages:** Go, C++, Rust (future)
+### Supported Languages
 
-Generates complete encoder/decoder in target language. No FFI, no external dependencies.
+| Language | Generator | Output |
+|----------|-----------|--------|
+| Go | `generator_go.go` | Single `.go` file |
+| C++ | `generator_cpp.go` | `.h` + `.cpp` files |
+| C# | `generator_csharp.go` | Single `.cs` file |
+| Java | `generator_java.go` | Single `.java` file |
+| Swift | `generator_swift.go` | Single `.swift` file |
+| Dart | `generator_dart.go` | Single `.dart` file |
+| Rust | `generator_rust.go` | Single `.rs` file |
+| Zig | `generator_zig.go` | Single `.zig` file |
 
-**Example (Go):**
-```
-schema.ffi → pkg/generator/generator_go.go
-           → generated.go (encode/decode functions)
-```
+### Advantages of Native
 
-**Advantages:**
-- Fastest (no FFI overhead)
-- Type-safe
-- Debuggable
-- Single-language stack
-
-**When to use:** Language has good buffer manipulation, no GC issues with wire format.
-
-### 2. C ABI Wrapper  
-**Languages:** Swift, Dart, Python, JavaScript, Ruby
-
-Generates language bindings that wrap a C ABI dylib.
-
-**Example (Swift):**
-```
-schema.ffi → pkg/generator/generator_c_abi.go (C++ dylib)
-           → pkg/generator/generator_swift.go (Swift bindings)
-           
-Result:
-  lib/libtest.dylib        # C ABI implementation
-  Sources/array_int.swift   # Swift wrapper
-```
-
-**Flow:**
-1. Generate C++ encoder/decoder
-2. Generate C ABI functions (`intlist_encode`, `intlist_decode`)
-3. Compile to dylib
-4. Generate language bindings that call dylib
-
-**Advantages:**
-- Write encoder once (C++), use everywhere
-- Consistent wire format across languages
-- Fast (compiled C++)
-
-**When to use:** Language has good FFI, small stdlib for binary manipulation.
-
-### 3. Hybrid
-**Languages:** Swift (has both patterns)
-
-Both native Swift implementation AND C ABI wrapper available.
-
-**Use case:** Native for iOS/watchOS (embedded), C ABI for macOS/server.
-
-## C ABI Pattern
-
-### Generator Flow
-
-```
-schema.ffi
-    ↓
-generator_c_abi.go
-    ↓
-generated_c.h          // Header with function declarations
-generated_c.cpp        // C++ implementation
-    ↓
-compile (clang++)
-    ↓
-libTEST.dylib         // Shared library
-    ↓
-generator_swift.go    // Language bindings
-    ↓
-swift_bindings.swift  // Wrapper types
-```
-
-### C ABI Functions
-
-For each message type `IntList`:
-
-**Decode:**
-```c
-IntListHandle intlist_decode(
-    const uint8_t* data, 
-    int32_t size,
-    char** error_msg
-);
-```
-
-**Encode:**
-```c
-size_t intlist_encode(
-    IntListHandle handle,
-    uint8_t** out_data,
-    char** error_msg
-);
-```
-
-**Free:**
-```c
-void intlist_free(IntListHandle handle);
-void intlist_free_data(uint8_t* data);
-void intlist_free_error(char* error);
-```
-
-### Naming Convention
-
-C ABI uses lowercase message name + underscore + function:
-- `Config` → `config_encode`, `config_decode`, `config_free`
-- `IntList` → `intlist_encode`, `intlist_decode`, `intlist_free`
-
-**Why lowercase?** C convention, avoids case-sensitivity issues across platforms.
-
-### Handle Pattern
-
-Messages are opaque handles (pointers):
-```c
-typedef void* IntListHandle;
-```
-
-Language bindings wrap handles:
-```swift
-public class IntList {
-    private var handle: OpaquePointer
-    
-    public init(handle: OpaquePointer) {
-        self.handle = handle
-    }
-    
-    deinit {
-        intlist_free(handle)
-    }
-}
-```
-
-### Memory Management
-
-**Ownership:**
-- Decode: C++ allocates handle, caller frees
-- Encode: C++ allocates buffer, caller frees
-- Errors: C++ allocates string, caller frees
-
-**Pattern:**
-```swift
-// Decode
-let handle = decode(data)   // C++ owns memory
-defer { free(handle) }      // Swift ensures cleanup
-
-// Encode
-var outPtr: UnsafeMutablePointer<UInt8>?
-let size = encode(handle, &outPtr, nil)
-defer { free_data(outPtr) }  // Free C++ buffer
-let data = Data(bytes: outPtr, count: size)
-```
-
-### Deployment Model
-
-**Canonical Approach: Bundled dylib per package**
-
-Each language package bundles its own copy of the dylib:
-```
-python_package/
-  mypackage/
-    lib/libmyschema.dylib    # Bundled, not system-wide
-    __init__.py
-
-dart_package/
-  lib/libmyschema.dylib      # Separate copy
-  myschema.dart
-```
-
-**Why bundled?**
-- ✅ No version conflicts between applications
-- ✅ No system-wide installation required
-- ✅ Each app controls its own ffire version
-- ✅ No symbol versioning needed (no shared library conflicts)
-
-**Not supported: System-wide installation**
-- ❌ `/usr/local/lib/libffire.dylib` - would require symbol versioning
-- ❌ Plugin systems with multiple ffire versions - unsupported use case
-
-**Symbol versioning:** Not implemented because bundled deployment avoids conflicts entirely.
-
-## Library Naming
-
-Libraries are named after the **package**, not the schema file:
-
-```go
-// schema.ffi
-package test
-
-// Generates:
-lib/libtest.dylib     // NOT libarray_int.dylib
-```
-
-**Why?** Multiple schemas can share one package:
-```
-package myapp
-
-type User struct { ... }
-type Post struct { ... }
-
-// Both compile into:
-libmyapp.dylib  // Contains user_encode, post_encode, etc.
-```
-
-### Bundled Library Location
-
-All generators place the dylib inside the package directory:
-
-**Python (ctypes):**
-```python
-_lib_path = os.path.join(os.path.dirname(__file__), _lib_name)
-_lib = ctypes.CDLL(_lib_path)
-```
-
-**Python (pybind11):**
-```python
-# Compiled as Python extension, automatically loaded
-```
-
-**Dart:**
-```dart
-DynamicLibrary.open('lib/libtest.dylib')  // Relative to package
-```
-
-**Swift:**
-```swift
-// Linked via Package.swift linkerSettings
-.target(
-    name: "test",
-    linkerSettings: [
-        .unsafeFlags(["-Llib", "-ltest"])
-    ]
-)
-```
-
-This ensures each package is self-contained with no system dependencies.
+- **Fast**: No FFI overhead, direct memory access
+- **Type-safe**: Compile-time type checking
+- **Debuggable**: Step through generated code
+- **Portable**: No shared library dependencies
+- **Simple**: Single-language build chain
 
 ## Code Organization
 
-### Go Generator
-```
-pkg/generator/generator_go.go
-  → Single file per message
-  → Pure Go, no FFI
-```
+Each generator follows a similar pattern:
 
-### C++ Generator  
-```
-pkg/generator/generator_cpp.go
-  → generated.h (types, declarations)
-  → generated.cpp (encode/decode implementation)
-  → Compiles to binary (bench) or library (for FFI)
-```
-
-### Swift Generator
-```
-pkg/generator/generator_swift.go
-  → Package.swift (SPM manifest)
-  → Sources/{package}/{package}.swift
-  → Depends on C ABI dylib via linkerSettings
-```
-
-### Multi-file Generators
 ```
 pkg/generator/
-  generator_LANG.go      # Main generator
-  generator_c_abi.go     # Shared C ABI generation
-  package.go             # PackageConfig struct
+  generator_go.go       # Go generator
+  generator_cpp.go      # C++ generator
+  generator_csharp.go   # C# generator
+  generator_java.go     # Java generator
+  generator_swift.go    # Swift generator
+  generator_dart.go     # Dart generator
+  generator_rust.go     # Rust generator
+  generator_zig.go      # Zig generator
+  package.go            # PackageConfig struct, routing
+```
+
+### Generator Structure
+
+Each `generator_LANG.go` follows this pattern:
+
+```go
+func GenerateLANGPackage(config *PackageConfig) error {
+    // 1. Generate types and encode/decode functions
+    // 2. Write output file(s)
+    // 3. Return error if any
+}
 ```
 
 ## Type Mapping Reference
 
-| ffire Type | Go | C++ | Swift | Python |
-|------------|----|----|-------|--------|
-| int32 | int32 | int32_t | Int32 | int |
-| int64 | int64 | int64_t | Int64 | int |
-| float32 | float32 | float | Float | float |
-| float64 | float64 | double | Double | float |
-| string | string | std::string | String | str |
-| bool | bool | bool | Bool | bool |
-| []T | []T | std::vector\<T\> | [T] | list[T] |
-| *T (optional) | *T | std::optional\<T\> | T? | Optional[T] |
+| ffire Type | Go | C++ | C# | Java | Swift | Dart | Rust | Zig |
+|------------|----|----|----|----|-------|------|------|-----|
+| int32 | int32 | int32_t | int | int | Int32 | int | i32 | i32 |
+| int64 | int64 | int64_t | long | long | Int64 | int | i64 | i64 |
+| float32 | float32 | float | float | float | Float | double | f32 | f32 |
+| float64 | float64 | double | double | double | Double | double | f64 | f64 |
+| string | string | std::string | string | String | String | String | String | []u8 |
+| bool | bool | bool | bool | boolean | Bool | bool | bool | bool |
+| []T | []T | std::vector\<T\> | List\<T\> | ArrayList\<T\> | [T] | List\<T\> | Vec\<T\> | []T |
+| *T | *T | std::optional\<T\> | T? | T | T? | T? | Option\<T\> | ?T |
 
 ## Error Handling Patterns
 
@@ -302,14 +81,24 @@ func Decode(data []byte) (*Message, error)
 Message decode(const std::vector<uint8_t>& data)
 ```
 
+**C#:** Throw exceptions
+```csharp
+public static Message Decode(byte[] data)
+```
+
+**Java:** Throw exceptions
+```java
+public static Message decode(byte[] data) throws FFireException
+```
+
 **Swift:** Throw errors
 ```swift
 func decode(_ data: Data) throws -> Message
 ```
 
-**C ABI:** Error out-parameter
-```c
-Handle decode(const uint8_t* data, int32_t size, char** error)
+**Rust:** Return Result
+```rust
+fn decode(data: &[u8]) -> Result<Message, FFireError>
 ```
 
 Language bindings convert C errors to native exceptions.
