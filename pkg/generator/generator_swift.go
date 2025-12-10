@@ -58,6 +58,55 @@ func SanitizeSwiftModuleName(name string) string {
 	return name
 }
 
+// estimateStructSize calculates the minimum encoded size of a struct type.
+// This is used for capacity pre-allocation to minimize buffer reallocations.
+// Returns the sum of:
+// - Fixed-size primitive fields
+// - 2 bytes per string/array length prefix
+// - 1 byte per optional presence flag
+// - 16 bytes per string (heuristic for average string content)
+// - Recursively calculates nested struct sizes
+func estimateStructSize(structType *schema.StructType) int {
+	size := 0
+	for _, field := range structType.Fields {
+		size += estimateFieldSize(field.Type)
+	}
+	return size
+}
+
+func estimateFieldSize(fieldType schema.Type) int {
+	switch t := fieldType.(type) {
+	case *schema.PrimitiveType:
+		baseSize := 0
+		switch t.Name {
+		case "bool", "int8":
+			baseSize = 1
+		case "int16":
+			baseSize = 2
+		case "int32", "float32":
+			baseSize = 4
+		case "int64", "float64":
+			baseSize = 8
+		case "string":
+			baseSize = 2 + 16 // length prefix + avg string content
+		}
+		if t.Optional {
+			return 1 + baseSize // presence flag + value
+		}
+		return baseSize
+	case *schema.ArrayType:
+		elemSize := estimateFieldSize(t.ElementType)
+		// Assume avg 5 elements + 2 bytes length prefix
+		if t.Optional {
+			return 1 + 2 + elemSize*5
+		}
+		return 2 + elemSize*5
+	case *schema.StructType:
+		return estimateStructSize(t)
+	}
+	return 32 // fallback
+}
+
 // GenerateSwiftPackage generates a complete Swift package using the orchestrator
 func GenerateSwiftPackage(config *PackageConfig) error {
 	// Sanitize the namespace to avoid Swift keywords
@@ -240,7 +289,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("public func %s(_ message: %s) -> Data {\n", funcName, structName))
-	buf.WriteString("    var buffer = Data()\n")
+	buf.WriteString("    var buffer = [UInt8]()\n")
 	// Dynamic capacity based on message type
 	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
 		if primType, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
@@ -254,15 +303,23 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 			case "int64", "float64":
 				buf.WriteString("    buffer.reserveCapacity(2 + message.count * 8)\n")
 			default:
-				// For strings and complex types, use heuristic
+				// For strings, use heuristic based on average string length
 				buf.WriteString("    buffer.reserveCapacity(max(1024, message.count * 32))\n")
 			}
+		} else if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
+			// For struct arrays, estimate based on struct field sizes
+			estimatedSize := estimateStructSize(structType)
+			buf.WriteString(fmt.Sprintf("    buffer.reserveCapacity(max(1024, message.count * %d))\n", estimatedSize))
 		} else {
-			// For struct arrays, use heuristic
+			// Fallback for other types
 			buf.WriteString("    buffer.reserveCapacity(max(1024, message.count * 64))\n")
 		}
+	} else if structType, ok := msg.TargetType.(*schema.StructType); ok {
+		// For struct messages, estimate based on struct field sizes
+		estimatedSize := estimateStructSize(structType)
+		buf.WriteString(fmt.Sprintf("    buffer.reserveCapacity(%d)\n", max(1024, estimatedSize)))
 	} else {
-		// For struct messages, use fixed capacity
+		// Fallback
 		buf.WriteString("    buffer.reserveCapacity(1024)\n")
 	}
 
@@ -308,7 +365,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 				buf.WriteString("        totalSize += 2 + strings[i].utf8.count // length prefix + bytes\n")
 				buf.WriteString("    }\n")
 				buf.WriteString("    // Single allocation\n")
-				buf.WriteString("    buffer = Data(count: totalSize)\n")
+				buf.WriteString("    buffer = [UInt8](repeating: 0, count: totalSize)\n")
 				buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
 				buf.WriteString("        let base = ptr.baseAddress!\n")
 				buf.WriteString("        var pos = 0\n")
@@ -357,7 +414,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 				buf.WriteString(fmt.Sprintf("    // Optimized: struct has only primitives, fixed size = %d bytes\n", fixedSize))
 				buf.WriteString(fmt.Sprintf("    let structSize = %d\n", fixedSize))
 				buf.WriteString("    let totalSize = 2 + message.count * structSize\n")
-				buf.WriteString("    buffer = Data(count: totalSize)\n")
+				buf.WriteString("    buffer = [UInt8](repeating: 0, count: totalSize)\n")
 				buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
 				buf.WriteString("        let base = ptr.baseAddress!\n")
 				buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
@@ -435,7 +492,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 						buf.WriteString(fmt.Sprintf("        totalSize += items[i].%s.utf8.count\n", sf))
 					}
 					buf.WriteString("    }\n")
-					buf.WriteString("    buffer = Data(count: totalSize)\n")
+					buf.WriteString("    buffer = [UInt8](repeating: 0, count: totalSize)\n")
 					buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
 					buf.WriteString("        let base = ptr.baseAddress!\n")
 					buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
@@ -547,7 +604,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 							}
 						}
 						buf.WriteString("    }\n")
-						buf.WriteString("    buffer = Data(count: totalSize)\n")
+						buf.WriteString("    buffer = [UInt8](repeating: 0, count: totalSize)\n")
 						buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
 						buf.WriteString("        let base = ptr.baseAddress!\n")
 						buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
@@ -674,7 +731,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 		}
 	}
 
-	buf.WriteString("    return buffer\n")
+	buf.WriteString("    return Data(buffer)\n")
 	buf.WriteString("}\n\n")
 }
 
@@ -1104,7 +1161,7 @@ func generateSwiftDecodeArray(buf *bytes.Buffer, arrayType *schema.ArrayType, va
 func generateSwiftStructHelpers(buf *bytes.Buffer, structType *schema.StructType) {
 	// Encode helper
 	buf.WriteString("@inlinable\n")
-	buf.WriteString(fmt.Sprintf("func encodeStruct_%s(_ buffer: inout Data, _ value: %s) {\n", structType.Name, structType.Name))
+	buf.WriteString(fmt.Sprintf("func encodeStruct_%s(_ buffer: inout [UInt8], _ value: %s) {\n", structType.Name, structType.Name))
 	for _, field := range structType.Fields {
 		generateSwiftEncodeField(buf, field, "value."+field.Name)
 	}
@@ -1240,63 +1297,58 @@ func generateSwiftHelpers(buf *bytes.Buffer) {
 
 	// Optional primitive writers - combine presence byte + value in single call
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalInt32(_ buffer: inout Data, _ value: Int32?) {\n")
+	buf.WriteString("func writeOptionalInt32(_ buffer: inout [UInt8], _ value: Int32?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    withUnsafeBytes(of: v.littleEndian) { buffer.append(contentsOf: $0) }\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalInt64(_ buffer: inout Data, _ value: Int64?) {\n")
+	buf.WriteString("func writeOptionalInt64(_ buffer: inout [UInt8], _ value: Int64?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    withUnsafeBytes(of: v.littleEndian) { buffer.append(contentsOf: $0) }\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalFloat(_ buffer: inout Data, _ value: Float?) {\n")
+	buf.WriteString("func writeOptionalFloat(_ buffer: inout [UInt8], _ value: Float?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    withUnsafeBytes(of: v.bitPattern.littleEndian) { buffer.append(contentsOf: $0) }\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalDouble(_ buffer: inout Data, _ value: Double?) {\n")
+	buf.WriteString("func writeOptionalDouble(_ buffer: inout [UInt8], _ value: Double?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    withUnsafeBytes(of: v.bitPattern.littleEndian) { buffer.append(contentsOf: $0) }\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalBool(_ buffer: inout Data, _ value: Bool?) {\n")
+	buf.WriteString("func writeOptionalBool(_ buffer: inout [UInt8], _ value: Bool?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    buffer.append(v ? 1 : 0)\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func writeOptionalString(_ buffer: inout Data, _ value: String?) {\n")
+	buf.WriteString("func writeOptionalString(_ buffer: inout [UInt8], _ value: String?) {\n")
 	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
 	buf.WriteString("    buffer.append(1)\n")
 	buf.WriteString("    // Reuse encodeString for consistency\n")
 	buf.WriteString("    encodeString(&buffer, v)\n")
 	buf.WriteString("}\n\n")
 
-	// String encoding - use withUTF8 + memcpy
+	// String encoding - use append for [UInt8] (very fast compared to Data.append)
 	buf.WriteString("@inlinable\n")
-	buf.WriteString("func encodeString(_ buffer: inout Data, _ string: String) {\n")
+	buf.WriteString("func encodeString(_ buffer: inout [UInt8], _ string: String) {\n")
 	buf.WriteString("    var s = string\n")
 	buf.WriteString("    s.withUTF8 { utf8 in\n")
 	buf.WriteString("        let len = UInt16(utf8.count)\n")
-	buf.WriteString("        let byteCount = utf8.count\n")
-	buf.WriteString("        let startPos = buffer.count\n")
-	buf.WriteString("        buffer.count += 2 + byteCount\n")
-	buf.WriteString("        buffer.withUnsafeMutableBytes { ptr in\n")
-	buf.WriteString("            let dest = ptr.baseAddress!.advanced(by: startPos)\n")
-	buf.WriteString("            dest.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
-	buf.WriteString("            if let src = utf8.baseAddress {\n")
-	buf.WriteString("                memcpy(dest.advanced(by: 2), src, byteCount)\n")
-	buf.WriteString("            }\n")
+	buf.WriteString("        buffer.append(UInt8(len & 0xFF))\n")
+	buf.WriteString("        buffer.append(UInt8(len >> 8))\n")
+	buf.WriteString("        if let base = utf8.baseAddress {\n")
+	buf.WriteString("            buffer.append(contentsOf: UnsafeBufferPointer(start: base, count: utf8.count))\n")
 	buf.WriteString("        }\n")
 	buf.WriteString("    }\n")
 	buf.WriteString("}\n\n")
