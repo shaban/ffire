@@ -483,7 +483,7 @@ func runGo() error {
 		"ffire_cpp_", "ffire_python_", "ffire_dart_", "ffire_swift_",
 		"ffire_javascript_", "ffire_java_", "ffire_csharp_",
 	}
-	
+
 	for _, dir := range allDirs {
 		base := filepath.Base(dir)
 		// Skip if it matches any language-specific prefix
@@ -1403,9 +1403,25 @@ func runSwiftBench(dir string) (BenchResult, error) {
 		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
 	}
 
+	// Extract JSON from output (skip build messages)
+	// The JSON line starts with { and ends with }
+	lines := strings.Split(string(output), "\n")
+	var jsonLine string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
+			jsonLine = trimmed
+			break
+		}
+	}
+
+	if jsonLine == "" {
+		return BenchResult{}, fmt.Errorf("no JSON output found\nOutput: %s", output)
+	}
+
 	var result BenchResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
+	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nJSON: %s", err, jsonLine)
 	}
 
 	return result, nil
