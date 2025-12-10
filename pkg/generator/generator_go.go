@@ -733,43 +733,33 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 	// Determine element type string
 	elemTypeStr := g.goTypeString(typ.ElementType)
 
-	// Allocate slice
+	// Optimization: use append(nil, src...) for primitive arrays to avoid make() zeroing overhead
 	sliceVar := g.uniqueVar("tmpSlice")
-	fmt.Fprintf(g.buf, "%s := make([]%s, %s)\n", sliceVar, elemTypeStr, lenVar)
-
-	// Optimization: use bulk copy for fixed-size primitive arrays
 	if primType, ok := typ.ElementType.(*schema.PrimitiveType); ok && !primType.Optional {
 		switch primType.Name {
 		case "int8", "bool":
-			// 1-byte types: direct unsafe.Slice copy
-			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
-			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
-				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			// 1-byte types: append from unsafe.Slice avoids zeroing
+			fmt.Fprintf(g.buf, "%s := append([]%s(nil), unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s))...)\n",
+				sliceVar, elemTypeStr, elemTypeStr, dataVar, posVar, lenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s)\n", posVar, lenVar)
-			fmt.Fprintf(g.buf, "}\n")
 		case "int16":
 			// 2-byte types
-			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
-			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
-				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s := append([]%s(nil), unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s))...)\n",
+				sliceVar, elemTypeStr, elemTypeStr, dataVar, posVar, lenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s) * 2\n", posVar, lenVar)
-			fmt.Fprintf(g.buf, "}\n")
 		case "int32", "float32":
 			// 4-byte types
-			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
-			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
-				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s := append([]%s(nil), unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s))...)\n",
+				sliceVar, elemTypeStr, elemTypeStr, dataVar, posVar, lenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s) * 4\n", posVar, lenVar)
-			fmt.Fprintf(g.buf, "}\n")
 		case "int64", "float64":
 			// 8-byte types
-			fmt.Fprintf(g.buf, "if %s > 0 {\n", lenVar)
-			fmt.Fprintf(g.buf, "copy(%s, unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s)))\n",
-				sliceVar, elemTypeStr, dataVar, posVar, lenVar)
+			fmt.Fprintf(g.buf, "%s := append([]%s(nil), unsafe.Slice((*%s)(unsafe.Pointer(&%s[%s])), int(%s))...)\n",
+				sliceVar, elemTypeStr, elemTypeStr, dataVar, posVar, lenVar)
 			fmt.Fprintf(g.buf, "%s += int(%s) * 8\n", posVar, lenVar)
-			fmt.Fprintf(g.buf, "}\n")
 		case "string":
-			// Optimized string decode: read all lengths first for better cache locality
+			// Strings need element-by-element decode
+			fmt.Fprintf(g.buf, "%s := make([]%s, %s)\n", sliceVar, elemTypeStr, lenVar)
 			fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
 			strLenVar := g.uniqueVar("strLen")
 			fmt.Fprintf(g.buf, "%s := uint16(%s[%s]) | uint16(%s[%s+1])<<8\n",
@@ -781,12 +771,14 @@ func (g *goGenerator) generateDecodeArrayDirect(dataVar, posVar, resultVar strin
 			fmt.Fprintf(g.buf, "}\n")
 		default:
 			// Fallback for unknown primitives (shouldn't happen)
+			fmt.Fprintf(g.buf, "%s := make([]%s, %s)\n", sliceVar, elemTypeStr, lenVar)
 			fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
 			g.generateDecodeValueDirect(dataVar, posVar, sliceVar+"[i]", typ.ElementType, false)
 			g.buf.WriteString("}\n")
 		}
 	} else {
 		// Non-primitive or optional element: use element-by-element decode
+		fmt.Fprintf(g.buf, "%s := make([]%s, %s)\n", sliceVar, elemTypeStr, lenVar)
 		fmt.Fprintf(g.buf, "for i := range %s {\n", sliceVar)
 		g.generateDecodeValueDirect(dataVar, posVar, sliceVar+"[i]", typ.ElementType, false)
 		g.buf.WriteString("}\n")
