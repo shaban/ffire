@@ -3,6 +3,8 @@ site_description: Fast binary serialization format
 repo_url: https://github.com/shaban/ffire
 repo_name: shaban/ffire
 
+docs_dir: docs
+
 theme:
   name: material
   palette:
