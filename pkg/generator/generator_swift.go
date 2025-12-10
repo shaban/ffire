@@ -148,11 +148,22 @@ func generateSwiftNative(s *schema.Schema) ([]byte, error) {
 		generateSwiftDecoderFunc(&buf, msg)
 	}
 
-	// Generate struct helper functions
+	// Generate struct helper functions (only for referenced types, not root messages)
 	buf.WriteString("// MARK: - Struct Helpers\n\n")
+	// Build a set of root message type names
+	rootMessageTypes := make(map[string]bool)
+	for _, msg := range s.Messages {
+		if st, ok := msg.TargetType.(*schema.StructType); ok {
+			rootMessageTypes[st.Name] = true
+		}
+	}
+	// Only generate helpers for non-root struct types
 	for _, typ := range s.Types {
 		if structType, ok := typ.(*schema.StructType); ok {
-			generateSwiftStructHelpers(&buf, structType)
+			// Skip if this is a root message type
+			if !rootMessageTypes[structType.Name] {
+				generateSwiftStructHelpers(&buf, structType)
+			}
 		}
 	}
 
@@ -230,7 +241,30 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("public func %s(_ message: %s) -> Data {\n", funcName, structName))
 	buf.WriteString("    var buffer = Data()\n")
-	buf.WriteString("    buffer.reserveCapacity(1024)\n")
+	// Dynamic capacity based on message type
+	if arrayType, ok := msg.TargetType.(*schema.ArrayType); ok {
+		if primType, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
+			switch primType.Name {
+			case "int8", "bool":
+				buf.WriteString("    buffer.reserveCapacity(2 + message.count)\n")
+			case "int16":
+				buf.WriteString("    buffer.reserveCapacity(2 + message.count * 2)\n")
+			case "int32", "float32":
+				buf.WriteString("    buffer.reserveCapacity(2 + message.count * 4)\n")
+			case "int64", "float64":
+				buf.WriteString("    buffer.reserveCapacity(2 + message.count * 8)\n")
+			default:
+				// For strings and complex types, use heuristic
+				buf.WriteString("    buffer.reserveCapacity(max(1024, message.count * 32))\n")
+			}
+		} else {
+			// For struct arrays, use heuristic
+			buf.WriteString("    buffer.reserveCapacity(max(1024, message.count * 64))\n")
+		}
+	} else {
+		// For struct messages, use fixed capacity
+		buf.WriteString("    buffer.reserveCapacity(1024)\n")
+	}
 
 	switch t := msg.TargetType.(type) {
 	case *schema.StructType:
@@ -244,18 +278,399 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 		if primType, ok := t.ElementType.(*schema.PrimitiveType); ok {
 			switch primType.Name {
 			case "bool":
+				// Bool arrays need element-by-element conversion
 				buf.WriteString("    for item in message { buffer.append(item ? 1 : 0) }\n")
 			case "int8":
+				// Int8 arrays need bitPattern conversion
 				buf.WriteString("    for item in message { buffer.append(UInt8(bitPattern: item)) }\n")
-			case "int16", "int32", "int64":
-				buf.WriteString("    for item in message { withUnsafeBytes(of: item.littleEndian) { buffer.append(contentsOf: $0) } }\n")
-			case "float32", "float64":
-				buf.WriteString("    for item in message { withUnsafeBytes(of: item.bitPattern.littleEndian) { buffer.append(contentsOf: $0) } }\n")
+			case "int16":
+				// Bulk copy for Int16 arrays
+				buf.WriteString("    message.withUnsafeBytes { buffer.append(contentsOf: $0) }\n")
+			case "int32":
+				// Bulk copy for Int32 arrays
+				buf.WriteString("    message.withUnsafeBytes { buffer.append(contentsOf: $0) }\n")
+			case "int64":
+				// Bulk copy for Int64 arrays
+				buf.WriteString("    message.withUnsafeBytes { buffer.append(contentsOf: $0) }\n")
+			case "float32":
+				// Bulk copy for Float arrays
+				buf.WriteString("    message.withUnsafeBytes { buffer.append(contentsOf: $0) }\n")
+			case "float64":
+				// Bulk copy for Double arrays
+				buf.WriteString("    message.withUnsafeBytes { buffer.append(contentsOf: $0) }\n")
 			case "string":
-				buf.WriteString("    for item in message { encodeString(&buffer, item) }\n")
+				// Two-pass encoding: calculate total size, then bulk write
+				buf.WriteString("    // Fast path: pre-calculate total size and write in one pass\n")
+				buf.WriteString("    var strings = message\n")
+				buf.WriteString("    var totalSize = 2 // array length prefix\n")
+				buf.WriteString("    for i in 0..<strings.count {\n")
+				buf.WriteString("        strings[i].makeContiguousUTF8()\n")
+				buf.WriteString("        totalSize += 2 + strings[i].utf8.count // length prefix + bytes\n")
+				buf.WriteString("    }\n")
+				buf.WriteString("    // Single allocation\n")
+				buf.WriteString("    buffer = Data(count: totalSize)\n")
+				buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
+				buf.WriteString("        let base = ptr.baseAddress!\n")
+				buf.WriteString("        var pos = 0\n")
+				buf.WriteString("        // Write array length\n")
+				buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
+				buf.WriteString("        pos = 2\n")
+				buf.WriteString("        // Write each string using index to access mutated array\n")
+				buf.WriteString("        for i in 0..<strings.count {\n")
+				buf.WriteString("            strings[i].withUTF8 { utf8 in\n")
+				buf.WriteString("                let strLen = UInt16(utf8.count)\n")
+				buf.WriteString("                base.storeBytes(of: strLen.littleEndian, toByteOffset: pos, as: UInt16.self)\n")
+				buf.WriteString("                pos += 2\n")
+				buf.WriteString("                if let src = utf8.baseAddress {\n")
+				buf.WriteString("                    memcpy(base.advanced(by: pos), src, utf8.count)\n")
+				buf.WriteString("                }\n")
+				buf.WriteString("                pos += utf8.count\n")
+				buf.WriteString("            }\n")
+				buf.WriteString("        }\n")
+				buf.WriteString("    }\n")
 			}
 		} else if structType, ok := t.ElementType.(*schema.StructType); ok {
-			buf.WriteString(fmt.Sprintf("    for item in message { encodeStruct_%s(&buffer, item) }\n", structType.Name))
+			// Check if struct has only primitive fields (no strings, arrays, or nested structs)
+			hasOnlyPrimitives := true
+			fixedSize := 0
+			for _, field := range structType.Fields {
+				if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+					switch primType.Name {
+					case "bool", "int8":
+						fixedSize += 1
+					case "int16":
+						fixedSize += 2
+					case "int32", "float32":
+						fixedSize += 4
+					case "int64", "float64":
+						fixedSize += 8
+					case "string":
+						hasOnlyPrimitives = false
+					}
+				} else {
+					hasOnlyPrimitives = false
+				}
+			}
+
+			if hasOnlyPrimitives && fixedSize > 0 {
+				// For structs with only primitive fields, we can bulk allocate
+				buf.WriteString(fmt.Sprintf("    // Optimized: struct has only primitives, fixed size = %d bytes\n", fixedSize))
+				buf.WriteString(fmt.Sprintf("    let structSize = %d\n", fixedSize))
+				buf.WriteString("    let totalSize = 2 + message.count * structSize\n")
+				buf.WriteString("    buffer = Data(count: totalSize)\n")
+				buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
+				buf.WriteString("        let base = ptr.baseAddress!\n")
+				buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
+				buf.WriteString("        var pos = 2\n")
+				buf.WriteString("        for item in message {\n")
+				// Generate inline field writes
+				for _, field := range structType.Fields {
+					if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+						accessor := fmt.Sprintf("item.%s", field.Name)
+						switch primType.Name {
+						case "bool":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s ? UInt8(1) : UInt8(0), toByteOffset: pos, as: UInt8.self)\n", accessor))
+							buf.WriteString("            pos += 1\n")
+						case "int8":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: UInt8(bitPattern: %s), toByteOffset: pos, as: UInt8.self)\n", accessor))
+							buf.WriteString("            pos += 1\n")
+						case "int16":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int16.self)\n", accessor))
+							buf.WriteString("            pos += 2\n")
+						case "int32":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int32.self)\n", accessor))
+							buf.WriteString("            pos += 4\n")
+						case "int64":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int64.self)\n", accessor))
+							buf.WriteString("            pos += 8\n")
+						case "float32":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt32.self)\n", accessor))
+							buf.WriteString("            pos += 4\n")
+						case "float64":
+							buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt64.self)\n", accessor))
+							buf.WriteString("            pos += 8\n")
+						}
+					}
+				}
+				buf.WriteString("        }\n")
+				buf.WriteString("    }\n")
+			} else {
+				// Check if struct has only non-optional primitives and strings (no arrays, nested structs, or optionals)
+				hasOnlySimpleFields := true
+				stringFields := []string{}
+				fixedSize := 0
+				for _, field := range structType.Fields {
+					if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+						// Skip optional fields - they have variable encoding
+						if primType.Optional {
+							hasOnlySimpleFields = false
+							continue
+						}
+						switch primType.Name {
+						case "bool", "int8":
+							fixedSize += 1
+						case "int16":
+							fixedSize += 2
+						case "int32", "float32":
+							fixedSize += 4
+						case "int64", "float64":
+							fixedSize += 8
+						case "string":
+							fixedSize += 2 // length prefix
+							stringFields = append(stringFields, field.Name)
+						}
+					} else {
+						hasOnlySimpleFields = false
+					}
+				}
+
+				if hasOnlySimpleFields && len(stringFields) > 0 {
+					// Two-pass optimization for structs with primitives and strings
+					buf.WriteString("    // Two-pass: calculate total size, then bulk write\n")
+					buf.WriteString("    var items = message\n")
+					buf.WriteString(fmt.Sprintf("    var totalSize = 2 + message.count * %d // array len + fixed portion\n", fixedSize))
+					buf.WriteString("    for i in 0..<items.count {\n")
+					for _, sf := range stringFields {
+						buf.WriteString(fmt.Sprintf("        items[i].%s.makeContiguousUTF8()\n", sf))
+						buf.WriteString(fmt.Sprintf("        totalSize += items[i].%s.utf8.count\n", sf))
+					}
+					buf.WriteString("    }\n")
+					buf.WriteString("    buffer = Data(count: totalSize)\n")
+					buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
+					buf.WriteString("        let base = ptr.baseAddress!\n")
+					buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
+					buf.WriteString("        var pos = 2\n")
+					buf.WriteString("        for i in 0..<items.count {\n")
+					// Generate inline field writes
+					for _, field := range structType.Fields {
+						if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+							accessor := fmt.Sprintf("items[i].%s", field.Name)
+							switch primType.Name {
+							case "bool":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s ? UInt8(1) : UInt8(0), toByteOffset: pos, as: UInt8.self)\n", accessor))
+								buf.WriteString("            pos += 1\n")
+							case "int8":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: UInt8(bitPattern: %s), toByteOffset: pos, as: UInt8.self)\n", accessor))
+								buf.WriteString("            pos += 1\n")
+							case "int16":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int16.self)\n", accessor))
+								buf.WriteString("            pos += 2\n")
+							case "int32":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int32.self)\n", accessor))
+								buf.WriteString("            pos += 4\n")
+							case "int64":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int64.self)\n", accessor))
+								buf.WriteString("            pos += 8\n")
+							case "float32":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt32.self)\n", accessor))
+								buf.WriteString("            pos += 4\n")
+							case "float64":
+								buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt64.self)\n", accessor))
+								buf.WriteString("            pos += 8\n")
+							case "string":
+								buf.WriteString(fmt.Sprintf("            %s.withUTF8 { utf8 in\n", accessor))
+								buf.WriteString("                let strLen = UInt16(utf8.count)\n")
+								buf.WriteString("                base.storeBytes(of: strLen.littleEndian, toByteOffset: pos, as: UInt16.self)\n")
+								buf.WriteString("                pos += 2\n")
+								buf.WriteString("                if let src = utf8.baseAddress {\n")
+								buf.WriteString("                    memcpy(base.advanced(by: pos), src, utf8.count)\n")
+								buf.WriteString("                }\n")
+								buf.WriteString("                pos += utf8.count\n")
+								buf.WriteString("            }\n")
+							}
+						}
+					}
+					buf.WriteString("        }\n")
+					buf.WriteString("    }\n")
+				} else {
+					// Check if struct has only primitives/strings with some optionals (no arrays or nested structs)
+					hasOnlyPrimitivesAndOptionals := true
+					hasOptionals := false
+					for _, field := range structType.Fields {
+						if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+							if primType.Optional {
+								hasOptionals = true
+							}
+						} else {
+							hasOnlyPrimitivesAndOptionals = false
+						}
+					}
+
+					if hasOnlyPrimitivesAndOptionals && hasOptionals {
+						// Two-pass optimization for structs with optional fields
+						buf.WriteString("    // Two-pass: calculate total size including optionals, then bulk write\n")
+						buf.WriteString("    var items = message\n")
+						buf.WriteString("    var totalSize = 2 // array length prefix\n")
+						buf.WriteString("    for i in 0..<items.count {\n")
+						// Calculate size for each field
+						for _, field := range structType.Fields {
+							if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+								accessor := fmt.Sprintf("items[i].%s", field.Name)
+								if primType.Optional {
+									// Optional field: 1 byte presence + value if present
+									switch primType.Name {
+									case "bool":
+										buf.WriteString(fmt.Sprintf("        totalSize += 1 + (%s != nil ? 1 : 0)\n", accessor))
+									case "int8":
+										buf.WriteString(fmt.Sprintf("        totalSize += 1 + (%s != nil ? 1 : 0)\n", accessor))
+									case "int16":
+										buf.WriteString(fmt.Sprintf("        totalSize += 1 + (%s != nil ? 2 : 0)\n", accessor))
+									case "int32", "float32":
+										buf.WriteString(fmt.Sprintf("        totalSize += 1 + (%s != nil ? 4 : 0)\n", accessor))
+									case "int64", "float64":
+										buf.WriteString(fmt.Sprintf("        totalSize += 1 + (%s != nil ? 8 : 0)\n", accessor))
+									case "string":
+										buf.WriteString(fmt.Sprintf("        if var s = %s {\n", accessor))
+										buf.WriteString("            s.makeContiguousUTF8()\n")
+										buf.WriteString(fmt.Sprintf("            items[i].%s = s\n", field.Name))
+										buf.WriteString("            totalSize += 1 + 2 + s.utf8.count\n")
+										buf.WriteString("        } else {\n")
+										buf.WriteString("            totalSize += 1\n")
+										buf.WriteString("        }\n")
+									}
+								} else {
+									// Non-optional field
+									switch primType.Name {
+									case "bool", "int8":
+										buf.WriteString("        totalSize += 1\n")
+									case "int16":
+										buf.WriteString("        totalSize += 2\n")
+									case "int32", "float32":
+										buf.WriteString("        totalSize += 4\n")
+									case "int64", "float64":
+										buf.WriteString("        totalSize += 8\n")
+									case "string":
+										buf.WriteString(fmt.Sprintf("        items[i].%s.makeContiguousUTF8()\n", field.Name))
+										buf.WriteString(fmt.Sprintf("        totalSize += 2 + items[i].%s.utf8.count\n", field.Name))
+									}
+								}
+							}
+						}
+						buf.WriteString("    }\n")
+						buf.WriteString("    buffer = Data(count: totalSize)\n")
+						buf.WriteString("    buffer.withUnsafeMutableBytes { ptr in\n")
+						buf.WriteString("        let base = ptr.baseAddress!\n")
+						buf.WriteString("        base.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
+						buf.WriteString("        var pos = 2\n")
+						buf.WriteString("        for i in 0..<items.count {\n")
+						// Write each field
+						for _, field := range structType.Fields {
+							if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+								accessor := fmt.Sprintf("items[i].%s", field.Name)
+								if primType.Optional {
+									switch primType.Name {
+									case "bool":
+										buf.WriteString(fmt.Sprintf("            if let v = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                base.storeBytes(of: v ? UInt8(1) : UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									case "int32":
+										buf.WriteString(fmt.Sprintf("            if let v = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                base.storeBytes(of: v.littleEndian, toByteOffset: pos, as: Int32.self)\n")
+										buf.WriteString("                pos += 4\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									case "int64":
+										buf.WriteString(fmt.Sprintf("            if let v = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                base.storeBytes(of: v.littleEndian, toByteOffset: pos, as: Int64.self)\n")
+										buf.WriteString("                pos += 8\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									case "float32":
+										buf.WriteString(fmt.Sprintf("            if let v = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                base.storeBytes(of: v.bitPattern.littleEndian, toByteOffset: pos, as: UInt32.self)\n")
+										buf.WriteString("                pos += 4\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									case "float64":
+										buf.WriteString(fmt.Sprintf("            if let v = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                base.storeBytes(of: v.bitPattern.littleEndian, toByteOffset: pos, as: UInt64.self)\n")
+										buf.WriteString("                pos += 8\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									case "string":
+										buf.WriteString(fmt.Sprintf("            if var s = %s {\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt8(1), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("                s.withUTF8 { utf8 in\n")
+										buf.WriteString("                    base.storeBytes(of: UInt16(utf8.count).littleEndian, toByteOffset: pos, as: UInt16.self)\n")
+										buf.WriteString("                    pos += 2\n")
+										buf.WriteString("                    if let src = utf8.baseAddress {\n")
+										buf.WriteString("                        memcpy(base.advanced(by: pos), src, utf8.count)\n")
+										buf.WriteString("                    }\n")
+										buf.WriteString("                    pos += utf8.count\n")
+										buf.WriteString("                }\n")
+										buf.WriteString("            } else {\n")
+										buf.WriteString("                base.storeBytes(of: UInt8(0), toByteOffset: pos, as: UInt8.self)\n")
+										buf.WriteString("                pos += 1\n")
+										buf.WriteString("            }\n")
+									}
+								} else {
+									// Non-optional field
+									switch primType.Name {
+									case "bool":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s ? UInt8(1) : UInt8(0), toByteOffset: pos, as: UInt8.self)\n", accessor))
+										buf.WriteString("            pos += 1\n")
+									case "int8":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: UInt8(bitPattern: %s), toByteOffset: pos, as: UInt8.self)\n", accessor))
+										buf.WriteString("            pos += 1\n")
+									case "int16":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int16.self)\n", accessor))
+										buf.WriteString("            pos += 2\n")
+									case "int32":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int32.self)\n", accessor))
+										buf.WriteString("            pos += 4\n")
+									case "int64":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.littleEndian, toByteOffset: pos, as: Int64.self)\n", accessor))
+										buf.WriteString("            pos += 8\n")
+									case "float32":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt32.self)\n", accessor))
+										buf.WriteString("            pos += 4\n")
+									case "float64":
+										buf.WriteString(fmt.Sprintf("            base.storeBytes(of: %s.bitPattern.littleEndian, toByteOffset: pos, as: UInt64.self)\n", accessor))
+										buf.WriteString("            pos += 8\n")
+									case "string":
+										buf.WriteString(fmt.Sprintf("            %s.withUTF8 { utf8 in\n", accessor))
+										buf.WriteString("                base.storeBytes(of: UInt16(utf8.count).littleEndian, toByteOffset: pos, as: UInt16.self)\n")
+										buf.WriteString("                pos += 2\n")
+										buf.WriteString("                if let src = utf8.baseAddress {\n")
+										buf.WriteString("                    memcpy(base.advanced(by: pos), src, utf8.count)\n")
+										buf.WriteString("                }\n")
+										buf.WriteString("                pos += utf8.count\n")
+										buf.WriteString("            }\n")
+									}
+								}
+							}
+						}
+						buf.WriteString("        }\n")
+						buf.WriteString("    }\n")
+					} else {
+						// Fallback: structs with arrays or nested structs
+						buf.WriteString(fmt.Sprintf("    for item in message { encodeStruct_%s(&buffer, item) }\n", structType.Name))
+					}
+				}
+			}
 		}
 	}
 
@@ -266,13 +681,41 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 func generateSwiftEncodeField(buf *bytes.Buffer, field schema.Field, accessor string) {
 	// Check if optional
 	isOptional := field.Type.IsOptional()
-	
+
+	// For optional primitives and strings, use dedicated helper functions
+	if isOptional {
+		switch t := field.Type.(type) {
+		case *schema.PrimitiveType:
+			switch t.Name {
+			case "bool":
+				buf.WriteString(fmt.Sprintf("    writeOptionalBool(&buffer, %s)\n", accessor))
+				return
+			case "int32":
+				buf.WriteString(fmt.Sprintf("    writeOptionalInt32(&buffer, %s)\n", accessor))
+				return
+			case "int64":
+				buf.WriteString(fmt.Sprintf("    writeOptionalInt64(&buffer, %s)\n", accessor))
+				return
+			case "float32":
+				buf.WriteString(fmt.Sprintf("    writeOptionalFloat(&buffer, %s)\n", accessor))
+				return
+			case "float64":
+				buf.WriteString(fmt.Sprintf("    writeOptionalDouble(&buffer, %s)\n", accessor))
+				return
+			case "string":
+				buf.WriteString(fmt.Sprintf("    writeOptionalString(&buffer, %s)\n", accessor))
+				return
+			}
+		}
+	}
+
+	// Fallback for int8, int16 optionals and other types
 	if isOptional {
 		buf.WriteString(fmt.Sprintf("    if let unwrapped = %s {\n", accessor))
 		buf.WriteString("        buffer.append(1) // present\n")
 		accessor = "unwrapped"
 	}
-	
+
 	switch t := field.Type.(type) {
 	case *schema.PrimitiveType:
 		generateSwiftEncodePrimitive(buf, t.Name, accessor)
@@ -281,7 +724,7 @@ func generateSwiftEncodeField(buf *bytes.Buffer, field schema.Field, accessor st
 	case *schema.StructType:
 		buf.WriteString(fmt.Sprintf("        encodeStruct_%s(&buffer, %s)\n", t.Name, accessor))
 	}
-	
+
 	if isOptional {
 		buf.WriteString("    } else {\n")
 		buf.WriteString("        buffer.append(0) // absent\n")
@@ -317,13 +760,26 @@ func generateSwiftEncodeArray(buf *bytes.Buffer, arrayType *schema.ArrayType, ac
 	if primType, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
 		switch primType.Name {
 		case "bool":
+			// Bool arrays need element-by-element conversion
 			buf.WriteString(fmt.Sprintf("    for item in %s { buffer.append(item ? 1 : 0) }\n", accessor))
 		case "int8":
+			// Int8 arrays need bitPattern conversion
 			buf.WriteString(fmt.Sprintf("    for item in %s { buffer.append(UInt8(bitPattern: item)) }\n", accessor))
-		case "int16", "int32", "int64":
-			buf.WriteString(fmt.Sprintf("    for item in %s { withUnsafeBytes(of: item.littleEndian) { buffer.append(contentsOf: $0) } }\n", accessor))
-		case "float32", "float64":
-			buf.WriteString(fmt.Sprintf("    for item in %s { withUnsafeBytes(of: item.bitPattern.littleEndian) { buffer.append(contentsOf: $0) } }\n", accessor))
+		case "int16":
+			// Bulk copy for Int16 arrays (little-endian platforms)
+			buf.WriteString(fmt.Sprintf("    %s.withUnsafeBytes { buffer.append(contentsOf: $0) }\n", accessor))
+		case "int32":
+			// Bulk copy for Int32 arrays (little-endian platforms)
+			buf.WriteString(fmt.Sprintf("    %s.withUnsafeBytes { buffer.append(contentsOf: $0) }\n", accessor))
+		case "int64":
+			// Bulk copy for Int64 arrays (little-endian platforms)
+			buf.WriteString(fmt.Sprintf("    %s.withUnsafeBytes { buffer.append(contentsOf: $0) }\n", accessor))
+		case "float32":
+			// Bulk copy for Float arrays (little-endian platforms, IEEE 754)
+			buf.WriteString(fmt.Sprintf("    %s.withUnsafeBytes { buffer.append(contentsOf: $0) }\n", accessor))
+		case "float64":
+			// Bulk copy for Double arrays (little-endian platforms, IEEE 754)
+			buf.WriteString(fmt.Sprintf("    %s.withUnsafeBytes { buffer.append(contentsOf: $0) }\n", accessor))
 		case "string":
 			buf.WriteString(fmt.Sprintf("    for item in %s { encodeString(&buffer, item) }\n", accessor))
 		}
@@ -365,49 +821,86 @@ func generateSwiftDecoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 		if primType, ok := t.ElementType.(*schema.PrimitiveType); ok {
 			switch primType.Name {
 			case "bool":
+				// Bool arrays need element-by-element conversion
 				buf.WriteString("        return (0..<len).map { _ in\n")
 				buf.WriteString("            let v = base.load(fromByteOffset: pos, as: UInt8.self) != 0\n")
 				buf.WriteString("            pos += 1\n")
 				buf.WriteString("            return v\n")
 				buf.WriteString("        }\n")
 			case "int8":
+				// Int8 arrays need element-by-element read
 				buf.WriteString("        return (0..<len).map { _ in\n")
 				buf.WriteString("            let v = base.load(fromByteOffset: pos, as: Int8.self)\n")
 				buf.WriteString("            pos += 1\n")
 				buf.WriteString("            return v\n")
 				buf.WriteString("        }\n")
 			case "int16":
-				buf.WriteString("        return (0..<len).map { _ in\n")
-				buf.WriteString("            let v = Int16(littleEndian: base.load(fromByteOffset: pos, as: Int16.self))\n")
-				buf.WriteString("            pos += 2\n")
-				buf.WriteString("            return v\n")
+				// Bulk copy for Int16 arrays (little-endian platforms)
+				buf.WriteString("        let byteCount = len * MemoryLayout<Int16>.stride\n")
+				buf.WriteString("        let result = [Int16](unsafeUninitializedCapacity: len) { buffer, initializedCount in\n")
+				buf.WriteString("            let src = UnsafeRawPointer(base.advanced(by: pos))\n")
+				buf.WriteString("            let dst = UnsafeMutableRawPointer(buffer.baseAddress!)\n")
+				buf.WriteString("            dst.copyMemory(from: src, byteCount: byteCount)\n")
+				buf.WriteString("            initializedCount = len\n")
 				buf.WriteString("        }\n")
+				buf.WriteString("        pos += byteCount\n")
+				buf.WriteString("        return result\n")
 			case "int32":
-				buf.WriteString("        return (0..<len).map { _ in\n")
-				buf.WriteString("            let v = Int32(littleEndian: base.load(fromByteOffset: pos, as: Int32.self))\n")
-				buf.WriteString("            pos += 4\n")
-				buf.WriteString("            return v\n")
+				// Bulk copy for Int32 arrays (little-endian platforms)
+				buf.WriteString("        let byteCount = len * MemoryLayout<Int32>.stride\n")
+				buf.WriteString("        let result = [Int32](unsafeUninitializedCapacity: len) { buffer, initializedCount in\n")
+				buf.WriteString("            let src = UnsafeRawPointer(base.advanced(by: pos))\n")
+				buf.WriteString("            let dst = UnsafeMutableRawPointer(buffer.baseAddress!)\n")
+				buf.WriteString("            dst.copyMemory(from: src, byteCount: byteCount)\n")
+				buf.WriteString("            initializedCount = len\n")
 				buf.WriteString("        }\n")
+				buf.WriteString("        pos += byteCount\n")
+				buf.WriteString("        return result\n")
 			case "int64":
-				buf.WriteString("        return (0..<len).map { _ in\n")
-				buf.WriteString("            let v = Int64(littleEndian: base.load(fromByteOffset: pos, as: Int64.self))\n")
-				buf.WriteString("            pos += 8\n")
-				buf.WriteString("            return v\n")
+				// Bulk copy for Int64 arrays (little-endian platforms)
+				buf.WriteString("        let byteCount = len * MemoryLayout<Int64>.stride\n")
+				buf.WriteString("        let result = [Int64](unsafeUninitializedCapacity: len) { buffer, initializedCount in\n")
+				buf.WriteString("            let src = UnsafeRawPointer(base.advanced(by: pos))\n")
+				buf.WriteString("            let dst = UnsafeMutableRawPointer(buffer.baseAddress!)\n")
+				buf.WriteString("            dst.copyMemory(from: src, byteCount: byteCount)\n")
+				buf.WriteString("            initializedCount = len\n")
 				buf.WriteString("        }\n")
+				buf.WriteString("        pos += byteCount\n")
+				buf.WriteString("        return result\n")
 			case "float32":
-				buf.WriteString("        return (0..<len).map { _ in\n")
-				buf.WriteString("            let v = Float(bitPattern: UInt32(littleEndian: base.load(fromByteOffset: pos, as: UInt32.self)))\n")
-				buf.WriteString("            pos += 4\n")
-				buf.WriteString("            return v\n")
+				// Bulk copy for Float arrays (little-endian platforms, IEEE 754)
+				buf.WriteString("        let byteCount = len * MemoryLayout<Float>.stride\n")
+				buf.WriteString("        let result = [Float](unsafeUninitializedCapacity: len) { buffer, initializedCount in\n")
+				buf.WriteString("            let src = UnsafeRawPointer(base.advanced(by: pos))\n")
+				buf.WriteString("            let dst = UnsafeMutableRawPointer(buffer.baseAddress!)\n")
+				buf.WriteString("            dst.copyMemory(from: src, byteCount: byteCount)\n")
+				buf.WriteString("            initializedCount = len\n")
 				buf.WriteString("        }\n")
+				buf.WriteString("        pos += byteCount\n")
+				buf.WriteString("        return result\n")
 			case "float64":
-				buf.WriteString("        return (0..<len).map { _ in\n")
-				buf.WriteString("            let v = Double(bitPattern: UInt64(littleEndian: base.load(fromByteOffset: pos, as: UInt64.self)))\n")
-				buf.WriteString("            pos += 8\n")
-				buf.WriteString("            return v\n")
+				// Bulk copy for Double arrays (little-endian platforms, IEEE 754)
+				buf.WriteString("        let byteCount = len * MemoryLayout<Double>.stride\n")
+				buf.WriteString("        let result = [Double](unsafeUninitializedCapacity: len) { buffer, initializedCount in\n")
+				buf.WriteString("            let src = UnsafeRawPointer(base.advanced(by: pos))\n")
+				buf.WriteString("            let dst = UnsafeMutableRawPointer(buffer.baseAddress!)\n")
+				buf.WriteString("            dst.copyMemory(from: src, byteCount: byteCount)\n")
+				buf.WriteString("            initializedCount = len\n")
 				buf.WriteString("        }\n")
+				buf.WriteString("        pos += byteCount\n")
+				buf.WriteString("        return result\n")
 			case "string":
-				buf.WriteString("        return try (0..<len).map { _ in try decodeString(base, &pos) }\n")
+				// Optimized string array decoding - inline string creation, pre-allocate array
+				buf.WriteString("        var result = [String]()\n")
+				buf.WriteString("        result.reserveCapacity(len)\n")
+				buf.WriteString("        for _ in 0..<len {\n")
+				buf.WriteString("            let strLen = Int(UInt16(littleEndian: base.load(fromByteOffset: pos, as: UInt16.self)))\n")
+				buf.WriteString("            pos += 2\n")
+				buf.WriteString("            let str = String(decoding: UnsafeBufferPointer(start: base.advanced(by: pos).assumingMemoryBound(to: UInt8.self), count: strLen), as: UTF8.self)\n")
+				buf.WriteString("            result.append(str)\n")
+				buf.WriteString("            pos += strLen\n")
+				buf.WriteString("        }\n")
+				buf.WriteString("        return result\n")
 			}
 		} else if structType, ok := t.ElementType.(*schema.StructType); ok {
 			buf.WriteString(fmt.Sprintf("        return try (0..<len).map { _ in try decodeStruct_%s(base, &pos) }\n", structType.Name))
@@ -421,22 +914,43 @@ func generateSwiftDecoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 func generateSwiftDecodeField(buf *bytes.Buffer, field schema.Field) {
 	varName := field.Name
 	isOptional := field.Type.IsOptional()
-	
+
+	// For optional primitives and strings, use dedicated helper functions
+	if isOptional {
+		switch t := field.Type.(type) {
+		case *schema.PrimitiveType:
+			switch t.Name {
+			case "bool":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalBool(base, &pos)\n", varName))
+			case "int32":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalInt32(base, &pos)\n", varName))
+			case "int64":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalInt64(base, &pos)\n", varName))
+			case "float32":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalFloat(base, &pos)\n", varName))
+			case "float64":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalDouble(base, &pos)\n", varName))
+			case "string":
+				buf.WriteString(fmt.Sprintf("        let %s = readOptionalString(base, &pos)\n", varName))
+			default:
+				// Fallback for int8, int16 - use branching approach
+				generateSwiftDecodeOptionalFallback(buf, field)
+			}
+			return
+		}
+	}
+
+	// Non-optional primitives and strings, or types that need branching
 	if isOptional {
 		buf.WriteString(fmt.Sprintf("        let %sPresent = base.load(fromByteOffset: pos, as: UInt8.self) != 0\n", varName))
 		buf.WriteString("        pos += 1\n")
 		buf.WriteString(fmt.Sprintf("        let %s: %s\n", varName, getSwiftTypeString(field.Type)))
 		buf.WriteString(fmt.Sprintf("        if %sPresent {\n", varName))
 	}
-	
+
 	switch t := field.Type.(type) {
 	case *schema.PrimitiveType:
-		if isOptional {
-			generateSwiftDecodePrimitive(buf, t.Name, varName+"Value")
-			buf.WriteString(fmt.Sprintf("            %s = %sValue\n", varName, varName))
-		} else {
-			generateSwiftDecodePrimitive(buf, t.Name, varName)
-		}
+		generateSwiftDecodePrimitive(buf, t.Name, varName)
 	case *schema.ArrayType:
 		if isOptional {
 			generateSwiftDecodeArray(buf, t, varName+"Value")
@@ -452,7 +966,7 @@ func generateSwiftDecodeField(buf *bytes.Buffer, field schema.Field) {
 			buf.WriteString(fmt.Sprintf("        let %s = try decodeStruct_%s(base, &pos)\n", varName, t.Name))
 		}
 	}
-	
+
 	if isOptional {
 		buf.WriteString("        } else {\n")
 		buf.WriteString(fmt.Sprintf("            %s = nil\n", varName))
@@ -460,29 +974,39 @@ func generateSwiftDecodeField(buf *bytes.Buffer, field schema.Field) {
 	}
 }
 
+func generateSwiftDecodeOptionalFallback(buf *bytes.Buffer, field schema.Field) {
+	varName := field.Name
+	buf.WriteString(fmt.Sprintf("        let %sPresent = base.load(fromByteOffset: pos, as: UInt8.self) != 0\n", varName))
+	buf.WriteString("        pos += 1\n")
+	buf.WriteString(fmt.Sprintf("        let %s: %s\n", varName, getSwiftTypeString(field.Type)))
+	buf.WriteString(fmt.Sprintf("        if %sPresent {\n", varName))
+
+	if t, ok := field.Type.(*schema.PrimitiveType); ok {
+		generateSwiftDecodePrimitive(buf, t.Name, varName+"Value")
+		buf.WriteString(fmt.Sprintf("            %s = %sValue\n", varName, varName))
+	}
+
+	buf.WriteString("        } else {\n")
+	buf.WriteString(fmt.Sprintf("            %s = nil\n", varName))
+	buf.WriteString("        }\n")
+}
+
 func generateSwiftDecodePrimitive(buf *bytes.Buffer, typeName string, varName string) {
 	switch typeName {
 	case "bool":
-		buf.WriteString(fmt.Sprintf("        let %s = base.load(fromByteOffset: pos, as: UInt8.self) != 0\n", varName))
-		buf.WriteString("        pos += 1\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readBool(base, &pos)\n", varName))
 	case "int8":
-		buf.WriteString(fmt.Sprintf("        let %s = base.load(fromByteOffset: pos, as: Int8.self)\n", varName))
-		buf.WriteString("        pos += 1\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readInt8(base, &pos)\n", varName))
 	case "int16":
-		buf.WriteString(fmt.Sprintf("        let %s = Int16(littleEndian: base.load(fromByteOffset: pos, as: Int16.self))\n", varName))
-		buf.WriteString("        pos += 2\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readInt16(base, &pos)\n", varName))
 	case "int32":
-		buf.WriteString(fmt.Sprintf("        let %s = Int32(littleEndian: base.load(fromByteOffset: pos, as: Int32.self))\n", varName))
-		buf.WriteString("        pos += 4\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readInt32(base, &pos)\n", varName))
 	case "int64":
-		buf.WriteString(fmt.Sprintf("        let %s = Int64(littleEndian: base.load(fromByteOffset: pos, as: Int64.self))\n", varName))
-		buf.WriteString("        pos += 8\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readInt64(base, &pos)\n", varName))
 	case "float32":
-		buf.WriteString(fmt.Sprintf("        let %s = Float(bitPattern: UInt32(littleEndian: base.load(fromByteOffset: pos, as: UInt32.self)))\n", varName))
-		buf.WriteString("        pos += 4\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readFloat(base, &pos)\n", varName))
 	case "float64":
-		buf.WriteString(fmt.Sprintf("        let %s = Double(bitPattern: UInt64(littleEndian: base.load(fromByteOffset: pos, as: UInt64.self)))\n", varName))
-		buf.WriteString("        pos += 8\n")
+		buf.WriteString(fmt.Sprintf("        let %s = readDouble(base, &pos)\n", varName))
 	case "string":
 		buf.WriteString(fmt.Sprintf("        let %s = try decodeString(base, &pos)\n", varName))
 	}
@@ -541,8 +1065,8 @@ func generateSwiftDecodeArray(buf *bytes.Buffer, arrayType *schema.ArrayType, va
 			buf.WriteString(fmt.Sprintf("        let %s: [String] = try (0..<%sLen).map { _ in try decodeString(base, &pos) }\n", varName, varName))
 		}
 	} else if structType, ok := arrayType.ElementType.(*schema.StructType); ok {
-		buf.WriteString(fmt.Sprintf("        let %s: [%s] = try (0..<%%sLen).map { _ in try decodeStruct_%s(base, &pos) }\n", 
-			varName, elemSwiftType, structType.Name))
+		buf.WriteString(fmt.Sprintf("        let %s: [%s] = try (0..<%sLen).map { _ in try decodeStruct_%s(base, &pos) }\n", 
+			varName, elemSwiftType, varName, structType.Name))
 	}
 }
 
@@ -582,24 +1106,178 @@ func generateSwiftHelpers(buf *bytes.Buffer) {
 	buf.WriteString("    case invalidString\n")
 	buf.WriteString("}\n\n")
 
+	// Add inline helper functions for primitive reads
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readInt16(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int16 {\n")
+	buf.WriteString("    defer { pos += 2 }\n")
+	buf.WriteString("    return Int16(littleEndian: base.load(fromByteOffset: pos, as: Int16.self))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readInt32(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int32 {\n")
+	buf.WriteString("    defer { pos += 4 }\n")
+	buf.WriteString("    return Int32(littleEndian: base.load(fromByteOffset: pos, as: Int32.self))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readInt64(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int64 {\n")
+	buf.WriteString("    defer { pos += 8 }\n")
+	buf.WriteString("    return Int64(littleEndian: base.load(fromByteOffset: pos, as: Int64.self))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readFloat(_ base: UnsafeRawPointer, _ pos: inout Int) -> Float {\n")
+	buf.WriteString("    defer { pos += 4 }\n")
+	buf.WriteString("    return Float(bitPattern: UInt32(littleEndian: base.load(fromByteOffset: pos, as: UInt32.self)))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readDouble(_ base: UnsafeRawPointer, _ pos: inout Int) -> Double {\n")
+	buf.WriteString("    defer { pos += 8 }\n")
+	buf.WriteString("    return Double(bitPattern: UInt64(littleEndian: base.load(fromByteOffset: pos, as: UInt64.self)))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readBool(_ base: UnsafeRawPointer, _ pos: inout Int) -> Bool {\n")
+	buf.WriteString("    defer { pos += 1 }\n")
+	buf.WriteString("    return base.load(fromByteOffset: pos, as: UInt8.self) != 0\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readInt8(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int8 {\n")
+	buf.WriteString("    defer { pos += 1 }\n")
+	buf.WriteString("    return base.load(fromByteOffset: pos, as: Int8.self)\n")
+	buf.WriteString("}\n\n")
+
+	// Optional primitive readers - combine presence check + value read
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalInt32(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int32? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    defer { pos += 4 }\n")
+	buf.WriteString("    return Int32(littleEndian: base.load(fromByteOffset: pos, as: Int32.self))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalInt64(_ base: UnsafeRawPointer, _ pos: inout Int) -> Int64? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    defer { pos += 8 }\n")
+	buf.WriteString("    return Int64(littleEndian: base.load(fromByteOffset: pos, as: Int64.self))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalFloat(_ base: UnsafeRawPointer, _ pos: inout Int) -> Float? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    defer { pos += 4 }\n")
+	buf.WriteString("    return Float(bitPattern: UInt32(littleEndian: base.load(fromByteOffset: pos, as: UInt32.self)))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalDouble(_ base: UnsafeRawPointer, _ pos: inout Int) -> Double? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    defer { pos += 8 }\n")
+	buf.WriteString("    return Double(bitPattern: UInt64(littleEndian: base.load(fromByteOffset: pos, as: UInt64.self)))\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalBool(_ base: UnsafeRawPointer, _ pos: inout Int) -> Bool? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    defer { pos += 1 }\n")
+	buf.WriteString("    return base.load(fromByteOffset: pos, as: UInt8.self) != 0\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func readOptionalString(_ base: UnsafeRawPointer, _ pos: inout Int) -> String? {\n")
+	buf.WriteString("    let present = base.load(fromByteOffset: pos, as: UInt8.self)\n")
+	buf.WriteString("    pos += 1\n")
+	buf.WriteString("    guard present != 0 else { return nil }\n")
+	buf.WriteString("    let len = Int(UInt16(littleEndian: base.load(fromByteOffset: pos, as: UInt16.self)))\n")
+	buf.WriteString("    pos += 2\n")
+	buf.WriteString("    let result = String(decoding: UnsafeBufferPointer(start: base.advanced(by: pos).assumingMemoryBound(to: UInt8.self), count: len), as: UTF8.self)\n")
+	buf.WriteString("    pos += len\n")
+	buf.WriteString("    return result\n")
+	buf.WriteString("}\n\n")
+
+	// Optional primitive writers - combine presence byte + value in single call
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalInt32(_ buffer: inout Data, _ value: Int32?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    withUnsafeBytes(of: v.littleEndian) { buffer.append(contentsOf: $0) }\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalInt64(_ buffer: inout Data, _ value: Int64?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    withUnsafeBytes(of: v.littleEndian) { buffer.append(contentsOf: $0) }\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalFloat(_ buffer: inout Data, _ value: Float?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    withUnsafeBytes(of: v.bitPattern.littleEndian) { buffer.append(contentsOf: $0) }\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalDouble(_ buffer: inout Data, _ value: Double?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    withUnsafeBytes(of: v.bitPattern.littleEndian) { buffer.append(contentsOf: $0) }\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalBool(_ buffer: inout Data, _ value: Bool?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    buffer.append(v ? 1 : 0)\n")
+	buf.WriteString("}\n\n")
+
+	buf.WriteString("@inlinable\n")
+	buf.WriteString("func writeOptionalString(_ buffer: inout Data, _ value: String?) {\n")
+	buf.WriteString("    guard let v = value else { buffer.append(0); return }\n")
+	buf.WriteString("    buffer.append(1)\n")
+	buf.WriteString("    // Reuse encodeString for consistency\n")
+	buf.WriteString("    encodeString(&buffer, v)\n")
+	buf.WriteString("}\n\n")
+
+	// String encoding - use withUTF8 + memcpy
 	buf.WriteString("@inlinable\n")
 	buf.WriteString("func encodeString(_ buffer: inout Data, _ string: String) {\n")
-	buf.WriteString("    let utf8 = Array(string.utf8)\n")
-	buf.WriteString("    let len = UInt16(utf8.count)\n")
-	buf.WriteString("    withUnsafeBytes(of: len.littleEndian) { buffer.append(contentsOf: $0) }\n")
-	buf.WriteString("    buffer.append(contentsOf: utf8)\n")
+	buf.WriteString("    var s = string\n")
+	buf.WriteString("    s.withUTF8 { utf8 in\n")
+	buf.WriteString("        let len = UInt16(utf8.count)\n")
+	buf.WriteString("        let byteCount = utf8.count\n")
+	buf.WriteString("        let startPos = buffer.count\n")
+	buf.WriteString("        buffer.count += 2 + byteCount\n")
+	buf.WriteString("        buffer.withUnsafeMutableBytes { ptr in\n")
+	buf.WriteString("            let dest = ptr.baseAddress!.advanced(by: startPos)\n")
+	buf.WriteString("            dest.storeBytes(of: len.littleEndian, as: UInt16.self)\n")
+	buf.WriteString("            if let src = utf8.baseAddress {\n")
+	buf.WriteString("                memcpy(dest.advanced(by: 2), src, byteCount)\n")
+	buf.WriteString("            }\n")
+	buf.WriteString("        }\n")
+	buf.WriteString("    }\n")
 	buf.WriteString("}\n\n")
 
 	buf.WriteString("@inlinable\n")
 	buf.WriteString("func decodeString(_ base: UnsafeRawPointer, _ pos: inout Int) throws -> String {\n")
 	buf.WriteString("    let len = Int(UInt16(littleEndian: base.load(fromByteOffset: pos, as: UInt16.self)))\n")
 	buf.WriteString("    pos += 2\n")
-	buf.WriteString("    let bytes = UnsafeRawBufferPointer(start: base.advanced(by: pos), count: len)\n")
+	buf.WriteString("    // Use unsafe decoding - assumes valid UTF-8 (ffire guarantees this)\n")
+	buf.WriteString("    let result = String(decoding: UnsafeBufferPointer(start: base.advanced(by: pos).assumingMemoryBound(to: UInt8.self), count: len), as: UTF8.self)\n")
 	buf.WriteString("    pos += len\n")
-	buf.WriteString("    guard let str = String(bytes: bytes, encoding: .utf8) else {\n")
-	buf.WriteString("        throw FFireError.invalidString\n")
-	buf.WriteString("    }\n")
-	buf.WriteString("    return str\n")
+	buf.WriteString("    return result\n")
 	buf.WriteString("}\n")
 }
 

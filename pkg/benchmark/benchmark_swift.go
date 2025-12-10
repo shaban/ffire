@@ -5,30 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/shaban/ffire/pkg/fixture"
 	"github.com/shaban/ffire/pkg/generator"
 	"github.com/shaban/ffire/pkg/schema"
 )
 
-// Note: Swift module keyword sanitization is handled by generator.sanitizeSwiftModuleName()
+// Note: Swift module keyword sanitization is handled by generator.SanitizeSwiftModuleName()
 // See pkg/generator/generator_swift.go for the shared swiftModuleKeywords map.
-
-// rootTypeName returns the root type name for C++ function naming
-// This matches the logic in pkg/generator/generator_cpp.go
-func rootTypeName(typ schema.Type) string {
-	switch t := typ.(type) {
-	case *schema.PrimitiveType:
-		return strings.Title(t.Name)
-	case *schema.StructType:
-		return t.Name
-	case *schema.ArrayType:
-		return rootTypeName(t.ElementType)
-	default:
-		return "Unknown"
-	}
-}
+// This benchmark package generates native Swift benchmarks that use the unsafe pointer-based
+// implementation with zero-copy operations and @inlinable functions.
 
 // GenerateSwift generates a Swift benchmark with embedded fixture
 func GenerateSwift(schema *schema.Schema, schemaName, messageName string, jsonData []byte, outputDir string, iterations int) error {
@@ -96,11 +82,8 @@ func GenerateSwift(schema *schema.Schema, schemaName, messageName string, jsonDa
 	return nil
 }
 
-// generateSwiftBenchmarkCode generates the benchmark harness code using C++ interop
+// generateSwiftBenchmarkCode generates the benchmark harness code using native Swift
 func generateSwiftBenchmarkCode(s *schema.Schema, schemaName, messageName string, iterations int) string {
-	// C++ module name: {package}_cpp_{package}
-	cppModuleName := fmt.Sprintf("%s_cpp_%s", s.Package, s.Package)
-
 	// Find the message to get its target type
 	var msg *schema.MessageType
 	for i := range s.Messages {
@@ -111,19 +94,21 @@ func generateSwiftBenchmarkCode(s *schema.Schema, schemaName, messageName string
 	}
 	if msg == nil {
 		// Fallback: use message name
-		funcSuffix := strings.ToLower(messageName)
-		return generateSwiftBench(s, cppModuleName, funcSuffix, schemaName, iterations)
+		return generateSwiftBenchNative(s, messageName, schemaName, iterations)
 	}
 
-	// Function name suffix: computed from root type (matches C++ generator logic)
-	funcSuffix := strings.ToLower(rootTypeName(msg.TargetType))
-	return generateSwiftBench(s, cppModuleName, funcSuffix, schemaName, iterations)
+	// Use message name for function naming (matches native Swift generator)
+	return generateSwiftBenchNative(s, messageName, schemaName, iterations)
 }
 
-func generateSwiftBench(s *schema.Schema, cppModuleName, funcSuffix, schemaName string, iterations int) string {
+// generateSwiftBenchNative generates native Swift benchmark code (no C++ interop)
+func generateSwiftBenchNative(s *schema.Schema, messageName, schemaName string, iterations int) string {
+	// Sanitize module name to match generated package
+	moduleName := generator.SanitizeSwiftModuleName(s.Package)
+
 	buf := &bytes.Buffer{}
 
-	// Import C++ module directly - Swift uses C++ types with zero translation
+	// Import native Swift module directly
 	fmt.Fprintf(buf, `import Foundation
 import %s
 
@@ -135,46 +120,41 @@ guard let fixtureData = try? Data(contentsOf: URL(fileURLWithPath: "fixture.bin"
 let iterations = %d
 let jsonOutput = ProcessInfo.processInfo.environment["BENCH_JSON"] == "1"
 
-// Use C++ function signature verbatim: decode_plugin_message(const uint8_t* data, size_t size)
-let fixtureBytes = [UInt8](fixtureData)
-
-// Warmup - call C++ functions with exact signature from header
-for _ in 0..<1000 {
-    let decoded = fixtureBytes.withUnsafeBufferPointer { ptr in
-        %s.decode_%s_message(ptr.baseAddress!, fixtureBytes.count)
+// Warmup - call native Swift functions
+do {
+    for _ in 0..<1000 {
+        let decoded = try decode%sMessage(fixtureData)
+        let _ = encode%sMessage(decoded)
     }
-    let _ = %s.encode_%s_message(decoded)
+} catch {
+    fatalError("Warmup failed: \(error)")
 }
 
-// Benchmark decode - C++ signature: std::vector<T> decode(const uint8_t*, size_t)
-// Use batched autoreleasepool to reduce ARC overhead (4%% faster than no pool)
+// Benchmark decode - native Swift with unsafe pointers
 let decodeStart = DispatchTime.now()
-fixtureBytes.withUnsafeBufferPointer { ptr in
-    let batchSize = 1000
-    for _ in 0..<(iterations / batchSize) {
-        autoreleasepool {
-            for _ in 0..<batchSize {
-                let _ = %s.decode_%s_message(ptr.baseAddress!, fixtureBytes.count)
-            }
-        }
+do {
+    for _ in 0..<iterations {
+        let _ = try decode%sMessage(fixtureData)
     }
+} catch {
+    fatalError("Decode benchmark failed: \(error)")
 }
 let decodeEnd = DispatchTime.now()
 let decodeTimeNs = decodeEnd.uptimeNanoseconds - decodeStart.uptimeNanoseconds
 
 // Benchmark encode - decode once, then encode many times
-let decoded = fixtureBytes.withUnsafeBufferPointer { ptr in
-    %s.decode_%s_message(ptr.baseAddress!, fixtureBytes.count)
+let decoded: %sMessage
+do {
+    decoded = try decode%sMessage(fixtureData)
+} catch {
+    fatalError("Failed to decode for encode benchmark: \(error)")
 }
 
-// Use autoreleasepool per iteration for encode (3%% faster)
 let encodeStart = DispatchTime.now()
 var wireSize = 0
 for _ in 0..<iterations {
-    autoreleasepool {
-        let encoded = %s.encode_%s_message(decoded)
-        wireSize = Int(encoded.size())  // Get size from last iteration
-    }
+    let encoded = encode%sMessage(decoded)
+    wireSize = encoded.count  // Get size from last iteration
 }
 let encodeEnd = DispatchTime.now()
 let encodeTimeNs = encodeEnd.uptimeNanoseconds - encodeStart.uptimeNanoseconds
@@ -215,20 +195,19 @@ if jsonOutput {
     print(String(format: "Total time:  %%.3fs", totalTimeS))
 }
 `,
-		cppModuleName, // import C++ module
+		moduleName,  // import native Swift module
 		iterations,
-		s.Package, funcSuffix, // warmup decode
-		s.Package, funcSuffix, // warmup encode
-		s.Package, funcSuffix, // benchmark decode
-		s.Package, funcSuffix, // decode for encode benchmark
-		s.Package, funcSuffix, // benchmark encode
-		schemaName, // message in JSON output
-		schemaName) // message in human output
+		messageName, messageName, // warmup decode/encode
+		messageName, // benchmark decode
+		messageName, messageName, // decode for encode (with type annotation)
+		messageName, // benchmark encode
+		schemaName,  // message in JSON output
+		schemaName)  // message in human output
 
 	return buf.String()
 }
 
-// addTestExecutableToPackage adds a test executable target to Package.swift with C++ interop
+// addTestExecutableToPackage adds a test executable target to Package.swift for native Swift benchmarks
 func addTestExecutableToPackage(swiftDir string, schema *schema.Schema, schemaName string) error {
 	packagePath := filepath.Join(swiftDir, "Package.swift")
 	content, err := os.ReadFile(packagePath)
@@ -262,27 +241,27 @@ func addTestExecutableToPackage(swiftDir string, schema *schema.Schema, schemaNa
             targets: ["test_bench"]
         ),`), 1)
 
-	// Add to targets with C++ interop settings
-	// test_bench target needs C++ interop to import the C++ module
+	// Add to targets - native Swift only, no C++ interop needed
 	targetInsert := fmt.Sprintf(`,
         .executableTarget(
             name: "test_bench",
             dependencies: ["%s"],
-            path: "Sources/test_bench",
-            swiftSettings: [
-                .interoperabilityMode(.Cxx)
-            ]
+            path: "Sources/test_bench"
         )`, sanitizedName)
 
-	// Add test_bench target after the library target (before closing of targets array)
-	// Match the closing of the last target in the targets array
+	// Add test_bench target after the library target
+	// Match the pattern with library target closing
 	packageBytes = bytes.ReplaceAll(packageBytes,
-		[]byte(`        ),
-    ],
-    cxxLanguageStandard: .cxx17`),
-		[]byte(`        )`+targetInsert+`,
-    ],
-    cxxLanguageStandard: .cxx17`))
+		[]byte(`        .target(
+            name: "`+sanitizedName+`",
+            dependencies: [],
+            path: "Sources/`+sanitizedName+`"
+        ),`),
+		[]byte(`        .target(
+            name: "`+sanitizedName+`",
+            dependencies: [],
+            path: "Sources/`+sanitizedName+`"
+        )`+targetInsert+`,`))
 
 	return os.WriteFile(packagePath, packageBytes, 0644)
 }

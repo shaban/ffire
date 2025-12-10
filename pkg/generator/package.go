@@ -187,13 +187,13 @@ func generateIgniffiPackage(config *PackageConfig) error {
 	return nil
 }
 
-// generateCppWithSwiftPackaging generates C++ code with Swift package wrapping
+// generateCppWithSwiftPackaging generates native Swift package (no C++ interop)
 func generateCppWithSwiftPackaging(config *PackageConfig) error {
 	if config.Verbose {
-		fmt.Println("Generating C++ code with Swift packaging")
+		fmt.Println("Generating native Swift package")
 	}
 
-	// Use the existing Swift package generator but it will call C++ generation
+	// Use the Swift package generator with native unsafe pointer implementation
 	return GenerateSwiftPackage(config)
 }
 
