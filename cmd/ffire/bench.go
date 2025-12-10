@@ -168,8 +168,16 @@ Examples:
 		fmt.Printf("✓ Generated C# benchmark in %s\n", *outputDir)
 		fmt.Printf("  Run with: cd %s/csharp && dotnet run -c Release\n", *outputDir)
 
+	case "zig":
+		if err := benchmark.GenerateZig(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Zig benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/zig && zig build -Doptimize=ReleaseFast && ./zig-out/bin/bench\n", *outputDir)
+
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, python, swift, dart, java, csharp)\n", *lang)
+		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, python, swift, dart, java, csharp, zig)\n", *lang)
 		os.Exit(1)
 	}
 }

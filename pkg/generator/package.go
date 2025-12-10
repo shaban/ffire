@@ -64,12 +64,12 @@ func GeneratePackage(config *PackageConfig) error {
 
 	// Determine package type (Tier A vs Tier B)
 	switch lang {
-	case "c", "cpp", "c++", "rust", "zig":
+	case "c", "cpp", "c++", "rust":
 		return generateTierAPackage(config)
-	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php":
+	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php", "zig":
 		return generateTierBPackage(config)
 	default:
-		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust, igniffi)", config.Language)
+		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust, zig, igniffi)", config.Language)
 	}
 }
 
@@ -155,6 +155,8 @@ func generateTierBPackage(config *PackageConfig) error {
 		return generateJavaPackage(config)
 	case "csharp":
 		return generateCSharpPackage(config)
+	case "zig":
+		return GenerateZigPackage(config)
 	default:
 		return fmt.Errorf("Tier B package generation not yet implemented for %s (TODO: ruby, php, rust)", config.Language)
 	}
