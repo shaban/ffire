@@ -127,7 +127,7 @@ cargo build --release
 use %s::*;
 
 fn main() -> Result<(), FFireError> {
-    let data: &[u8] = // ... binary data
+    let bytes: &[u8] = // ... binary data
     
     // Decode
     let msg = MyMessage::decode(data)?;
@@ -254,7 +254,7 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 
 	// Decode method
 	buf.WriteString("    /// Decode a message from binary wire format\n")
-	buf.WriteString("    pub fn decode(data: &[u8]) -> Result<Self, FFireError> {\n")
+	buf.WriteString("    pub fn decode(bytes: &[u8]) -> Result<Self, FFireError> {\n")
 	buf.WriteString("        let mut pos = 0;\n")
 
 	for _, field := range structType.Fields {
@@ -279,8 +279,8 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 	buf.WriteString("}\n\n")
 
 	buf.WriteString(fmt.Sprintf("/// Decode %s from binary wire format\n", structName))
-	buf.WriteString(fmt.Sprintf("pub fn decode_%s_message(data: &[u8]) -> Result<%s, FFireError> {\n", snakeName, structName))
-	buf.WriteString(fmt.Sprintf("    %s::decode(data)\n", structName))
+	buf.WriteString(fmt.Sprintf("pub fn decode_%s_message(bytes: &[u8]) -> Result<%s, FFireError> {\n", snakeName, structName))
+	buf.WriteString(fmt.Sprintf("    %s::decode(bytes)\n", structName))
 	buf.WriteString("}\n\n")
 }
 
@@ -306,12 +306,12 @@ func generateRustArrayMessage(buf *bytes.Buffer, messageName string, arrayType *
 	buf.WriteString("}\n\n")
 
 	buf.WriteString(fmt.Sprintf("/// Decode %s from binary wire format\n", structName))
-	buf.WriteString(fmt.Sprintf("pub fn decode_%s_message(data: &[u8]) -> Result<%s, FFireError> {\n", toSnakeCase(messageName), structName))
+	buf.WriteString(fmt.Sprintf("pub fn decode_%s_message(bytes: &[u8]) -> Result<%s, FFireError> {\n", toSnakeCase(messageName), structName))
 	buf.WriteString("    let mut pos = 0;\n")
-	buf.WriteString("    if data.len() < 2 {\n")
+	buf.WriteString("    if bytes.len() < 2 {\n")
 	buf.WriteString("        return Err(FFireError::BufferTooShort);\n")
 	buf.WriteString("    }\n")
-	buf.WriteString("    let len = u16::from_le_bytes([data[0], data[1]]) as usize;\n")
+	buf.WriteString("    let len = u16::from_le_bytes([bytes[0], bytes[1]]) as usize;\n")
 	buf.WriteString("    pos += 2;\n")
 
 	generateRustDecodeArrayElements(buf, arrayType.ElementType, "result", "len", "    ")
@@ -332,7 +332,7 @@ func generateRustStructImpl(buf *bytes.Buffer, structType *schema.StructType) {
 	buf.WriteString("    }\n\n")
 
 	// Decode method
-	buf.WriteString("    fn decode_from(data: &[u8], pos: &mut usize) -> Result<Self, FFireError> {\n")
+	buf.WriteString("    fn decode_from(bytes: &[u8], pos: &mut usize) -> Result<Self, FFireError> {\n")
 	for _, field := range structType.Fields {
 		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
 		generateRustDecodeFieldWithPos(buf, field.Type, fieldName, "        ")
@@ -453,7 +453,7 @@ func generateRustDecodeField(buf *bytes.Buffer, fieldType schema.Type, varName s
 	switch t := fieldType.(type) {
 	case *schema.PrimitiveType:
 		if t.Optional {
-			buf.WriteString(fmt.Sprintf("%slet %s = if data.get(pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
+			buf.WriteString(fmt.Sprintf("%slet %s = if bytes.get(pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s    pos += 1;\n", indent))
 			generateRustDecodePrimitive(buf, t.Name, "v", indent+"    ")
 			buf.WriteString(fmt.Sprintf("%s    Some(v)\n", indent))
@@ -467,10 +467,10 @@ func generateRustDecodeField(buf *bytes.Buffer, fieldType schema.Type, varName s
 
 	case *schema.ArrayType:
 		if t.Optional {
-			buf.WriteString(fmt.Sprintf("%slet %s = if data.get(pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
+			buf.WriteString(fmt.Sprintf("%slet %s = if bytes.get(pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s    pos += 1;\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let len = u16::from_le_bytes([data[pos], data[pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let len = u16::from_le_bytes([bytes[pos], bytes[pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    pos += 2;\n", indent))
 			generateRustDecodeArrayElements(buf, t.ElementType, "arr", "len", indent+"    ")
 			buf.WriteString(fmt.Sprintf("%s    Some(arr)\n", indent))
@@ -479,14 +479,14 @@ func generateRustDecodeField(buf *bytes.Buffer, fieldType schema.Type, varName s
 			buf.WriteString(fmt.Sprintf("%s    None\n", indent))
 			buf.WriteString(fmt.Sprintf("%s};\n", indent))
 		} else {
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%slet len = u16::from_le_bytes([data[pos], data[pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%slet len = u16::from_le_bytes([bytes[pos], bytes[pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += 2;\n", indent))
 			generateRustDecodeArrayElements(buf, t.ElementType, varName, "len", indent)
 		}
 
 	case *schema.StructType:
-		buf.WriteString(fmt.Sprintf("%slet %s = %s::decode_from(data, &mut pos)?;\n", indent, varName, t.Name))
+		buf.WriteString(fmt.Sprintf("%slet %s = %s::decode_from(bytes, &mut pos)?;\n", indent, varName, t.Name))
 	}
 }
 
@@ -495,7 +495,7 @@ func generateRustDecodeFieldWithPos(buf *bytes.Buffer, fieldType schema.Type, va
 	switch t := fieldType.(type) {
 	case *schema.PrimitiveType:
 		if t.Optional {
-			buf.WriteString(fmt.Sprintf("%slet %s = if data.get(*pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
+			buf.WriteString(fmt.Sprintf("%slet %s = if bytes.get(*pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s    *pos += 1;\n", indent))
 			generateRustDecodePrimitiveWithPos(buf, t.Name, "v", indent+"    ")
 			buf.WriteString(fmt.Sprintf("%s    Some(v)\n", indent))
@@ -509,10 +509,10 @@ func generateRustDecodeFieldWithPos(buf *bytes.Buffer, fieldType schema.Type, va
 
 	case *schema.ArrayType:
 		if t.Optional {
-			buf.WriteString(fmt.Sprintf("%slet %s = if data.get(*pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
+			buf.WriteString(fmt.Sprintf("%slet %s = if bytes.get(*pos).copied().unwrap_or(0) == 1 {\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s    *pos += 1;\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let len = u16::from_le_bytes([data[*pos], data[*pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let len = u16::from_le_bytes([bytes[*pos], bytes[*pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    *pos += 2;\n", indent))
 			generateRustDecodeArrayElementsWithPos(buf, t.ElementType, "arr", "len", indent+"    ")
 			buf.WriteString(fmt.Sprintf("%s    Some(arr)\n", indent))
@@ -521,51 +521,51 @@ func generateRustDecodeFieldWithPos(buf *bytes.Buffer, fieldType schema.Type, va
 			buf.WriteString(fmt.Sprintf("%s    None\n", indent))
 			buf.WriteString(fmt.Sprintf("%s};\n", indent))
 		} else {
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%slet len = u16::from_le_bytes([data[*pos], data[*pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%slet len = u16::from_le_bytes([bytes[*pos], bytes[*pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += 2;\n", indent))
 			generateRustDecodeArrayElementsWithPos(buf, t.ElementType, varName, "len", indent)
 		}
 
 	case *schema.StructType:
-		buf.WriteString(fmt.Sprintf("%slet %s = %s::decode_from(data, pos)?;\n", indent, varName, t.Name))
+		buf.WriteString(fmt.Sprintf("%slet %s = %s::decode_from(bytes, pos)?;\n", indent, varName, t.Name))
 	}
 }
 
 func generateRustDecodePrimitive(buf *bytes.Buffer, typeName string, varName string, indent string) {
 	switch typeName {
 	case "bool":
-		buf.WriteString(fmt.Sprintf("%slet %s = data.get(pos).copied().unwrap_or(0) != 0;\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%slet %s = bytes.get(pos).copied().unwrap_or(0) != 0;\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 1;\n", indent))
 	case "int8":
-		buf.WriteString(fmt.Sprintf("%slet %s = data.get(pos).copied().unwrap_or(0) as i8;\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%slet %s = bytes.get(pos).copied().unwrap_or(0) as i8;\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 1;\n", indent))
 	case "int16":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([data[pos], data[pos+1]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([bytes[pos], bytes[pos+1]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 2;\n", indent))
 	case "int32":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([data[pos], data[pos+1], data[pos+2], data[pos+3]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([bytes[pos], bytes[pos+1], bytes[pos+2], bytes[pos+3]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 4;\n", indent))
 	case "int64":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes(data[pos..pos+8].try_into().unwrap());\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes(bytes[pos..pos+8].try_into().unwrap());\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 8;\n", indent))
 	case "float32":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([data[pos], data[pos+1], data[pos+2], data[pos+3]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([bytes[pos], bytes[pos+1], bytes[pos+2], bytes[pos+3]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 4;\n", indent))
 	case "float64":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes(data[pos..pos+8].try_into().unwrap());\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes(bytes[pos..pos+8].try_into().unwrap());\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += 8;\n", indent))
 	case "string":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet str_len = u16::from_le_bytes([data[pos], data[pos+1]]) as usize;\n", indent))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet str_len = u16::from_le_bytes([bytes[pos], bytes[pos+1]]) as usize;\n", indent))
 		buf.WriteString(fmt.Sprintf("%spos += 2;\n", indent))
-		buf.WriteString(fmt.Sprintf("%sif data.len() < pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = std::str::from_utf8(&data[pos..pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = std::str::from_utf8(&bytes[pos..pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%spos += str_len;\n", indent))
 	}
 }
@@ -573,37 +573,37 @@ func generateRustDecodePrimitive(buf *bytes.Buffer, typeName string, varName str
 func generateRustDecodePrimitiveWithPos(buf *bytes.Buffer, typeName string, varName string, indent string) {
 	switch typeName {
 	case "bool":
-		buf.WriteString(fmt.Sprintf("%slet %s = data.get(*pos).copied().unwrap_or(0) != 0;\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%slet %s = bytes.get(*pos).copied().unwrap_or(0) != 0;\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 1;\n", indent))
 	case "int8":
-		buf.WriteString(fmt.Sprintf("%slet %s = data.get(*pos).copied().unwrap_or(0) as i8;\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%slet %s = bytes.get(*pos).copied().unwrap_or(0) as i8;\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 1;\n", indent))
 	case "int16":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([data[*pos], data[*pos+1]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([bytes[*pos], bytes[*pos+1]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 2;\n", indent))
 	case "int32":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([data[*pos], data[*pos+1], data[*pos+2], data[*pos+3]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([bytes[*pos], bytes[*pos+1], bytes[*pos+2], bytes[*pos+3]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 4;\n", indent))
 	case "int64":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes(data[*pos..*pos+8].try_into().unwrap());\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes(bytes[*pos..*pos+8].try_into().unwrap());\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 8;\n", indent))
 	case "float32":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([data[*pos], data[*pos+1], data[*pos+2], data[*pos+3]]);\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 4 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([bytes[*pos], bytes[*pos+1], bytes[*pos+2], bytes[*pos+3]]);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 4;\n", indent))
 	case "float64":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes(data[*pos..*pos+8].try_into().unwrap());\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 8 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes(bytes[*pos..*pos+8].try_into().unwrap());\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += 8;\n", indent))
 	case "string":
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet str_len = u16::from_le_bytes([data[*pos], data[*pos+1]]) as usize;\n", indent))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet str_len = u16::from_le_bytes([bytes[*pos], bytes[*pos+1]]) as usize;\n", indent))
 		buf.WriteString(fmt.Sprintf("%s*pos += 2;\n", indent))
-		buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
-		buf.WriteString(fmt.Sprintf("%slet %s = std::str::from_utf8(&data[*pos..*pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent, varName))
+		buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
+		buf.WriteString(fmt.Sprintf("%slet %s = std::str::from_utf8(&bytes[*pos..*pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s*pos += str_len;\n", indent))
 	}
 }
@@ -614,72 +614,72 @@ func generateRustDecodeArrayElements(buf *bytes.Buffer, elemType schema.Type, va
 		switch t.Name {
 		case "bool":
 			buf.WriteString(fmt.Sprintf("%slet %s: Vec<bool> = (0..%s).map(|i| {\n", indent, varName, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    data.get(pos + i).copied().unwrap_or(0) != 0\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    bytes.get(pos + i).copied().unwrap_or(0) != 0\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}).collect();\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += %s;\n", indent, lenVar))
 		case "int8":
 			buf.WriteString(fmt.Sprintf("%slet %s: Vec<i8> = (0..%s).map(|i| {\n", indent, varName, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    data.get(pos + i).copied().unwrap_or(0) as i8\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    bytes.get(pos + i).copied().unwrap_or(0) as i8\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}).collect();\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += %s;\n", indent, lenVar))
 		case "int16":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 2;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i16 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i16> = vec![0i16; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[pos..pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[pos..pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += byte_len;\n", indent))
 		case "int32":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 4;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i32 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i32> = vec![0i32; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[pos..pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[pos..pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += byte_len;\n", indent))
 		case "int64":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 8;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i64 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i64> = vec![0i64; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[pos..pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[pos..pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += byte_len;\n", indent))
 		case "float32":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 4;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: f32 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<f32> = vec![0f32; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[pos..pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[pos..pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += byte_len;\n", indent))
 		case "float64":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 8;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: f64 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<f64> = vec![0f64; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[pos..pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[pos..pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%spos += byte_len;\n", indent))
 		case "string":
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<String> = Vec::with_capacity(%s);\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sfor _ in 0..%s {\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let str_len = u16::from_le_bytes([data[pos], data[pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let str_len = u16::from_le_bytes([bytes[pos], bytes[pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    pos += 2;\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let s = std::str::from_utf8(&data[pos..pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let s = std::str::from_utf8(&bytes[pos..pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    pos += str_len;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    %s.push(s);\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
@@ -687,7 +687,7 @@ func generateRustDecodeArrayElements(buf *bytes.Buffer, elemType schema.Type, va
 	case *schema.StructType:
 		buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<%s> = Vec::with_capacity(%s);\n", indent, varName, t.Name, lenVar))
 		buf.WriteString(fmt.Sprintf("%sfor _ in 0..%s {\n", indent, lenVar))
-		buf.WriteString(fmt.Sprintf("%s    let item = %s::decode_from(data, &mut pos)?;\n", indent, t.Name))
+		buf.WriteString(fmt.Sprintf("%s    let item = %s::decode_from(bytes, &mut pos)?;\n", indent, t.Name))
 		buf.WriteString(fmt.Sprintf("%s    %s.push(item);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
@@ -699,72 +699,72 @@ func generateRustDecodeArrayElementsWithPos(buf *bytes.Buffer, elemType schema.T
 		switch t.Name {
 		case "bool":
 			buf.WriteString(fmt.Sprintf("%slet %s: Vec<bool> = (0..%s).map(|i| {\n", indent, varName, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    data.get(*pos + i).copied().unwrap_or(0) != 0\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    bytes.get(*pos + i).copied().unwrap_or(0) != 0\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}).collect();\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += %s;\n", indent, lenVar))
 		case "int8":
 			buf.WriteString(fmt.Sprintf("%slet %s: Vec<i8> = (0..%s).map(|i| {\n", indent, varName, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    data.get(*pos + i).copied().unwrap_or(0) as i8\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    bytes.get(*pos + i).copied().unwrap_or(0) as i8\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}).collect();\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += %s;\n", indent, lenVar))
 		case "int16":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 2;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i16 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i16> = vec![0i16; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[*pos..*pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[*pos..*pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += byte_len;\n", indent))
 		case "int32":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 4;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i32 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i32> = vec![0i32; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[*pos..*pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[*pos..*pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += byte_len;\n", indent))
 		case "int64":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 8;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: i64 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<i64> = vec![0i64; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[*pos..*pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[*pos..*pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += byte_len;\n", indent))
 		case "float32":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 4;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: f32 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<f32> = vec![0f32; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[*pos..*pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[*pos..*pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += byte_len;\n", indent))
 		case "float64":
 			buf.WriteString(fmt.Sprintf("%slet byte_len = %s * 8;\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%sif data.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + byte_len { return Err(FFireError::BufferTooShort); }\n", indent))
 			buf.WriteString(fmt.Sprintf("%s// SAFETY: f64 has known size, wire format is little-endian\n", indent))
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<f64> = vec![0f64; %s];\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sunsafe {\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    let dst = std::slice::from_raw_parts_mut(%s.as_mut_ptr() as *mut u8, byte_len);\n", indent, varName))
-			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&data[*pos..*pos + byte_len]);\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    dst.copy_from_slice(&bytes[*pos..*pos + byte_len]);\n", indent))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
 			buf.WriteString(fmt.Sprintf("%s*pos += byte_len;\n", indent))
 		case "string":
 			buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<String> = Vec::with_capacity(%s);\n", indent, varName, lenVar))
 			buf.WriteString(fmt.Sprintf("%sfor _ in 0..%s {\n", indent, lenVar))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let str_len = u16::from_le_bytes([data[*pos], data[*pos+1]]) as usize;\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < *pos + 2 { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let str_len = u16::from_le_bytes([bytes[*pos], bytes[*pos+1]]) as usize;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    *pos += 2;\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    if data.len() < *pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
-			buf.WriteString(fmt.Sprintf("%s    let s = std::str::from_utf8(&data[*pos..*pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    if bytes.len() < *pos + str_len { return Err(FFireError::BufferTooShort); }\n", indent))
+			buf.WriteString(fmt.Sprintf("%s    let s = std::str::from_utf8(&bytes[*pos..*pos+str_len]).map_err(|_| FFireError::InvalidUtf8)?.to_string();\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    *pos += str_len;\n", indent))
 			buf.WriteString(fmt.Sprintf("%s    %s.push(s);\n", indent, varName))
 			buf.WriteString(fmt.Sprintf("%s}\n", indent))
@@ -772,7 +772,7 @@ func generateRustDecodeArrayElementsWithPos(buf *bytes.Buffer, elemType schema.T
 	case *schema.StructType:
 		buf.WriteString(fmt.Sprintf("%slet mut %s: Vec<%s> = Vec::with_capacity(%s);\n", indent, varName, t.Name, lenVar))
 		buf.WriteString(fmt.Sprintf("%sfor _ in 0..%s {\n", indent, lenVar))
-		buf.WriteString(fmt.Sprintf("%s    let item = %s::decode_from(data, pos)?;\n", indent, t.Name))
+		buf.WriteString(fmt.Sprintf("%s    let item = %s::decode_from(bytes, pos)?;\n", indent, t.Name))
 		buf.WriteString(fmt.Sprintf("%s    %s.push(item);\n", indent, varName))
 		buf.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
