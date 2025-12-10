@@ -34,9 +34,12 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -44,15 +47,23 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - admonition
   - pymdownx.details
   - tables
   - toc:
       permalink: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - Home: index.md
   - Architecture:
+      - architecture/index.md
       - Overview: architecture/overview.md
       - Schema Format: architecture/schema-format.md
       - Wire Format: architecture/wire-format.md
@@ -60,15 +71,18 @@ nav:
       - Generator Patterns: architecture/generator-patterns.md
       - Codebase Structure: architecture/codebase.md
   - Development:
+      - development/index.md
       - Testing: development/testing.md
       - Benchmarks: development/benchmarks.md
       - Build System: development/build-system.md
       - Reserved Keywords: development/keywords.md
       - Fuzzing: development/fuzzing.md
   - API:
+      - api/index.md
       - CLI: api/cli.md
       - Go API: api/go-api.md
   - Internals:
+      - internals/index.md
       - Encoder Design: internals/encoder-internals.md
       - Optimizations: internals/optimizations.md
       - Design Decisions: internals/design-decisions.md
