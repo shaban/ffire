@@ -311,6 +311,61 @@ func (g *cppGenerator) generate() ([]byte, error) {
 	g.buf.WriteString("                       (static_cast<uint16_t>(data[pos + 1]) << 8);\n")
 	g.buf.WriteString("        pos += 2;\n")
 	g.buf.WriteString("        return len;\n")
+	g.buf.WriteString("    }\n\n")
+
+	// Bulk read methods for zero-copy decoding of primitive arrays
+	g.buf.WriteString("    // Bulk read methods for array optimization\n")
+	g.buf.WriteString("    void read_bulk_int8(std::vector<int8_t>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        check_remaining(count);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, count);\n")
+	g.buf.WriteString("        pos += count;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void read_bulk_int16(std::vector<int16_t>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        size_t bytes = count * 2;\n")
+	g.buf.WriteString("        check_remaining(bytes);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, bytes);\n")
+	g.buf.WriteString("        pos += bytes;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void read_bulk_int32(std::vector<int32_t>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        size_t bytes = count * 4;\n")
+	g.buf.WriteString("        check_remaining(bytes);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, bytes);\n")
+	g.buf.WriteString("        pos += bytes;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void read_bulk_int64(std::vector<int64_t>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        size_t bytes = count * 8;\n")
+	g.buf.WriteString("        check_remaining(bytes);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, bytes);\n")
+	g.buf.WriteString("        pos += bytes;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void read_bulk_float32(std::vector<float>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        size_t bytes = count * 4;\n")
+	g.buf.WriteString("        check_remaining(bytes);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, bytes);\n")
+	g.buf.WriteString("        pos += bytes;\n")
+	g.buf.WriteString("    }\n\n")
+
+	g.buf.WriteString("    void read_bulk_float64(std::vector<double>& arr, size_t count) {\n")
+	g.buf.WriteString("        if (count == 0) return;\n")
+	g.buf.WriteString("        size_t bytes = count * 8;\n")
+	g.buf.WriteString("        check_remaining(bytes);\n")
+	g.buf.WriteString("        arr.resize(count);\n")
+	g.buf.WriteString("        std::memcpy(arr.data(), data + pos, bytes);\n")
+	g.buf.WriteString("        pos += bytes;\n")
 	g.buf.WriteString("    }\n")
 	g.buf.WriteString("};\n\n")
 
@@ -584,6 +639,39 @@ func (g *cppGenerator) generateBulkArrayEncode(encVar, valueVar string, typ *sch
 	return true
 }
 
+// generateBulkArrayDecode generates optimized bulk decoding for primitive arrays
+func (g *cppGenerator) generateBulkArrayDecode(decVar, resultVar string, typ *schema.ArrayType, indent string) bool {
+	primType, ok := typ.ElementType.(*schema.PrimitiveType)
+	if !ok || primType.Optional {
+		return false // Can't bulk decode optional or non-primitive types
+	}
+
+	var bulkMethod string
+	switch primType.Name {
+	case "int8":
+		bulkMethod = "read_bulk_int8"
+	case "int16":
+		bulkMethod = "read_bulk_int16"
+	case "int32":
+		bulkMethod = "read_bulk_int32"
+	case "int64":
+		bulkMethod = "read_bulk_int64"
+	case "float32":
+		bulkMethod = "read_bulk_float32"
+	case "float64":
+		bulkMethod = "read_bulk_float64"
+	default:
+		return false // No bulk optimization for strings or other types
+	}
+
+	// Generate bulk read
+	fmt.Fprintf(g.buf, "%s{\n", indent)
+	fmt.Fprintf(g.buf, "%s    uint16_t len = %s.read_array_length();\n", indent, decVar)
+	fmt.Fprintf(g.buf, "%s    %s.%s(%s, len);\n", indent, decVar, bulkMethod, resultVar)
+	fmt.Fprintf(g.buf, "%s}\n", indent)
+	return true
+}
+
 func (g *cppGenerator) generateEncodeArray(encVar, valueVar string, typ *schema.ArrayType, indent string) {
 	if typ.Optional {
 		fmt.Fprintf(g.buf, "%sif (%s.has_value()) {\n", indent, valueVar)
@@ -724,6 +812,17 @@ func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema
 		resultVar = "tmp"
 	}
 
+	// Try bulk decoding for primitive arrays
+	if g.generateBulkArrayDecode(decVar, resultVar, typ, indent) {
+		if typ.Optional {
+			indent = indent[:len(indent)-4]
+			fmt.Fprintf(g.buf, "%s    %s = std::move(tmp);\n", indent, originalResultVar)
+			fmt.Fprintf(g.buf, "%s}\n", indent)
+		}
+		return
+	}
+
+	// Fall back to element-by-element decoding
 	fmt.Fprintf(g.buf, "%s{\n", indent)
 	fmt.Fprintf(g.buf, "%s    uint16_t len = %s.read_array_length();\n", indent, decVar)
 	fmt.Fprintf(g.buf, "%s    %s.reserve(len);\n", indent, resultVar)
