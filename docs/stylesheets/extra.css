@@ -1,18 +1,18 @@
 /* Custom ffire theme - dark orange and white */
 
 :root {
-  --md-primary-fg-color: #FF8C00;
-  --md-primary-fg-color--light: #FFA500;
+  --md-primary-fg-color: #e37d00;
+  --md-primary-fg-color--light: #FF8C00;
   --md-primary-fg-color--dark: #CC7000;
-  --md-accent-fg-color: #FF6600;
+  --md-accent-fg-color: #e37d00;
 }
 
 /* Dark mode adjustments */
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #FF8C00;
-  --md-primary-fg-color--light: #FFA500;
+  --md-primary-fg-color: #e37d00;
+  --md-primary-fg-color--light: #FF8C00;
   --md-primary-fg-color--dark: #CC7000;
-  --md-accent-fg-color: #FF6600;
+  --md-accent-fg-color: #e37d00;
 }
 
 /* Header styling */
