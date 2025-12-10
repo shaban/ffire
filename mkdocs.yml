@@ -5,20 +5,27 @@ repo_name: shaban/ffire
 
 docs_dir: docs
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
+  favicon: assets/favicon.svg
+  logo: material/fire
+  icon:
+    logo: material/fire
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: deep orange
+      accent: orange
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: deep orange
+      accent: orange
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
