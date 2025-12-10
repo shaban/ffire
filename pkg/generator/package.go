@@ -64,8 +64,11 @@ func GeneratePackage(config *PackageConfig) error {
 
 	// Determine package type (Tier A vs Tier B)
 	switch lang {
-	case "c", "cpp", "c++", "rust":
+	case "c", "cpp", "c++":
 		return generateTierAPackage(config)
+	case "rust":
+		// Rust uses native implementation (like Go)
+		return GenerateRustPackage(config)
 	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php", "zig":
 		return generateTierBPackage(config)
 	default:

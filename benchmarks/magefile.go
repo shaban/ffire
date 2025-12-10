@@ -292,11 +292,11 @@ func Gen(target string) error {
 	// Validate target
 	validTargets := map[string]bool{
 		"go": true, "cpp": true, "java": true, "csharp": true, "python": true, "python-pybind11": true,
-		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true,
+		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true, "rust": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, python-pybind11, dart, swift, javascript, proto, zig", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, python-pybind11, dart, swift, javascript, proto, zig, rust", target)
 	}
 
 	// Create output directories
@@ -386,12 +386,14 @@ func Run(target string) error {
 		return runSwift()
 	case "zig":
 		return runZig()
+	case "rust":
+		return runRust()
 	case "javascript":
 		return runJavaScript()
 	case "proto":
 		return runProto()
 	default:
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, dart, swift, zig, javascript, proto", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, dart, swift, zig, rust, javascript, proto", target)
 	}
 }
 
@@ -418,11 +420,11 @@ func Clean(target string) error {
 	// Validate target
 	validTargets := map[string]bool{
 		"go": true, "cpp": true, "java": true, "csharp": true, "python": true,
-		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true,
+		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true, "rust": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, python, dart, swift, javascript, proto, zig", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, python, dart, swift, javascript, proto, zig, rust", target)
 	}
 
 	// Remove language-specific generated files
@@ -807,6 +809,55 @@ func runZig() error {
 
 	// Save all results
 	return saveResults(allResults, "ffire_zig")
+}
+
+// runRust runs the Rust benchmarks
+func runRust() error {
+	fmt.Println("\n🏃 Running ffire Rust benchmarks...")
+
+	// Check if cargo is available
+	if _, err := exec.LookPath("cargo"); err != nil {
+		fmt.Println("  ⚠️  cargo not found (skipping)")
+		return nil
+	}
+
+	// Find all Rust benchmark directories
+	pattern := filepath.Join(genDir, "ffire_rust_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Rust benchmarks found (skipping)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_rust_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runRustBench(dir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	// Save all results
+	return saveResults(allResults, "ffire_rust")
 }
 
 // runJavaScript runs the JavaScript (Node.js) benchmarks
@@ -1549,6 +1600,53 @@ func runZigBench(dir string) (BenchResult, error) {
 	return result, nil
 }
 
+func runRustBench(dir string) (BenchResult, error) {
+	// Rust benchmarks are in the rust/ subdirectory
+	rustDir := filepath.Join(dir, "rust")
+
+	fmt.Printf("    Building Rust benchmark...\n")
+	buildCmd := exec.Command("cargo", "build", "--release", "--bin", "bench")
+	buildCmd.Dir = rustDir
+	if output, err := buildCmd.CombinedOutput(); err != nil {
+		return BenchResult{}, fmt.Errorf("cargo build failed: %w\nOutput: %s", err, output)
+	}
+
+	fmt.Printf("    Running Rust benchmark...\n")
+	cmd := exec.Command("./target/release/bench")
+	cmd.Dir = rustDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
+		}
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
+	}
+
+	// Extract JSON from output
+	lines := strings.Split(string(output), "\n")
+	var jsonLine string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
+			jsonLine = trimmed
+			break
+		}
+	}
+
+	if jsonLine == "" {
+		return BenchResult{}, fmt.Errorf("no JSON output found\nOutput: %s", output)
+	}
+
+	var result BenchResult
+	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nJSON: %s", err, jsonLine)
+	}
+
+	return result, nil
+}
+
 func runJavaScriptBench(dir string) (BenchResult, error) {
 	// JavaScript benchmarks are in the javascript/ subdirectory
 	jsDir := filepath.Join(dir, "javascript")
@@ -2096,6 +2194,19 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				return err
 			}
 		}
+	case "rust":
+		for _, suite := range suites {
+			fmt.Printf("🦀 Generating Rust benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "rust",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_rust_"+suite.Name),
+				"--iterations", "100000",
+			); err != nil {
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("unknown language: %s", lang)
 	}
@@ -2118,6 +2229,8 @@ func runLanguage(lang string) error {
 		return runDart()
 	case "zig":
 		return runZig()
+	case "rust":
+		return runRust()
 	case "python":
 		return runPython()
 	case "javascript":

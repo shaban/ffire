@@ -176,8 +176,16 @@ Examples:
 		fmt.Printf("✓ Generated Zig benchmark in %s\n", *outputDir)
 		fmt.Printf("  Run with: cd %s/zig && zig build -Doptimize=ReleaseFast && ./zig-out/bin/bench\n", *outputDir)
 
+	case "rust":
+		if err := benchmark.GenerateRust(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Rust benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/rust && cargo build --release --bin bench && ./target/release/bench\n", *outputDir)
+
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, python, swift, dart, java, csharp, zig)\n", *lang)
+		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, python, swift, dart, java, csharp, zig, rust)\n", *lang)
 		os.Exit(1)
 	}
 }
