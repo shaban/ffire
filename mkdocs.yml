@@ -60,7 +60,6 @@ nav:
   - API:
       - CLI: api/cli.md
       - Go API: api/go-api.md
-      - Multi-Language Packaging: api/multi-language-packaging.md
   - Internals:
       - Encoder Design: internals/encoder-internals.md
       - Optimizations: internals/optimizations.md
