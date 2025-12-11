@@ -60,57 +60,64 @@ Optional fields with mixed types:
 go install github.com/shaban/ffire/cmd/ffire@latest
 
 # Generate code for your language
-ffire gen --lang go --schema schema.ffire --output ./generated
+ffire generate -lang go -schema person.ffire -out ./generated
 ```
 
 === "Go"
     ```go
-    import "your-module/generated"
+    import person "your-module/generated"
 
-    // Encode
-    msg := &Person{Name: "Alice", Age: 30}
-    data := msg.Encode()
+    // Create a message
+    msg := person.PersonMessage{Name: "Alice", Age: 30}
 
-    // Decode
-    decoded := &Person{}
-    decoded.Decode(data)
+    // Encode to binary
+    data := person.EncodePersonMessage(msg)
+
+    // Decode back
+    decoded, err := person.DecodePersonMessage(data)
     ```
 
 === "Rust"
     ```rust
-    use generated::Person;
+    use person::PersonMessage;
 
-    // Encode
-    let msg = Person { name: "Alice".into(), age: 30 };
+    // Create a message
+    let msg = PersonMessage { name: "Alice".into(), age: 30 };
+
+    // Encode to binary
     let data = msg.encode();
 
-    // Decode
-    let decoded = Person::decode(&data)?;
+    // Decode back
+    let decoded = PersonMessage::decode(&data)?;
     ```
 
 === "C++"
     ```cpp
-    #include "generated/person.hpp"
+    #include "generated.hpp"
 
-    // Encode
-    Person msg{"Alice", 30};
+    // Create a message
+    PersonMessage msg{"Alice", 30};
+
+    // Encode to binary
     auto data = msg.encode();
 
-    // Decode
-    Person decoded;
+    // Decode back
+    PersonMessage decoded;
     decoded.decode(data);
     ```
 
 === "Swift"
     ```swift
-    import Generated
+    import Person
 
-    // Encode
-    let msg = Person(name: "Alice", age: 30)
+    // Create a message
+    let msg = PersonMessage(name: "Alice", age: 30)
+
+    // Encode to binary
     let data = msg.encode()
 
-    // Decode
-    let decoded = try Person.decode(data)
+    // Decode back
+    let decoded = try PersonMessage.decode(from: data)
     ```
 
 ## Supported Languages

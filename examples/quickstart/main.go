@@ -1,0 +1,33 @@
+// Quickstart example demonstrating ffire encode/decode roundtrip.
+package main
+
+import (
+	"fmt"
+
+	person "github.com/shaban/ffire/examples/quickstart/generated"
+)
+
+func main() {
+	// Create a message
+	msg := person.PersonMessage{
+		Name: "Alice",
+		Age:  30,
+	}
+	fmt.Printf("Original: %+v\n", msg)
+
+	// Encode to binary
+	data := person.EncodePersonMessage(msg)
+	fmt.Printf("Encoded:  %d bytes: %v\n", len(data), data)
+
+	// Decode back
+	decoded, err := person.DecodePersonMessage(data)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Decoded:  %+v\n", decoded)
+
+	// Verify roundtrip
+	if msg.Name == decoded.Name && msg.Age == decoded.Age {
+		fmt.Println("✓ Roundtrip successful!")
+	}
+}
