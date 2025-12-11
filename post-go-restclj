@@ -103,3 +103,6 @@ C#           ffire      tags                    34 ns        133 ns        167 n
 Java         ffire      tags                   110 ns        110 ns        220 ns       34 B
 Go           proto      tags                   116 ns        194 ns        310 ns       28 B
 ===============================================================================================
+
+tackle ingniffi for php, python, js and ruby(potentially)
+make a native dart version emphasis on type precision
