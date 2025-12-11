@@ -12,6 +12,8 @@ import (
 // GenerateCSharp generates native C# code with Span<byte> encoding/decoding
 // Uses modern .NET patterns: Span<byte>, BinaryPrimitives, MemoryMarshal
 func GenerateCSharp(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	gen := &csharpGenerator{
 		schema:     s,
 		buf:        &bytes.Buffer{},

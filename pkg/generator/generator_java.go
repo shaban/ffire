@@ -11,6 +11,8 @@ import (
 
 // GenerateJava generates native Java code with ByteBuffer encoding/decoding
 func GenerateJava(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	gen := &javaGenerator{
 		schema:     s,
 		buf:        &bytes.Buffer{},

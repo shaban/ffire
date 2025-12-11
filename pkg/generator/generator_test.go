@@ -832,11 +832,9 @@ func TestGenerateCppArray(t *testing.T) {
 	if !strings.Contains(codeStr, "uint16_t len = dec.read_array_length()") {
 		t.Errorf("missing array length decoding")
 	}
-	if !strings.Contains(codeStr, "result.reserve(len)") {
-		t.Errorf("missing vector reserve")
-	}
-	if !strings.Contains(codeStr, "for (uint16_t i = 0; i < len; ++i)") {
-		t.Errorf("missing decode loop")
+	// int32 arrays use bulk decode optimization
+	if !strings.Contains(codeStr, "dec.read_bulk_int32(result, len)") {
+		t.Errorf("missing bulk array read")
 	}
 
 	t.Logf("Generated C++ code:\n%s", codeStr)

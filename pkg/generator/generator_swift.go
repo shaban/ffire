@@ -146,6 +146,8 @@ func generateSwiftWrapperOrchestrated(config *PackageConfig, paths *PackagePaths
 
 // generateSwiftNative generates pure Swift code optimized for maximum performance
 func generateSwiftNative(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	var buf bytes.Buffer
 
 	// File header

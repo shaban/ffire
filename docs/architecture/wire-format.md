@@ -44,7 +44,40 @@
 ```
 [field_0][field_1]...[field_n]
 ```
-- Fields in declaration order, no padding between fields
+- Fields in **canonical order** (not declaration order), no padding between fields
+
+## Canonical Field Ordering
+
+To enable bulk memory operations on contiguous fixed-size fields, ffire automatically reorders struct fields during code generation:
+
+### Order of Fields
+1. **Fixed-size 8-byte fields** (int64, float64) - alphabetically by name
+2. **Fixed-size 4-byte fields** (int32, float32) - alphabetically by name
+3. **Fixed-size 2-byte fields** (int16) - alphabetically by name
+4. **Fixed-size 1-byte fields** (bool, int8) - alphabetically by name
+5. **Variable-size fields** (string, arrays) - alphabetically by name
+6. **Optional fields** - alphabetically by name
+
+### Performance Benefits
+- Contiguous fixed-size fields enable single `memcpy` operations
+- Predictable memory layout improves cache utilization
+- Estimated ~20-30% faster encoding/decoding for mixed structs
+
+### Example
+```ffire
+struct Person {
+    Name string       // variable
+    Age int32         // fixed4
+    Id int64          // fixed8
+    OptionalNick ?string  // optional
+}
+```
+
+**Canonical wire order**:
+1. `Id` (int64 - fixed8)
+2. `Age` (int32 - fixed4)
+3. `Name` (string - variable)
+4. `OptionalNick` (?string - optional)
 
 ## Message Structure
 ```

@@ -9,6 +9,8 @@ import (
 
 // GenerateJavaScript generates pure JavaScript encoder/decoder
 func GenerateJavaScript(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	gen := &jsGenerator{
 		schema: s,
 		buf:    &bytes.Buffer{},

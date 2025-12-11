@@ -436,3 +436,109 @@ func TestOptionalFieldInStruct(t *testing.T) {
 		t.Error("Tags field should be optional")
 	}
 }
+
+func TestCanonicalFieldOrdering(t *testing.T) {
+	// Create a struct with mixed field types in non-canonical order
+	s := &StructType{
+		Name: "Mixed",
+		Fields: []Field{
+			{Name: "OptionalName", Type: &PrimitiveType{Name: "string", Optional: true}}, // optional
+			{Name: "Name", Type: &PrimitiveType{Name: "string"}},                         // variable
+			{Name: "Count", Type: &PrimitiveType{Name: "int32"}},                         // fixed4
+			{Name: "Timestamp", Type: &PrimitiveType{Name: "int64"}},                     // fixed8
+			{Name: "OptionalAge", Type: &PrimitiveType{Name: "int32", Optional: true}},   // optional
+			{Name: "Active", Type: &PrimitiveType{Name: "bool"}},                         // fixed1
+			{Name: "Tags", Type: &ArrayType{ElementType: &PrimitiveType{Name: "string"}}}, // variable
+			{Name: "Score", Type: &PrimitiveType{Name: "float64"}},                       // fixed8
+			{Name: "Status", Type: &PrimitiveType{Name: "int16"}},                        // fixed2
+		},
+	}
+
+	sorted := SortFieldsCanonical(s.Fields)
+
+	// Expected order:
+	// 1. Fixed8 (alphabetical): Score, Timestamp
+	// 2. Fixed4 (alphabetical): Count
+	// 3. Fixed2 (alphabetical): Status
+	// 4. Fixed1 (alphabetical): Active
+	// 5. Variable (alphabetical): Name, Tags
+	// 6. Optional (alphabetical): OptionalAge, OptionalName
+	expected := []string{
+		"Score",        // fixed8
+		"Timestamp",    // fixed8
+		"Count",        // fixed4
+		"Status",       // fixed2
+		"Active",       // fixed1
+		"Name",         // variable
+		"Tags",         // variable
+		"OptionalAge",  // optional
+		"OptionalName", // optional
+	}
+
+	if len(sorted) != len(expected) {
+		t.Fatalf("Expected %d fields, got %d", len(expected), len(sorted))
+	}
+
+	for i, fieldName := range expected {
+		if sorted[i].Name != fieldName {
+			t.Errorf("Position %d: expected %s, got %s", i, fieldName, sorted[i].Name)
+		}
+	}
+}
+
+func TestCanonicalizeSchema(t *testing.T) {
+	// Create a schema with unordered fields
+	s := &Schema{
+		Package: "test",
+		Types: []Type{
+			&StructType{
+				Name: "Address",
+				Fields: []Field{
+					{Name: "City", Type: &PrimitiveType{Name: "string"}},
+					{Name: "ZipCode", Type: &PrimitiveType{Name: "int32"}},
+					{Name: "Street", Type: &PrimitiveType{Name: "string"}},
+				},
+			},
+		},
+		Messages: []MessageType{
+			{
+				Name: "Person",
+				TargetType: &StructType{
+					Name: "Person",
+					Fields: []Field{
+						{Name: "Name", Type: &PrimitiveType{Name: "string"}},
+						{Name: "Age", Type: &PrimitiveType{Name: "int32"}},
+						{Name: "Id", Type: &PrimitiveType{Name: "int64"}},
+					},
+				},
+			},
+		},
+	}
+
+	// Canonicalize
+	s.Canonicalize()
+
+	// Check that Address fields are reordered: ZipCode (int32), City, Street (strings alphabetical)
+	addrType := s.Types[0].(*StructType)
+	if addrType.Fields[0].Name != "ZipCode" {
+		t.Errorf("Address field 0: expected ZipCode, got %s", addrType.Fields[0].Name)
+	}
+	if addrType.Fields[1].Name != "City" {
+		t.Errorf("Address field 1: expected City, got %s", addrType.Fields[1].Name)
+	}
+	if addrType.Fields[2].Name != "Street" {
+		t.Errorf("Address field 2: expected Street, got %s", addrType.Fields[2].Name)
+	}
+
+	// Check that Person fields are reordered: Id (int64), Age (int32), Name (string)
+	personType := s.Messages[0].TargetType.(*StructType)
+	if personType.Fields[0].Name != "Id" {
+		t.Errorf("Person field 0: expected Id, got %s", personType.Fields[0].Name)
+	}
+	if personType.Fields[1].Name != "Age" {
+		t.Errorf("Person field 1: expected Age, got %s", personType.Fields[1].Name)
+	}
+	if personType.Fields[2].Name != "Name" {
+		t.Errorf("Person field 2: expected Name, got %s", personType.Fields[2].Name)
+	}
+}

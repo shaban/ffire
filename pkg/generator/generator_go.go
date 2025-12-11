@@ -11,6 +11,8 @@ import (
 
 // GenerateGo generates Go encoder/decoder code.
 func GenerateGo(s *schema.Schema) ([]byte, error) {
+	// Canonicalize field order for optimal wire format
+	s.Canonicalize()
 	gen := &goGenerator{schema: s, buf: &bytes.Buffer{}}
 	return gen.generate()
 }

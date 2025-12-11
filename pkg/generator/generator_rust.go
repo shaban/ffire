@@ -150,6 +150,8 @@ fn main() -> Result<(), FFireError> {
 
 // generateRustNative generates pure Rust code optimized for performance
 func generateRustNative(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	var buf bytes.Buffer
 
 	// File header

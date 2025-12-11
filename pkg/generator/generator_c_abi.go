@@ -49,6 +49,8 @@ func rootTypeName(typ schema.Type) string {
 
 // GenerateCABIHeader generates the C ABI header file
 func GenerateCABIHeader(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	buf := &bytes.Buffer{}
 
 	// Generated code header
@@ -129,6 +131,8 @@ func GenerateCABIHeader(s *schema.Schema) ([]byte, error) {
 
 // GenerateCABIImpl generates the C ABI implementation file
 func GenerateCABIImpl(s *schema.Schema) ([]byte, error) {
+	s.Canonicalize()
+
 	buf := &bytes.Buffer{}
 
 	// Generated code header
