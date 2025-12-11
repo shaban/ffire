@@ -15,13 +15,13 @@ func main() {
 	}
 	fmt.Printf("Original: %+v\n", msg)
 
-	// Encode to binary
-	data := person.EncodePersonMessage(msg)
+	// Encode to binary (method style)
+	data := msg.Encode()
 	fmt.Printf("Encoded:  %d bytes: %v\n", len(data), data)
 
-	// Decode back
-	decoded, err := person.DecodePersonMessage(data)
-	if err != nil {
+	// Decode back (method style)
+	var decoded person.PersonMessage
+	if err := decoded.Decode(data); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Decoded:  %+v\n", decoded)

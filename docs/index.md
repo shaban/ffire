@@ -71,10 +71,11 @@ ffire generate -lang go -schema person.ffire -out ./generated
     msg := person.PersonMessage{Name: "Alice", Age: 30}
 
     // Encode to binary
-    data := person.EncodePersonMessage(msg)
+    data := msg.Encode()
 
     // Decode back
-    decoded, err := person.DecodePersonMessage(data)
+    var decoded person.PersonMessage
+    decoded.Decode(data)
     ```
 
 === "Rust"

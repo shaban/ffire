@@ -197,6 +197,12 @@ func generateSwiftNative(s *schema.Schema) ([]byte, error) {
 		generateSwiftDecoderFunc(&buf, msg)
 	}
 
+	// Generate extension methods for consistent API (msg.encode(), Type.decode())
+	buf.WriteString("// MARK: - Extension Methods\n\n")
+	for _, msg := range s.Messages {
+		generateSwiftExtensionMethods(&buf, msg)
+	}
+
 	// Generate struct helper functions (only for referenced types, not root messages)
 	buf.WriteString("// MARK: - Struct Helpers\n\n")
 	// Build a set of root message type names
@@ -1206,6 +1212,32 @@ func generateSwiftDecodeArray(buf *bytes.Buffer, arrayType *schema.ArrayType, va
 		buf.WriteString(fmt.Sprintf("        let %s: [%s] = try (0..<%sLen).map { _ in try decodeStruct_%s(base, &pos) }\n", 
 			varName, elemSwiftType, varName, structType.Name))
 	}
+}
+
+// generateSwiftExtensionMethods generates extension methods for consistent API
+// This provides msg.encode() and Type.decode(from:) methods
+func generateSwiftExtensionMethods(buf *bytes.Buffer, msg schema.MessageType) {
+	structName := msg.Name + "Message"
+	encodeFuncName := fmt.Sprintf("encode%sMessage", msg.Name)
+	decodeFuncName := fmt.Sprintf("decode%sMessage", msg.Name)
+
+	buf.WriteString(fmt.Sprintf("extension %s {\n", structName))
+	
+	// encode() method
+	buf.WriteString("    /// Encode this message to binary wire format.\n")
+	buf.WriteString("    @inlinable\n")
+	buf.WriteString("    public func encode() -> Data {\n")
+	buf.WriteString(fmt.Sprintf("        return %s(self)\n", encodeFuncName))
+	buf.WriteString("    }\n\n")
+	
+	// decode(from:) static method
+	buf.WriteString("    /// Decode a message from binary wire format.\n")
+	buf.WriteString("    @inlinable\n")
+	buf.WriteString("    public static func decode(from data: Data) throws -> Self {\n")
+	buf.WriteString(fmt.Sprintf("        return try %s(data)\n", decodeFuncName))
+	buf.WriteString("    }\n")
+	
+	buf.WriteString("}\n\n")
 }
 
 func generateSwiftStructHelpers(buf *bytes.Buffer, structType *schema.StructType) {

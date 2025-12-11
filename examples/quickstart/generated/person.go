@@ -11,8 +11,8 @@ type PersonMessage struct {
 	Age  int32
 }
 
-// EncodePersonMessage encodes PersonMessage to binary wire format.
-func EncodePersonMessage(v PersonMessage) []byte {
+// Encode encodes PersonMessage to binary wire format.
+func (v PersonMessage) Encode() []byte {
 	buf := &bytes.Buffer{}
 	{
 		l := uint16(len(v.Name))
@@ -30,17 +30,26 @@ func EncodePersonMessage(v PersonMessage) []byte {
 	return buf.Bytes()
 }
 
-// DecodePersonMessage decodes Person from binary wire format.
-func DecodePersonMessage(data []byte) (PersonMessage, error) {
-	var (
-		result PersonMessage
-		pos    int
-	)
+// EncodePersonMessage encodes PersonMessage to binary wire format (deprecated: use msg.Encode()).
+func EncodePersonMessage(v PersonMessage) []byte {
+	return v.Encode()
+}
+
+// Decode decodes Person from binary wire format into the receiver.
+func (v *PersonMessage) Decode(data []byte) error {
+	var pos int
 	length1 := uint16(data[pos]) | uint16(data[pos+1])<<8
 	pos += 2
-	result.Name = string(data[pos : pos+int(length1)])
+	(*v).Name = string(data[pos : pos+int(length1)])
 	pos += int(length1)
-	result.Age = int32(uint32(data[pos]) | uint32(data[pos+1])<<8 | uint32(data[pos+2])<<16 | uint32(data[pos+3])<<24)
+	(*v).Age = int32(uint32(data[pos]) | uint32(data[pos+1])<<8 | uint32(data[pos+2])<<16 | uint32(data[pos+3])<<24)
 	pos += 4
-	return result, nil
+	return nil
+}
+
+// DecodePersonMessage decodes Person from binary wire format.
+func DecodePersonMessage(data []byte) (PersonMessage, error) {
+	var result PersonMessage
+	err := result.Decode(data)
+	return result, err
 }

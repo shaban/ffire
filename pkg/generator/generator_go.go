@@ -275,17 +275,23 @@ func (g *goGenerator) goTypeString(typ schema.Type) string {
 func (g *goGenerator) generateMessageEncode(msg schema.MessageType) {
 	// Determine root type name for function naming
 	rootTypeName := g.rootTypeName(msg.TargetType)
-	funcName := fmt.Sprintf("Encode%sMessage", rootTypeName)
 
-	// Function signature - use Message suffix type
+	// Method signature - use Message suffix type
 	paramType := msg.Name + "Message"
-	fmt.Fprintf(g.buf, "// %s encodes %sMessage to binary wire format.\n", funcName, msg.Name)
-	fmt.Fprintf(g.buf, "func %s(v %s) []byte {\n", funcName, paramType)
+	fmt.Fprintf(g.buf, "// Encode encodes %sMessage to binary wire format.\n", msg.Name)
+	fmt.Fprintf(g.buf, "func (v %s) Encode() []byte {\n", paramType)
 
 	// Use default buffer - bytes.Buffer automatically grows efficiently
 	g.buf.WriteString("buf := &bytes.Buffer{}\n")
 	g.generateEncodeValue("buf", "v", msg.TargetType)
 	g.buf.WriteString("return buf.Bytes()\n")
+	g.buf.WriteString("}\n\n")
+
+	// Also generate free function for backward compatibility
+	funcName := fmt.Sprintf("Encode%sMessage", rootTypeName)
+	fmt.Fprintf(g.buf, "// %s encodes %sMessage to binary wire format (deprecated: use msg.Encode()).\n", funcName, msg.Name)
+	fmt.Fprintf(g.buf, "func %s(v %s) []byte {\n", funcName, paramType)
+	g.buf.WriteString("return v.Encode()\n")
 	g.buf.WriteString("}\n\n")
 }
 
@@ -294,19 +300,24 @@ func (g *goGenerator) generateMessageDecode(msg schema.MessageType) {
 	rootTypeName := g.rootTypeName(msg.TargetType)
 	funcName := fmt.Sprintf("Decode%sMessage", rootTypeName)
 
-	// Function signature - use Message suffix type
+	// Method signature - decode into receiver
 	returnType := msg.Name + "Message"
-	fmt.Fprintf(g.buf, "// %s decodes %s from binary wire format.\n", funcName, msg.Name)
-	fmt.Fprintf(g.buf, "func %s(data []byte) (%s, error) {\n", funcName, returnType)
+	fmt.Fprintf(g.buf, "// Decode decodes %s from binary wire format into the receiver.\n", msg.Name)
+	fmt.Fprintf(g.buf, "func (v *%s) Decode(data []byte) error {\n", returnType)
 
 	// Direct slice indexing - no Reader allocation
-	g.buf.WriteString("var (\n")
-	g.buf.WriteString("result " + returnType + "\n")
-	g.buf.WriteString("pos int\n")
-	g.buf.WriteString(")\n")
+	g.buf.WriteString("var pos int\n")
 
-	g.generateDecodeValueDirect("data", "pos", "result", msg.TargetType, false)
-	g.buf.WriteString("return result, nil\n")
+	g.generateDecodeValueDirect("data", "pos", "(*v)", msg.TargetType, false)
+	g.buf.WriteString("return nil\n")
+	g.buf.WriteString("}\n\n")
+
+	// Also generate free function for backward compatibility and convenience
+	fmt.Fprintf(g.buf, "// %s decodes %s from binary wire format.\n", funcName, msg.Name)
+	fmt.Fprintf(g.buf, "func %s(data []byte) (%s, error) {\n", funcName, returnType)
+	g.buf.WriteString("var result " + returnType + "\n")
+	g.buf.WriteString("err := result.Decode(data)\n")
+	g.buf.WriteString("return result, err\n")
 	g.buf.WriteString("}\n\n")
 }
 
