@@ -288,10 +288,11 @@ func Gen(target string) error {
 	validTargets := map[string]bool{
 		"go": true, "cpp": true, "java": true, "csharp": true,
 		"dart": true, "swift": true, "proto": true, "zig": true, "rust": true,
+		"js": true, "javascript": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust, js", target)
 	}
 
 	// Create output directories
@@ -799,11 +800,85 @@ func runRust() error {
 	return saveResults(allResults, "ffire_rust")
 }
 
-// runJavaScript runs the JavaScript (Node.js) benchmarks
+// runJavaScript runs the JavaScript (Node.js) benchmarks using igniffi/Koffi
 func runJavaScript() error {
-	// TODO: Pure JavaScript generator removed - will be replaced by igniffi FFI wrapper (koffi)
-	fmt.Println("\n⏭️  Skipping JavaScript benchmarks (pure generator removed, use igniffi)")
-	return nil
+	fmt.Println("\n🏃 Running ffire JavaScript benchmarks (igniffi/Koffi)...")
+
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		fmt.Println("  ⚠️  node not found (skipping)")
+		return nil
+	}
+
+	// Find all JavaScript benchmark directories
+	pattern := filepath.Join(genDir, "ffire_js_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No JavaScript benchmarks found (run 'mage gen js' first)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_js_")
+		jsDir := filepath.Join(dir, "javascript")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		result, err := runJSBench(jsDir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		// Override message name with schema name for consistent grouping
+		result.Message = name
+
+		// Print result
+		fmt.Printf("    Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("    Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("    Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("    Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	return saveResults(allResults, "ffire_js")
+}
+
+// runJSBench runs a single JavaScript benchmark and returns the result
+func runJSBench(jsDir string) (BenchResult, error) {
+	// Install dependencies if needed
+	nodeModules := filepath.Join(jsDir, "node_modules")
+	if _, err := os.Stat(nodeModules); os.IsNotExist(err) {
+		fmt.Printf("    Installing dependencies...\n")
+		cmd := exec.Command("npm", "install")
+		cmd.Dir = jsDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return BenchResult{}, fmt.Errorf("npm install failed: %s", string(output))
+		}
+	}
+
+	// Run benchmark with JSON output
+	cmd := exec.Command("node", "bench.js")
+	cmd.Dir = jsDir
+	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return BenchResult{}, fmt.Errorf("benchmark failed: %w\nOutput: %s", err, string(output))
+	}
+
+	// Parse JSON result
+	var result BenchResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		return BenchResult{}, fmt.Errorf("failed to parse result: %w\nOutput: %s", err, string(output))
+	}
+
+	return result, nil
 }
 
 // runJava runs the Java benchmarks
@@ -2002,6 +2077,19 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_rust_"+suite.Name),
+				"--iterations", "100000",
+			); err != nil {
+				return err
+			}
+		}
+	case "js", "javascript":
+		for _, suite := range suites {
+			fmt.Printf("📜 Generating JavaScript benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "js",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_js_"+suite.Name),
 				"--iterations", "100000",
 			); err != nil {
 				return err

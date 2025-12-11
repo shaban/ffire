@@ -62,6 +62,11 @@ func GeneratePackage(config *PackageConfig) error {
 		return generateIgniffiPackage(config)
 	}
 
+	// Handle igniffi language bindings
+	if lang == "igniffi-js" || lang == "javascript" || lang == "js" {
+		return GenerateIgniffiJSPackage(config)
+	}
+
 	// Determine package type (Tier A vs Tier B)
 	switch lang {
 	case "c", "cpp", "c++":
@@ -72,7 +77,7 @@ func GeneratePackage(config *PackageConfig) error {
 	case "swift", "dart", "java", "csharp", "zig":
 		return generateTierBPackage(config)
 	default:
-		return fmt.Errorf("unsupported language: %s (supported: go, cpp, swift, dart, java, csharp, rust, zig, igniffi)", config.Language)
+		return fmt.Errorf("unsupported language: %s (supported: go, cpp, swift, dart, java, csharp, rust, zig, igniffi, igniffi-js)", config.Language)
 	}
 }
 
