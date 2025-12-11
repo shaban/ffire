@@ -377,10 +377,12 @@ func Run(target string) error {
 		return runZig()
 	case "rust":
 		return runRust()
+	case "js", "javascript":
+		return runJavaScript()
 	case "proto":
 		return runProto()
 	default:
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, zig, rust, proto", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, zig, rust, js, proto", target)
 	}
 }
 

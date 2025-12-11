@@ -122,7 +122,7 @@ func compileIgniffiDylib(config *PackageConfig, srcDir, includeDir, libDir strin
 	// Compile: gcc [flags] src/*.c
 	args := append(flags, srcFiles...)
 	cmd := exec.Command("gcc", args...)
-	cmd.Dir = srcDir
+	// Don't set cmd.Dir - srcFiles already contains full paths from filepath.Glob
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -532,8 +532,19 @@ func printJSInstructions(config *PackageConfig, jsDir string) {
 	fmt.Println()
 }
 
-// toCIdentifier converts a name to a valid C identifier
+// toCIdentifier converts a name to a valid C identifier (lowercase with underscores)
+// Must match the igniffi package's toCIdentifier function exactly
 func toCIdentifier(name string) string {
-	// For now, just lowercase - can add more sanitization if needed
-	return strings.ToLower(name)
+	var result strings.Builder
+	for i, r := range name {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				result.WriteRune('_')
+			}
+			result.WriteRune(r + 32) // Convert to lowercase
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
