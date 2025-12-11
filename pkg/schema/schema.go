@@ -285,7 +285,7 @@ func GetFixedFieldRuns(fields []Field) []FixedFieldRun {
 			if runStart != -1 && runBytes > 0 {
 				runs = append(runs, FixedFieldRun{
 					StartIndex: runStart,
-					EndIndex:   i,
+					EndIndex:   i - 1,
 					TotalBytes: runBytes,
 				})
 			}
@@ -298,7 +298,7 @@ func GetFixedFieldRuns(fields []Field) []FixedFieldRun {
 	if runStart != -1 && runBytes > 0 {
 		runs = append(runs, FixedFieldRun{
 			StartIndex: runStart,
-			EndIndex:   len(fields),
+			EndIndex:   len(fields) - 1,
 			TotalBytes: runBytes,
 		})
 	}

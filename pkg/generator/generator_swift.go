@@ -333,8 +333,23 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 
 	switch t := msg.TargetType.(type) {
 	case *schema.StructType:
-		for _, field := range t.Fields {
-			generateSwiftEncodeField(buf, field, "message."+field.Name)
+		// Use bulk encoding for fixed-size field runs
+		runs := schema.GetFixedFieldRuns(t.Fields)
+		lastEndIndex := 0
+		for _, run := range runs {
+			if run.TotalBytes >= 8 {
+				// Encode any fields before this run individually
+				for i := lastEndIndex; i < run.StartIndex; i++ {
+					generateSwiftEncodeField(buf, t.Fields[i], "message."+t.Fields[i].Name)
+				}
+				// Bulk encode this run
+				generateSwiftBulkEncode(buf, t.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ", "message.")
+				lastEndIndex = run.EndIndex + 1
+			}
+		}
+		// Encode remaining fields individually
+		for i := lastEndIndex; i < len(t.Fields); i++ {
+			generateSwiftEncodeField(buf, t.Fields[i], "message."+t.Fields[i].Name)
 		}
 	case *schema.ArrayType:
 		// For array types, encode as array
@@ -868,6 +883,70 @@ func generateSwiftEncodePrimitive(buf *bytes.Buffer, typeName string, accessor s
 	}
 }
 
+// generateSwiftBulkEncode generates bulk encoding for a run of fixed-size fields
+func generateSwiftBulkEncode(buf *bytes.Buffer, fields []schema.Field, totalBytes int, indent string, accessorPrefix string) {
+	buf.WriteString(fmt.Sprintf("%s// Bulk encode %d bytes of fixed-size fields\n", indent, totalBytes))
+	buf.WriteString(fmt.Sprintf("%svar fixedBuf = [UInt8](repeating: 0, count: %d)\n", indent, totalBytes))
+
+	offset := 0
+	for _, field := range fields {
+		accessor := accessorPrefix + field.Name
+		if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+			size := schema.GetPrimitiveSize(primType)
+			switch primType.Name {
+			case "bool":
+				buf.WriteString(fmt.Sprintf("%sfixedBuf[%d] = %s ? 1 : 0\n", indent, offset, accessor))
+			case "int8":
+				buf.WriteString(fmt.Sprintf("%sfixedBuf[%d] = UInt8(bitPattern: %s)\n", indent, offset, accessor))
+			case "int16":
+				buf.WriteString(fmt.Sprintf("%swithUnsafeBytes(of: %s.littleEndian) { fixedBuf.replaceSubrange(%d..<(%d+2), with: $0) }\n", indent, accessor, offset, offset))
+			case "int32":
+				buf.WriteString(fmt.Sprintf("%swithUnsafeBytes(of: %s.littleEndian) { fixedBuf.replaceSubrange(%d..<(%d+4), with: $0) }\n", indent, accessor, offset, offset))
+			case "int64":
+				buf.WriteString(fmt.Sprintf("%swithUnsafeBytes(of: %s.littleEndian) { fixedBuf.replaceSubrange(%d..<(%d+8), with: $0) }\n", indent, accessor, offset, offset))
+			case "float32":
+				buf.WriteString(fmt.Sprintf("%swithUnsafeBytes(of: %s.bitPattern.littleEndian) { fixedBuf.replaceSubrange(%d..<(%d+4), with: $0) }\n", indent, accessor, offset, offset))
+			case "float64":
+				buf.WriteString(fmt.Sprintf("%swithUnsafeBytes(of: %s.bitPattern.littleEndian) { fixedBuf.replaceSubrange(%d..<(%d+8), with: $0) }\n", indent, accessor, offset, offset))
+			}
+			offset += size
+		}
+	}
+
+	buf.WriteString(fmt.Sprintf("%sbuffer.append(contentsOf: fixedBuf)\n", indent))
+}
+
+// generateSwiftBulkDecode generates bulk decoding for a run of fixed-size fields
+func generateSwiftBulkDecode(buf *bytes.Buffer, fields []schema.Field, totalBytes int, indent string) {
+	buf.WriteString(fmt.Sprintf("%s// Bulk decode %d bytes of fixed-size fields\n", indent, totalBytes))
+
+	offset := 0
+	for _, field := range fields {
+		varName := field.Name
+		if primType, ok := field.Type.(*schema.PrimitiveType); ok {
+			size := schema.GetPrimitiveSize(primType)
+			switch primType.Name {
+			case "bool":
+				buf.WriteString(fmt.Sprintf("%slet %s = base.load(fromByteOffset: pos + %d, as: UInt8.self) != 0\n", indent, varName, offset))
+			case "int8":
+				buf.WriteString(fmt.Sprintf("%slet %s = base.load(fromByteOffset: pos + %d, as: Int8.self)\n", indent, varName, offset))
+			case "int16":
+				buf.WriteString(fmt.Sprintf("%slet %s = Int16(littleEndian: base.load(fromByteOffset: pos + %d, as: Int16.self))\n", indent, varName, offset))
+			case "int32":
+				buf.WriteString(fmt.Sprintf("%slet %s = Int32(littleEndian: base.load(fromByteOffset: pos + %d, as: Int32.self))\n", indent, varName, offset))
+			case "int64":
+				buf.WriteString(fmt.Sprintf("%slet %s = Int64(littleEndian: base.load(fromByteOffset: pos + %d, as: Int64.self))\n", indent, varName, offset))
+			case "float32":
+				buf.WriteString(fmt.Sprintf("%slet %s = Float(bitPattern: UInt32(littleEndian: base.load(fromByteOffset: pos + %d, as: UInt32.self)))\n", indent, varName, offset))
+			case "float64":
+				buf.WriteString(fmt.Sprintf("%slet %s = Double(bitPattern: UInt64(littleEndian: base.load(fromByteOffset: pos + %d, as: UInt64.self)))\n", indent, varName, offset))
+			}
+			offset += size
+		}
+	}
+	buf.WriteString(fmt.Sprintf("%spos += %d\n", indent, totalBytes))
+}
+
 func generateSwiftEncodeArray(buf *bytes.Buffer, arrayType *schema.ArrayType, accessor string) {
 	buf.WriteString(fmt.Sprintf("    let len = UInt16(%s.count)\n", accessor))
 	buf.WriteString("    withUnsafeBytes(of: len.littleEndian) { buffer.append(contentsOf: $0) }\n")
@@ -915,8 +994,23 @@ func generateSwiftDecoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 
 	switch t := msg.TargetType.(type) {
 	case *schema.StructType:
-		for _, field := range t.Fields {
-			generateSwiftDecodeField(buf, field)
+		// Use bulk decoding for fixed-size field runs
+		runs := schema.GetFixedFieldRuns(t.Fields)
+		lastEndIndex := 0
+		for _, run := range runs {
+			if run.TotalBytes >= 8 {
+				// Decode any fields before this run individually
+				for i := lastEndIndex; i < run.StartIndex; i++ {
+					generateSwiftDecodeField(buf, t.Fields[i])
+				}
+				// Bulk decode this run
+				generateSwiftBulkDecode(buf, t.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
+				lastEndIndex = run.EndIndex + 1
+			}
+		}
+		// Decode remaining fields individually
+		for i := lastEndIndex; i < len(t.Fields); i++ {
+			generateSwiftDecodeField(buf, t.Fields[i])
 		}
 
 		buf.WriteString(fmt.Sprintf("        return %s(\n", structName))
@@ -1246,17 +1340,50 @@ func generateSwiftStructHelpers(buf *bytes.Buffer, structType *schema.StructType
 	// Encode helper
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("func encodeStruct_%s(_ buffer: inout [UInt8], _ value: %s) {\n", structType.Name, structType.Name))
-	for _, field := range structType.Fields {
-		generateSwiftEncodeField(buf, field, "value."+field.Name)
+	
+	// Use bulk encoding for fixed-size field runs
+	runs := schema.GetFixedFieldRuns(structType.Fields)
+	lastEndIndex := 0
+	for _, run := range runs {
+		if run.TotalBytes >= 8 {
+			// Encode any fields before this run individually
+			for i := lastEndIndex; i < run.StartIndex; i++ {
+				generateSwiftEncodeField(buf, structType.Fields[i], "value."+structType.Fields[i].Name)
+			}
+			// Bulk encode this run
+			generateSwiftBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ", "value.")
+			lastEndIndex = run.EndIndex + 1
+		}
+	}
+	// Encode remaining fields individually
+	for i := lastEndIndex; i < len(structType.Fields); i++ {
+		generateSwiftEncodeField(buf, structType.Fields[i], "value."+structType.Fields[i].Name)
 	}
 	buf.WriteString("}\n\n")
 
 	// Decode helper
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("func decodeStruct_%s(_ base: UnsafeRawPointer, _ pos: inout Int) throws -> %s {\n", structType.Name, structType.Name))
-	for _, field := range structType.Fields {
-		generateSwiftDecodeField(buf, field)
+	
+	// Use bulk decoding for fixed-size field runs
+	runs = schema.GetFixedFieldRuns(structType.Fields)
+	lastEndIndex = 0
+	for _, run := range runs {
+		if run.TotalBytes >= 8 {
+			// Decode any fields before this run individually
+			for i := lastEndIndex; i < run.StartIndex; i++ {
+				generateSwiftDecodeField(buf, structType.Fields[i])
+			}
+			// Bulk decode this run
+			generateSwiftBulkDecode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ")
+			lastEndIndex = run.EndIndex + 1
+		}
 	}
+	// Decode remaining fields individually
+	for i := lastEndIndex; i < len(structType.Fields); i++ {
+		generateSwiftDecodeField(buf, structType.Fields[i])
+	}
+	
 	buf.WriteString(fmt.Sprintf("    return %s(\n", structType.Name))
 	for i, field := range structType.Fields {
 		buf.WriteString(fmt.Sprintf("        %s: %s", field.Name, field.Name))

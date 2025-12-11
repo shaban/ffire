@@ -239,6 +239,10 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 	structName := messageName + "Message"
 	snakeName := toSnakeCase(messageName)
 
+	// Check for runs of fixed-size primitive fields for bulk encoding
+	runs := schema.GetFixedFieldRuns(structType.Fields)
+	hasBulkRun := len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0
+
 	buf.WriteString(fmt.Sprintf("impl %s {\n", structName))
 
 	// Encode method
@@ -246,9 +250,19 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 	buf.WriteString("    pub fn encode(&self) -> Vec<u8> {\n")
 	buf.WriteString("        let mut buf = Vec::new();\n")
 
-	for _, field := range structType.Fields {
-		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
-		generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", false) // buf is local Vec<u8>
+	if hasBulkRun {
+		run := runs[0]
+		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		for i := run.EndIndex; i < len(structType.Fields); i++ {
+			field := structType.Fields[i]
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", false)
+		}
+	} else {
+		for _, field := range structType.Fields {
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", false)
+		}
 	}
 
 	buf.WriteString("        buf\n")
@@ -259,9 +273,19 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 	buf.WriteString("    pub fn decode(bytes: &[u8]) -> Result<Self, FFireError> {\n")
 	buf.WriteString("        let mut pos = 0;\n")
 
-	for _, field := range structType.Fields {
-		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
-		generateRustDecodeField(buf, field.Type, fieldName, "        ")
+	if hasBulkRun {
+		run := runs[0]
+		generateRustBulkDecodeLocal(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		for i := run.EndIndex; i < len(structType.Fields); i++ {
+			field := structType.Fields[i]
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustDecodeField(buf, field.Type, fieldName, "        ")
+		}
+	} else {
+		for _, field := range structType.Fields {
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustDecodeField(buf, field.Type, fieldName, "        ")
+		}
 	}
 
 	buf.WriteString(fmt.Sprintf("        Ok(%s {\n", structName))
@@ -325,19 +349,47 @@ func generateRustArrayMessage(buf *bytes.Buffer, messageName string, arrayType *
 func generateRustStructImpl(buf *bytes.Buffer, structType *schema.StructType) {
 	buf.WriteString(fmt.Sprintf("impl %s {\n", structType.Name))
 
+	// Check for runs of fixed-size primitive fields for bulk encoding
+	runs := schema.GetFixedFieldRuns(structType.Fields)
+	hasBulkRun := len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0
+
 	// Encode method
 	buf.WriteString("    fn encode_to(&self, buf: &mut Vec<u8>) {\n")
-	for _, field := range structType.Fields {
-		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
-		generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", true) // buf is &mut ref
+	
+	if hasBulkRun {
+		run := runs[0]
+		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		// Encode remaining fields normally
+		for i := run.EndIndex; i < len(structType.Fields); i++ {
+			field := structType.Fields[i]
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", true)
+		}
+	} else {
+		for _, field := range structType.Fields {
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", true)
+		}
 	}
 	buf.WriteString("    }\n\n")
 
 	// Decode method
 	buf.WriteString("    fn decode_from(bytes: &[u8], pos: &mut usize) -> Result<Self, FFireError> {\n")
-	for _, field := range structType.Fields {
-		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
-		generateRustDecodeFieldWithPos(buf, field.Type, fieldName, "        ")
+	
+	if hasBulkRun {
+		run := runs[0]
+		generateRustBulkDecode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		// Decode remaining fields normally
+		for i := run.EndIndex; i < len(structType.Fields); i++ {
+			field := structType.Fields[i]
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustDecodeFieldWithPos(buf, field.Type, fieldName, "        ")
+		}
+	} else {
+		for _, field := range structType.Fields {
+			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+			generateRustDecodeFieldWithPos(buf, field.Type, fieldName, "        ")
+		}
 	}
 
 	buf.WriteString(fmt.Sprintf("        Ok(%s {\n", structType.Name))
@@ -349,6 +401,125 @@ func generateRustStructImpl(buf *bytes.Buffer, structType *schema.StructType) {
 	buf.WriteString("    }\n")
 
 	buf.WriteString("}\n\n")
+}
+
+// generateRustBulkEncode generates code to encode multiple fixed-size fields in one buffer write
+func generateRustBulkEncode(buf *bytes.Buffer, fields []schema.Field, totalBytes int, indent string) {
+	buf.WriteString(fmt.Sprintf("%s// Bulk encode %d bytes of fixed-size fields\n", indent, totalBytes))
+	buf.WriteString(fmt.Sprintf("%slet mut fixed_buf = [0u8; %d];\n", indent, totalBytes))
+	
+	offset := 0
+	for _, field := range fields {
+		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+		primType := field.Type.(*schema.PrimitiveType)
+		accessor := fmt.Sprintf("self.%s", fieldName)
+		
+		switch primType.Name {
+		case "bool":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d] = if %s { 1 } else { 0 };\n", indent, offset, accessor))
+			offset += 1
+		case "int8":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d] = %s as u8;\n", indent, offset, accessor))
+			offset += 1
+		case "int16":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d..%d].copy_from_slice(&%s.to_le_bytes());\n", indent, offset, offset+2, accessor))
+			offset += 2
+		case "int32":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d..%d].copy_from_slice(&%s.to_le_bytes());\n", indent, offset, offset+4, accessor))
+			offset += 4
+		case "int64":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d..%d].copy_from_slice(&%s.to_le_bytes());\n", indent, offset, offset+8, accessor))
+			offset += 8
+		case "float32":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d..%d].copy_from_slice(&%s.to_le_bytes());\n", indent, offset, offset+4, accessor))
+			offset += 4
+		case "float64":
+			buf.WriteString(fmt.Sprintf("%sfixed_buf[%d..%d].copy_from_slice(&%s.to_le_bytes());\n", indent, offset, offset+8, accessor))
+			offset += 8
+		}
+	}
+	
+	buf.WriteString(fmt.Sprintf("%sbuf.extend_from_slice(&fixed_buf);\n", indent))
+}
+
+// generateRustBulkDecode generates code to decode multiple fixed-size fields using direct byte access
+func generateRustBulkDecode(buf *bytes.Buffer, fields []schema.Field, totalBytes int, indent string) {
+	buf.WriteString(fmt.Sprintf("%s// Bulk decode %d bytes of fixed-size fields\n", indent, totalBytes))
+	buf.WriteString(fmt.Sprintf("%sif bytes.len() < *pos + %d { return Err(FFireError::BufferTooShort); }\n", indent, totalBytes))
+	
+	offset := 0
+	for _, field := range fields {
+		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+		primType := field.Type.(*schema.PrimitiveType)
+		
+		switch primType.Name {
+		case "bool":
+			buf.WriteString(fmt.Sprintf("%slet %s = bytes[*pos + %d] != 0;\n", indent, fieldName, offset))
+			offset += 1
+		case "int8":
+			buf.WriteString(fmt.Sprintf("%slet %s = bytes[*pos + %d] as i8;\n", indent, fieldName, offset))
+			offset += 1
+		case "int16":
+			buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([bytes[*pos + %d], bytes[*pos + %d]]);\n", indent, fieldName, offset, offset+1))
+			offset += 2
+		case "int32":
+			buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d]]);\n", indent, fieldName, offset, offset+1, offset+2, offset+3))
+			offset += 4
+		case "int64":
+			buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes([bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d]]);\n", 
+				indent, fieldName, offset, offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7))
+			offset += 8
+		case "float32":
+			buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d]]);\n", indent, fieldName, offset, offset+1, offset+2, offset+3))
+			offset += 4
+		case "float64":
+			buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes([bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d], bytes[*pos + %d]]);\n", 
+				indent, fieldName, offset, offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7))
+			offset += 8
+		}
+	}
+	
+	buf.WriteString(fmt.Sprintf("%s*pos += %d;\n", indent, totalBytes))
+}
+
+// generateRustBulkDecodeLocal generates code to decode multiple fixed-size fields (local pos variable version)
+func generateRustBulkDecodeLocal(buf *bytes.Buffer, fields []schema.Field, totalBytes int, indent string) {
+	buf.WriteString(fmt.Sprintf("%s// Bulk decode %d bytes of fixed-size fields\n", indent, totalBytes))
+	buf.WriteString(fmt.Sprintf("%sif bytes.len() < pos + %d { return Err(FFireError::BufferTooShort); }\n", indent, totalBytes))
+	
+	offset := 0
+	for _, field := range fields {
+		fieldName := escapeRustFieldName(toSnakeCase(field.Name))
+		primType := field.Type.(*schema.PrimitiveType)
+		
+		switch primType.Name {
+		case "bool":
+			buf.WriteString(fmt.Sprintf("%slet %s = bytes[pos + %d] != 0;\n", indent, fieldName, offset))
+			offset += 1
+		case "int8":
+			buf.WriteString(fmt.Sprintf("%slet %s = bytes[pos + %d] as i8;\n", indent, fieldName, offset))
+			offset += 1
+		case "int16":
+			buf.WriteString(fmt.Sprintf("%slet %s = i16::from_le_bytes([bytes[pos + %d], bytes[pos + %d]]);\n", indent, fieldName, offset, offset+1))
+			offset += 2
+		case "int32":
+			buf.WriteString(fmt.Sprintf("%slet %s = i32::from_le_bytes([bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d]]);\n", indent, fieldName, offset, offset+1, offset+2, offset+3))
+			offset += 4
+		case "int64":
+			buf.WriteString(fmt.Sprintf("%slet %s = i64::from_le_bytes([bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d]]);\n", 
+				indent, fieldName, offset, offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7))
+			offset += 8
+		case "float32":
+			buf.WriteString(fmt.Sprintf("%slet %s = f32::from_le_bytes([bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d]]);\n", indent, fieldName, offset, offset+1, offset+2, offset+3))
+			offset += 4
+		case "float64":
+			buf.WriteString(fmt.Sprintf("%slet %s = f64::from_le_bytes([bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d], bytes[pos + %d]]);\n", 
+				indent, fieldName, offset, offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7))
+			offset += 8
+		}
+	}
+	
+	buf.WriteString(fmt.Sprintf("%spos += %d;\n", indent, totalBytes))
 }
 
 func generateRustEncodeField(buf *bytes.Buffer, fieldType schema.Type, accessor string, indent string, bufIsMutRef bool) {

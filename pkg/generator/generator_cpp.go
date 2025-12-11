@@ -585,9 +585,22 @@ func (g *cppGenerator) generateEncodeStruct(encVar, valueVar string, typ *schema
 		indent += "    "
 	}
 
-	for _, field := range typ.Fields {
-		fieldVar := valueVar + "." + field.Name
-		g.generateEncodeValue(encVar, fieldVar, field.Type, indent)
+	// Check for runs of fixed-size primitive fields for bulk encoding
+	runs := schema.GetFixedFieldRuns(typ.Fields)
+	
+	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
+		run := runs[0]
+		g.generateCppBulkStructEncode(encVar, valueVar, typ.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, indent)
+		// Encode remaining fields normally
+		for i := run.EndIndex; i < len(typ.Fields); i++ {
+			fieldVar := valueVar + "." + typ.Fields[i].Name
+			g.generateEncodeValue(encVar, fieldVar, typ.Fields[i].Type, indent)
+		}
+	} else {
+		for _, field := range typ.Fields {
+			fieldVar := valueVar + "." + field.Name
+			g.generateEncodeValue(encVar, fieldVar, field.Type, indent)
+		}
 	}
 
 	if typ.Optional {
@@ -596,6 +609,44 @@ func (g *cppGenerator) generateEncodeStruct(encVar, valueVar string, typ *schema
 		fmt.Fprintf(g.buf, "%s    %s.write_byte(0x00);\n", indent, encVar)
 		fmt.Fprintf(g.buf, "%s}\n", indent)
 	}
+}
+
+// generateCppBulkStructEncode generates code to encode multiple fixed-size fields in one buffer write
+func (g *cppGenerator) generateCppBulkStructEncode(encVar, structVar string, fields []schema.Field, totalBytes int, indent string) {
+	fmt.Fprintf(g.buf, "%s// Bulk encode %d bytes of fixed-size fields\n", indent, totalBytes)
+	fmt.Fprintf(g.buf, "%suint8_t fixed_buf[%d] = {0};\n", indent, totalBytes)
+	
+	offset := 0
+	for _, field := range fields {
+		fieldVar := structVar + "." + field.Name
+		primType := field.Type.(*schema.PrimitiveType)
+		
+		switch primType.Name {
+		case "bool":
+			fmt.Fprintf(g.buf, "%sfixed_buf[%d] = %s ? 1 : 0;\n", indent, offset, fieldVar)
+			offset += 1
+		case "int8":
+			fmt.Fprintf(g.buf, "%sfixed_buf[%d] = static_cast<uint8_t>(%s);\n", indent, offset, fieldVar)
+			offset += 1
+		case "int16":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&fixed_buf[%d], &%s, 2);\n", indent, offset, fieldVar)
+			offset += 2
+		case "int32":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&fixed_buf[%d], &%s, 4);\n", indent, offset, fieldVar)
+			offset += 4
+		case "int64":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&fixed_buf[%d], &%s, 8);\n", indent, offset, fieldVar)
+			offset += 8
+		case "float32":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&fixed_buf[%d], &%s, 4);\n", indent, offset, fieldVar)
+			offset += 4
+		case "float64":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&fixed_buf[%d], &%s, 8);\n", indent, offset, fieldVar)
+			offset += 8
+		}
+	}
+	
+	fmt.Fprintf(g.buf, "%s%s.buffer.insert(%s.buffer.end(), fixed_buf, fixed_buf + %d);\n", indent, encVar, encVar, totalBytes)
 }
 
 // generateBulkArrayEncode generates optimized bulk encoding for primitive arrays
@@ -785,9 +836,22 @@ func (g *cppGenerator) generateDecodeStruct(decVar, resultVar string, typ *schem
 		resultVar = "tmp"
 	}
 
-	for _, field := range typ.Fields {
-		fieldVar := resultVar + "." + field.Name
-		g.generateDecodeValue(decVar, fieldVar, field.Type, indent)
+	// Check for runs of fixed-size primitive fields for bulk decoding
+	runs := schema.GetFixedFieldRuns(typ.Fields)
+	
+	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
+		run := runs[0]
+		g.generateCppBulkStructDecode(decVar, resultVar, typ.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, indent)
+		// Decode remaining fields normally
+		for i := run.EndIndex; i < len(typ.Fields); i++ {
+			fieldVar := resultVar + "." + typ.Fields[i].Name
+			g.generateDecodeValue(decVar, fieldVar, typ.Fields[i].Type, indent)
+		}
+	} else {
+		for _, field := range typ.Fields {
+			fieldVar := resultVar + "." + field.Name
+			g.generateDecodeValue(decVar, fieldVar, field.Type, indent)
+		}
 	}
 
 	if typ.Optional {
@@ -800,6 +864,44 @@ func (g *cppGenerator) generateDecodeStruct(decVar, resultVar string, typ *schem
 		fmt.Fprintf(g.buf, "%s    %s = tmp;\n", indent, baseResultVar)
 		fmt.Fprintf(g.buf, "%s}\n", indent)
 	}
+}
+
+// generateCppBulkStructDecode generates code to decode multiple fixed-size fields using memcpy
+func (g *cppGenerator) generateCppBulkStructDecode(decVar, structVar string, fields []schema.Field, totalBytes int, indent string) {
+	fmt.Fprintf(g.buf, "%s// Bulk decode %d bytes of fixed-size fields\n", indent, totalBytes)
+	fmt.Fprintf(g.buf, "%s%s.check_remaining(%d);\n", indent, decVar, totalBytes)
+	
+	offset := 0
+	for _, field := range fields {
+		fieldVar := structVar + "." + field.Name
+		primType := field.Type.(*schema.PrimitiveType)
+		
+		switch primType.Name {
+		case "bool":
+			fmt.Fprintf(g.buf, "%s%s = %s.data[%s.pos + %d] != 0;\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 1
+		case "int8":
+			fmt.Fprintf(g.buf, "%s%s = static_cast<int8_t>(%s.data[%s.pos + %d]);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 1
+		case "int16":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&%s, &%s.data[%s.pos + %d], 2);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 2
+		case "int32":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&%s, &%s.data[%s.pos + %d], 4);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 4
+		case "int64":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&%s, &%s.data[%s.pos + %d], 8);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 8
+		case "float32":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&%s, &%s.data[%s.pos + %d], 4);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 4
+		case "float64":
+			fmt.Fprintf(g.buf, "%sstd::memcpy(&%s, &%s.data[%s.pos + %d], 8);\n", indent, fieldVar, decVar, decVar, offset)
+			offset += 8
+		}
+	}
+	
+	fmt.Fprintf(g.buf, "%s%s.pos += %d;\n", indent, decVar, totalBytes)
 }
 
 func (g *cppGenerator) generateDecodeArray(decVar, resultVar string, typ *schema.ArrayType, indent string) {
