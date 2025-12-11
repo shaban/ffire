@@ -333,23 +333,9 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 
 	switch t := msg.TargetType.(type) {
 	case *schema.StructType:
-		// Use bulk encoding for fixed-size field runs
-		runs := schema.GetFixedFieldRuns(t.Fields)
-		lastEndIndex := 0
-		for _, run := range runs {
-			if run.TotalBytes >= 8 {
-				// Encode any fields before this run individually
-				for i := lastEndIndex; i < run.StartIndex; i++ {
-					generateSwiftEncodeField(buf, t.Fields[i], "message."+t.Fields[i].Name)
-				}
-				// Bulk encode this run
-				generateSwiftBulkEncode(buf, t.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ", "message.")
-				lastEndIndex = run.EndIndex + 1
-			}
-		}
-		// Encode remaining fields individually
-		for i := lastEndIndex; i < len(t.Fields); i++ {
-			generateSwiftEncodeField(buf, t.Fields[i], "message."+t.Fields[i].Name)
+		// Sequential encoding - Swift's append is already optimized
+		for _, field := range t.Fields {
+			generateSwiftEncodeField(buf, field, "message."+field.Name)
 		}
 	case *schema.ArrayType:
 		// For array types, encode as array
@@ -797,7 +783,7 @@ func generateSwiftEncoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 						buf.WriteString("    return result\n")
 					} else {
 						// Fallback: structs with arrays or nested structs
-						buf.WriteString(fmt.Sprintf("    for item in message { encodeStruct_%s(&buffer, item) }\n", structType.Name))
+						buf.WriteString(fmt.Sprintf("    withUnsafeBytes(of: len.littleEndian) { buffer.append(contentsOf: $0) }\n    for item in message { encodeStruct_%s(&buffer, item) }\n", structType.Name))
 					}
 				}
 			}
@@ -994,23 +980,9 @@ func generateSwiftDecoderFunc(buf *bytes.Buffer, msg schema.MessageType) {
 
 	switch t := msg.TargetType.(type) {
 	case *schema.StructType:
-		// Use bulk decoding for fixed-size field runs
-		runs := schema.GetFixedFieldRuns(t.Fields)
-		lastEndIndex := 0
-		for _, run := range runs {
-			if run.TotalBytes >= 8 {
-				// Decode any fields before this run individually
-				for i := lastEndIndex; i < run.StartIndex; i++ {
-					generateSwiftDecodeField(buf, t.Fields[i])
-				}
-				// Bulk decode this run
-				generateSwiftBulkDecode(buf, t.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
-				lastEndIndex = run.EndIndex + 1
-			}
-		}
-		// Decode remaining fields individually
-		for i := lastEndIndex; i < len(t.Fields); i++ {
-			generateSwiftDecodeField(buf, t.Fields[i])
+		// Sequential decoding - direct memory access is already efficient
+		for _, field := range t.Fields {
+			generateSwiftDecodeField(buf, field)
 		}
 
 		buf.WriteString(fmt.Sprintf("        return %s(\n", structName))
@@ -1341,23 +1313,9 @@ func generateSwiftStructHelpers(buf *bytes.Buffer, structType *schema.StructType
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("func encodeStruct_%s(_ buffer: inout [UInt8], _ value: %s) {\n", structType.Name, structType.Name))
 	
-	// Use bulk encoding for fixed-size field runs
-	runs := schema.GetFixedFieldRuns(structType.Fields)
-	lastEndIndex := 0
-	for _, run := range runs {
-		if run.TotalBytes >= 8 {
-			// Encode any fields before this run individually
-			for i := lastEndIndex; i < run.StartIndex; i++ {
-				generateSwiftEncodeField(buf, structType.Fields[i], "value."+structType.Fields[i].Name)
-			}
-			// Bulk encode this run
-			generateSwiftBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ", "value.")
-			lastEndIndex = run.EndIndex + 1
-		}
-	}
-	// Encode remaining fields individually
-	for i := lastEndIndex; i < len(structType.Fields); i++ {
-		generateSwiftEncodeField(buf, structType.Fields[i], "value."+structType.Fields[i].Name)
+	// Sequential encoding - Swift's append is already optimized
+	for _, field := range structType.Fields {
+		generateSwiftEncodeField(buf, field, "value."+field.Name)
 	}
 	buf.WriteString("}\n\n")
 
@@ -1365,23 +1323,9 @@ func generateSwiftStructHelpers(buf *bytes.Buffer, structType *schema.StructType
 	buf.WriteString("@inlinable\n")
 	buf.WriteString(fmt.Sprintf("func decodeStruct_%s(_ base: UnsafeRawPointer, _ pos: inout Int) throws -> %s {\n", structType.Name, structType.Name))
 	
-	// Use bulk decoding for fixed-size field runs
-	runs = schema.GetFixedFieldRuns(structType.Fields)
-	lastEndIndex = 0
-	for _, run := range runs {
-		if run.TotalBytes >= 8 {
-			// Decode any fields before this run individually
-			for i := lastEndIndex; i < run.StartIndex; i++ {
-				generateSwiftDecodeField(buf, structType.Fields[i])
-			}
-			// Bulk decode this run
-			generateSwiftBulkDecode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "    ")
-			lastEndIndex = run.EndIndex + 1
-		}
-	}
-	// Decode remaining fields individually
-	for i := lastEndIndex; i < len(structType.Fields); i++ {
-		generateSwiftDecodeField(buf, structType.Fields[i])
+	// Sequential decoding - direct memory access is already efficient
+	for _, field := range structType.Fields {
+		generateSwiftDecodeField(buf, field)
 	}
 	
 	buf.WriteString(fmt.Sprintf("    return %s(\n", structType.Name))

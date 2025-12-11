@@ -256,7 +256,7 @@ func GetPrimitiveSize(t Type) int {
 // FixedFieldRun represents a contiguous run of fixed-size primitive fields.
 type FixedFieldRun struct {
 	StartIndex int
-	EndIndex   int // exclusive
+	EndIndex   int // inclusive - last index of fixed-size field in run
 	TotalBytes int
 }
 

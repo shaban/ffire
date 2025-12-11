@@ -590,9 +590,9 @@ func (g *cppGenerator) generateEncodeStruct(encVar, valueVar string, typ *schema
 	
 	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
 		run := runs[0]
-		g.generateCppBulkStructEncode(encVar, valueVar, typ.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, indent)
+		g.generateCppBulkStructEncode(encVar, valueVar, typ.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, indent)
 		// Encode remaining fields normally
-		for i := run.EndIndex; i < len(typ.Fields); i++ {
+		for i := run.EndIndex + 1; i < len(typ.Fields); i++ {
 			fieldVar := valueVar + "." + typ.Fields[i].Name
 			g.generateEncodeValue(encVar, fieldVar, typ.Fields[i].Type, indent)
 		}
@@ -841,9 +841,9 @@ func (g *cppGenerator) generateDecodeStruct(decVar, resultVar string, typ *schem
 	
 	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
 		run := runs[0]
-		g.generateCppBulkStructDecode(decVar, resultVar, typ.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, indent)
+		g.generateCppBulkStructDecode(decVar, resultVar, typ.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, indent)
 		// Decode remaining fields normally
-		for i := run.EndIndex; i < len(typ.Fields); i++ {
+		for i := run.EndIndex + 1; i < len(typ.Fields); i++ {
 			fieldVar := resultVar + "." + typ.Fields[i].Name
 			g.generateDecodeValue(decVar, fieldVar, typ.Fields[i].Type, indent)
 		}

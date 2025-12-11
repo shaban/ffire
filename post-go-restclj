@@ -1,0 +1,105 @@
+===============================================================================================
+BENCHMARK COMPARISON
+===============================================================================================
+Language     Format     Message               Encode       Decode        Total       Size
+-----------------------------------------------------------------------------------------------
+C#           ffire      array_float            832 ns        869 ns       1701 ns    20002 B
+Go           ffire      array_float           1721 ns       1440 ns       3161 ns    20002 B
+C++          ffire      array_float            784 ns        537 ns       1321 ns    20002 B
+Rust         ffire      array_float            446 ns        521 ns        967 ns    20002 B
+Dart         ffire      array_float           2504 ns       7684 ns      10188 ns    20002 B
+Swift        ffire      array_float           1037 ns        605 ns       1642 ns    20002 B
+Java         ffire      array_float           1017 ns       1326 ns       2343 ns    20002 B
+Zig          ffire      array_float           1076 ns        556 ns       1632 ns    20002 B
+Go           proto      array_float           3973 ns      10793 ns      14766 ns    20004 B
+-----------------------------------------------------------------------------------------------
+Swift        ffire      array_int              871 ns        601 ns       1472 ns    20002 B
+Dart         ffire      array_int             2401 ns       3056 ns       5457 ns    20002 B
+Java         ffire      array_int              982 ns       1244 ns       2226 ns    20002 B
+Go           ffire      array_int             1732 ns       1466 ns       3198 ns    20002 B
+C++          ffire      array_int              884 ns        521 ns       1405 ns    20002 B
+Zig          ffire      array_int             1127 ns        594 ns       1721 ns    20002 B
+C#           ffire      array_int              828 ns        838 ns       1666 ns    20002 B
+Rust         ffire      array_int              517 ns        667 ns       1184 ns    20002 B
+Go           proto      array_int            18398 ns      12854 ns      31252 ns     9876 B
+-----------------------------------------------------------------------------------------------
+Dart         ffire      array_string         10834 ns      14221 ns      25055 ns    17002 B
+C++          ffire      array_string          8421 ns      15138 ns      23559 ns    17002 B
+C#           ffire      array_string          6907 ns      10666 ns      17573 ns    17002 B
+Swift        ffire      array_string          6559 ns      22048 ns      28607 ns    17002 B
+Java         ffire      array_string         10052 ns      11039 ns      21091 ns    17002 B
+Go           ffire      array_string          5183 ns       7694 ns      12877 ns    17002 B
+Rust         ffire      array_string          2932 ns      17921 ns      20853 ns    17002 B
+Zig          ffire      array_string          9080 ns      18445 ns      27525 ns    17002 B
+Go           proto      array_string          5599 ns      13122 ns      18721 ns    17000 B
+-----------------------------------------------------------------------------------------------
+Dart         ffire      array_struct          4722 ns       2404 ns       7126 ns     5202 B
+Java         ffire      array_struct          3801 ns       3591 ns       7392 ns     5202 B
+Swift        ffire      array_struct          3057 ns       8700 ns      11757 ns     5202 B
+Zig          ffire      array_struct          4402 ns       1574 ns       5976 ns     5202 B
+Rust         ffire      array_struct          1418 ns       7751 ns       9169 ns     5202 B
+Go           ffire      array_struct          6982 ns       2910 ns       9892 ns     5202 B
+C++          ffire      array_struct          4530 ns       1559 ns       6089 ns     5202 B
+C#           ffire      array_struct          2587 ns       4096 ns       6683 ns     5202 B
+Go           proto      array_struct          8113 ns      15383 ns      23496 ns     5200 B
+-----------------------------------------------------------------------------------------------
+Java         ffire      complex               3959 ns       7164 ns      11123 ns     4293 B
+C#           ffire      complex               4094 ns       7087 ns      11181 ns     4293 B
+Zig          ffire      complex               4501 ns       3510 ns       8011 ns     4293 B
+Rust         ffire      complex               1751 ns      10094 ns      11845 ns     4293 B
+Dart         ffire      complex               4670 ns       4127 ns       8797 ns     4293 B
+Swift        ffire      complex               8023 ns       6842 ns      14865 ns     4291 B
+Go           ffire      complex               4357 ns       4223 ns       8580 ns     4293 B
+C++          ffire      complex               3632 ns       3275 ns       6907 ns     4293 B
+Go           proto      complex               8427 ns      13408 ns      21835 ns     3901 B
+-----------------------------------------------------------------------------------------------
+C#           ffire      empty                   15 ns         63 ns         78 ns        8 B
+Java         ffire      empty                  108 ns        116 ns        224 ns        8 B
+C++          ffire      empty                  200 ns         13 ns        213 ns        8 B
+Go           ffire      empty                   60 ns          9 ns         69 ns        8 B
+Swift        ffire      empty                  171 ns         24 ns        195 ns        8 B
+Zig          ffire      empty                  160 ns         31 ns        191 ns        8 B
+Dart         ffire      empty                  324 ns        352 ns        676 ns        8 B
+Rust         ffire      empty                   29 ns          7 ns         36 ns        8 B
+Go           proto      empty                   96 ns        163 ns        259 ns        0 B
+-----------------------------------------------------------------------------------------------
+Zig          ffire      nested                1035 ns        594 ns       1629 ns    20002 B
+Go           ffire      nested                1739 ns       1473 ns       3212 ns    20002 B
+Rust         ffire      nested                 526 ns        733 ns       1259 ns    20002 B
+Dart         ffire      nested                2418 ns       3044 ns       5462 ns    20002 B
+C++          ffire      nested                 786 ns        541 ns       1327 ns    20002 B
+C#           ffire      nested                 953 ns       1129 ns       2082 ns    20002 B
+Swift        ffire      nested                 879 ns        420 ns       1299 ns    20002 B
+Java         ffire      nested                1008 ns       1262 ns       2270 ns    20002 B
+Go           proto      nested               18625 ns      13797 ns      32422 ns     9902 B
+-----------------------------------------------------------------------------------------------
+Dart         ffire      optional             24436 ns      21436 ns      45872 ns    21840 B
+Go           ffire      optional             26056 ns      32751 ns      58807 ns    21840 B
+Java         ffire      optional             26785 ns      29886 ns      56671 ns    21840 B
+Zig          ffire      optional             22199 ns      12359 ns      34558 ns    21840 B
+Swift        ffire      optional             24019 ns      19623 ns      43642 ns    21840 B
+Rust         ffire      optional              8905 ns      48433 ns      57338 ns    21840 B
+C++          ffire      optional             21332 ns      12175 ns      33507 ns    21840 B
+C#           ffire      optional             18915 ns      37679 ns      56594 ns    21840 B
+Go           proto      optional             43556 ns      97314 ns     140870 ns    20996 B
+-----------------------------------------------------------------------------------------------
+Dart         ffire      struct                 370 ns        371 ns        741 ns       24 B
+C#           ffire      struct                  27 ns         97 ns        124 ns       24 B
+Rust         ffire      struct                 145 ns         40 ns        185 ns       24 B
+Swift        ffire      struct                 321 ns         29 ns        350 ns       24 B
+C++          ffire      struct                 311 ns         11 ns        322 ns       24 B
+Zig          ffire      struct                 339 ns         63 ns        402 ns       24 B
+Go           ffire      struct                  68 ns         25 ns         93 ns       24 B
+Java         ffire      struct                  79 ns        112 ns        191 ns       24 B
+Go           proto      struct                 199 ns        268 ns        467 ns       23 B
+-----------------------------------------------------------------------------------------------
+C++          ffire      tags                   398 ns         14 ns        412 ns       34 B
+Rust         ffire      tags                   207 ns        141 ns        348 ns       34 B
+Swift        ffire      tags                   306 ns        129 ns        435 ns       34 B
+Dart         ffire      tags                   426 ns        381 ns        807 ns       34 B
+Go           ffire      tags                    79 ns         49 ns        128 ns       34 B
+Zig          ffire      tags                   411 ns         82 ns        493 ns       34 B
+C#           ffire      tags                    34 ns        133 ns        167 ns       34 B
+Java         ffire      tags                   110 ns        110 ns        220 ns       34 B
+Go           proto      tags                   116 ns        194 ns        310 ns       28 B
+===============================================================================================

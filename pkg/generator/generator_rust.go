@@ -252,8 +252,8 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 
 	if hasBulkRun {
 		run := runs[0]
-		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
-		for i := run.EndIndex; i < len(structType.Fields); i++ {
+		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
+		for i := run.EndIndex + 1; i < len(structType.Fields); i++ {
 			field := structType.Fields[i]
 			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
 			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", false)
@@ -275,8 +275,8 @@ func generateRustMessageImpl(buf *bytes.Buffer, messageName string, structType *
 
 	if hasBulkRun {
 		run := runs[0]
-		generateRustBulkDecodeLocal(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
-		for i := run.EndIndex; i < len(structType.Fields); i++ {
+		generateRustBulkDecodeLocal(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
+		for i := run.EndIndex + 1; i < len(structType.Fields); i++ {
 			field := structType.Fields[i]
 			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
 			generateRustDecodeField(buf, field.Type, fieldName, "        ")
@@ -358,9 +358,9 @@ func generateRustStructImpl(buf *bytes.Buffer, structType *schema.StructType) {
 	
 	if hasBulkRun {
 		run := runs[0]
-		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		generateRustBulkEncode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
 		// Encode remaining fields normally
-		for i := run.EndIndex; i < len(structType.Fields); i++ {
+		for i := run.EndIndex + 1; i < len(structType.Fields); i++ {
 			field := structType.Fields[i]
 			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
 			generateRustEncodeField(buf, field.Type, fmt.Sprintf("self.%s", fieldName), "        ", true)
@@ -378,9 +378,9 @@ func generateRustStructImpl(buf *bytes.Buffer, structType *schema.StructType) {
 	
 	if hasBulkRun {
 		run := runs[0]
-		generateRustBulkDecode(buf, structType.Fields[run.StartIndex:run.EndIndex], run.TotalBytes, "        ")
+		generateRustBulkDecode(buf, structType.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes, "        ")
 		// Decode remaining fields normally
-		for i := run.EndIndex; i < len(structType.Fields); i++ {
+		for i := run.EndIndex + 1; i < len(structType.Fields); i++ {
 			field := structType.Fields[i]
 			fieldName := escapeRustFieldName(toSnakeCase(field.Name))
 			generateRustDecodeFieldWithPos(buf, field.Type, fieldName, "        ")
