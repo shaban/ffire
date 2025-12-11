@@ -439,10 +439,10 @@ func (g *goGenerator) generateEncodeStruct(bufVar, valueVar string, typ *schema.
 	// If we have a substantial run of fixed fields, use bulk encoding
 	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
 		run := runs[0]
-		g.generateBulkStructEncode(bufVar, valueVar, typ.Fields[run.StartIndex:run.EndIndex], run.TotalBytes)
+		g.generateBulkStructEncode(bufVar, valueVar, typ.Fields[run.StartIndex:run.EndIndex+1], run.TotalBytes)
 		
 		// Encode remaining fields normally
-		for i := run.EndIndex; i < len(typ.Fields); i++ {
+		for i := run.EndIndex + 1; i < len(typ.Fields); i++ {
 			fieldVar := valueVar + "." + typ.Fields[i].Name
 			g.generateEncodeValue(bufVar, fieldVar, typ.Fields[i].Type)
 		}
@@ -826,10 +826,10 @@ func (g *goGenerator) decodeStructFieldsDirect(dataVar, posVar, resultVar string
 	// If we have a substantial run of fixed fields at the start, use bulk decoding
 	if len(runs) > 0 && runs[0].TotalBytes >= 8 && runs[0].StartIndex == 0 {
 		run := runs[0]
-		g.generateBulkStructDecode(dataVar, posVar, resultVar, fields[run.StartIndex:run.EndIndex], run.TotalBytes)
+		g.generateBulkStructDecode(dataVar, posVar, resultVar, fields[run.StartIndex:run.EndIndex+1], run.TotalBytes)
 		
 		// Decode remaining fields normally
-		for i := run.EndIndex; i < len(fields); i++ {
+		for i := run.EndIndex + 1; i < len(fields); i++ {
 			g.generateDecodeValueDirect(dataVar, posVar, resultVar+"."+fields[i].Name, fields[i].Type, false)
 		}
 	} else {
