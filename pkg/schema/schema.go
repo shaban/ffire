@@ -233,6 +233,79 @@ func IsFixedSizeType(t Type) bool {
 	return false
 }
 
+// GetPrimitiveSize returns the byte size of a primitive type, or 0 if not fixed-size.
+func GetPrimitiveSize(t Type) int {
+	prim, ok := t.(*PrimitiveType)
+	if !ok || prim.Optional {
+		return 0
+	}
+	switch prim.Name {
+	case "int64", "float64":
+		return 8
+	case "int32", "float32":
+		return 4
+	case "int16":
+		return 2
+	case "bool", "int8":
+		return 1
+	default:
+		return 0 // string is variable
+	}
+}
+
+// FixedFieldRun represents a contiguous run of fixed-size primitive fields.
+type FixedFieldRun struct {
+	StartIndex int
+	EndIndex   int // exclusive
+	TotalBytes int
+}
+
+// GetFixedFieldRuns returns runs of contiguous fixed-size primitive fields.
+// After canonical ordering, all fixed-size fields are at the front.
+func GetFixedFieldRuns(fields []Field) []FixedFieldRun {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	var runs []FixedFieldRun
+	runStart := -1
+	runBytes := 0
+
+	for i, field := range fields {
+		size := GetPrimitiveSize(field.Type)
+		if size > 0 {
+			if runStart == -1 {
+				runStart = i
+				runBytes = size
+			} else {
+				runBytes += size
+			}
+		} else {
+			// End of run
+			if runStart != -1 && runBytes > 0 {
+				runs = append(runs, FixedFieldRun{
+					StartIndex: runStart,
+					EndIndex:   i,
+					TotalBytes: runBytes,
+				})
+			}
+			runStart = -1
+			runBytes = 0
+		}
+	}
+
+	// Handle final run
+	if runStart != -1 && runBytes > 0 {
+		runs = append(runs, FixedFieldRun{
+			StartIndex: runStart,
+			EndIndex:   len(fields),
+			TotalBytes: runBytes,
+		})
+	}
+
+	return runs
+}
+
 // SortFieldsCanonical returns a copy of fields sorted in canonical wire format order:
 // 1. Fixed-size fields (8-byte, then 4-byte, then 2-byte, then 1-byte), alphabetically within size
 // 2. Variable-size fields (strings, arrays), alphabetically
