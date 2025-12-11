@@ -6,15 +6,15 @@
 // Usage:
 //
 //	mage gen {target}    - Generate benchmarks for specific language or 'all'
-//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Targets: all, go, cpp, java, csharp, dart, swift, zig, rust, proto
 //	                       Example: mage gen java
 //
 //	mage run {target}    - Run benchmarks for specific language or 'all'
-//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Targets: all, go, cpp, java, csharp, dart, swift, zig, rust, proto
 //	                       Example: mage run go
 //
 //	mage clean {target}  - Clean generated files for specific language or 'all'
-//	                       Targets: all, go, cpp, java, python, dart, swift, js, proto
+//	                       Targets: all, go, cpp, java, csharp, dart, swift, zig, rust, proto
 //	                       Example: mage clean cpp
 //
 //	mage compare         - Generate comparison table from all benchmark results
@@ -275,7 +275,7 @@ func genProto(name, protoFile, jsonFile string) error {
 //	mage gen go       - Generate only Go benchmarks
 //	mage gen java     - Generate only Java benchmarks
 //	mage gen cpp      - Generate only C++ benchmarks
-//	(supports: go, cpp, java, python, dart, swift, javascript/js, proto)
+//	(supports: go, cpp, java, csharp, dart, swift, zig, rust, proto)
 func Gen(target string) error {
 	target = strings.ToLower(target)
 
@@ -284,19 +284,14 @@ func Gen(target string) error {
 		return genAll()
 	}
 
-	// Handle 'js' alias
-	if target == "js" {
-		target = "javascript"
-	}
-
-	// Validate target
+	// Validate target (python/javascript removed - use igniffi for FFI-based languages)
 	validTargets := map[string]bool{
-		"go": true, "cpp": true, "java": true, "csharp": true, "python": true, "python-pybind11": true,
-		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true, "rust": true,
+		"go": true, "cpp": true, "java": true, "csharp": true,
+		"dart": true, "swift": true, "proto": true, "zig": true, "rust": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, python-pybind11, dart, swift, javascript, proto, zig, rust", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust", target)
 	}
 
 	// Create output directories
@@ -363,11 +358,6 @@ func Run(target string) error {
 		return nil
 	}
 
-	// Handle 'js' alias
-	if target == "js" {
-		target = "javascript"
-	}
-
 	// Route to specific runner
 	switch target {
 	case "go":
@@ -378,8 +368,6 @@ func Run(target string) error {
 		return runJava()
 	case "csharp":
 		return runCSharp()
-	case "python":
-		return runPython()
 	case "dart":
 		return runDart()
 	case "swift":
@@ -388,12 +376,10 @@ func Run(target string) error {
 		return runZig()
 	case "rust":
 		return runRust()
-	case "javascript":
-		return runJavaScript()
 	case "proto":
 		return runProto()
 	default:
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, python, dart, swift, zig, rust, javascript, proto", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, zig, rust, proto", target)
 	}
 }
 
@@ -412,19 +398,14 @@ func Clean(target string) error {
 		return os.RemoveAll(genDir)
 	}
 
-	// Handle 'js' alias
-	if target == "js" {
-		target = "javascript"
-	}
-
-	// Validate target
+	// Validate target (python/javascript removed)
 	validTargets := map[string]bool{
-		"go": true, "cpp": true, "java": true, "csharp": true, "python": true,
-		"dart": true, "swift": true, "javascript": true, "proto": true, "zig": true, "rust": true,
+		"go": true, "cpp": true, "java": true, "csharp": true,
+		"dart": true, "swift": true, "proto": true, "zig": true, "rust": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, python, dart, swift, javascript, proto, zig, rust", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust", target)
 	}
 
 	// Remove language-specific generated files
@@ -616,51 +597,9 @@ func runCpp() error {
 
 // runPython runs the Pure Python benchmarks (now the default)
 func runPython() error {
-	fmt.Println("\n🏃 Running ffire Python benchmarks...")
-
-	// Check if python3 is available
-	if _, err := exec.LookPath("python3"); err != nil {
-		fmt.Println("  ⚠️  python3 not found (skipping)")
-		return nil
-	}
-
-	// Find all Python benchmark directories
-	pattern := filepath.Join(genDir, "ffire_python_*")
-	dirs, err := filepath.Glob(pattern)
-	if err != nil {
-		return err
-	}
-
-	if len(dirs) == 0 {
-		fmt.Println("  ⚠️  No Python benchmarks found (skipping)")
-		return nil
-	}
-
-	var allResults []BenchResult
-	for _, dir := range dirs {
-		name := strings.TrimPrefix(filepath.Base(dir), "ffire_python_")
-		fmt.Printf("\n  Testing: %s\n", name)
-
-		result, err := runPythonPureBench(dir)
-		if err != nil {
-			fmt.Printf("  ❌ Failed: %v\n", err)
-			continue
-		}
-
-		// Override message name with schema name for consistent grouping
-		result.Message = name
-
-		// Print result
-		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
-		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
-		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
-		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
-
-		allResults = append(allResults, result)
-	}
-
-	// Save all results
-	return saveResults(allResults, "ffire_python")
+	// TODO: Pure Python generator removed - will be replaced by igniffi FFI wrapper
+	fmt.Println("\n⏭️  Skipping Python benchmarks (pure generator removed, use igniffi)")
+	return nil
 }
 
 // runPythonPyBind11 runs the PyBind11 benchmarks (legacy)
@@ -862,51 +801,9 @@ func runRust() error {
 
 // runJavaScript runs the JavaScript (Node.js) benchmarks
 func runJavaScript() error {
-	fmt.Println("\n🏃 Running ffire JavaScript benchmarks...")
-
-	// Check if node is available
-	if _, err := exec.LookPath("node"); err != nil {
-		fmt.Println("  ⚠️  node not found (skipping)")
-		return nil
-	}
-
-	// Find all JavaScript benchmark directories
-	pattern := filepath.Join(genDir, "ffire_javascript_*")
-	dirs, err := filepath.Glob(pattern)
-	if err != nil {
-		return err
-	}
-
-	if len(dirs) == 0 {
-		fmt.Println("  ⚠️  No JavaScript benchmarks found (skipping)")
-		return nil
-	}
-
-	var allResults []BenchResult
-	for _, dir := range dirs {
-		name := strings.TrimPrefix(filepath.Base(dir), "ffire_javascript_")
-		fmt.Printf("\n  Testing: %s\n", name)
-
-		result, err := runJavaScriptBench(dir)
-		if err != nil {
-			fmt.Printf("  ❌ Failed: %v\n", err)
-			continue
-		}
-
-		// Override message name with schema name for consistent grouping
-		result.Message = name
-
-		// Print result
-		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
-		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
-		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
-		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
-
-		allResults = append(allResults, result)
-	}
-
-	// Save all results
-	return saveResults(allResults, "ffire_javascript")
+	// TODO: Pure JavaScript generator removed - will be replaced by igniffi FFI wrapper (koffi)
+	fmt.Println("\n⏭️  Skipping JavaScript benchmarks (pure generator removed, use igniffi)")
+	return nil
 }
 
 // runJava runs the Java benchmarks
@@ -1411,27 +1308,6 @@ func runPythonBench(dir string) (BenchResult, error) {
 	return result, nil
 }
 
-func runPythonPureBench(dir string) (BenchResult, error) {
-	// Pure Python benchmarks are directly in the directory (no python/ subdirectory)
-
-	// Run benchmark directly with JSON output
-	cmd := exec.Command("python3", "bench.py")
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
-
-	output, err := cmd.Output()
-	if err != nil {
-		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
-	}
-
-	var result BenchResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	return result, nil
-}
-
 func runDartBench(dir string) (BenchResult, error) {
 	// Dart benchmarks are in the dart/ subdirectory
 	dartDir := filepath.Join(dir, "dart")
@@ -1642,43 +1518,6 @@ func runRustBench(dir string) (BenchResult, error) {
 	var result BenchResult
 	if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
 		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nJSON: %s", err, jsonLine)
-	}
-
-	return result, nil
-}
-
-func runJavaScriptBench(dir string) (BenchResult, error) {
-	// JavaScript benchmarks are in the javascript/ subdirectory
-	jsDir := filepath.Join(dir, "javascript")
-
-	// Check if node_modules exists, if not run npm install
-	nodeModules := filepath.Join(jsDir, "node_modules")
-	if _, err := os.Stat(nodeModules); os.IsNotExist(err) {
-		fmt.Printf("    Installing dependencies...\n")
-		cmd := exec.Command("npm", "install")
-		cmd.Dir = jsDir
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return BenchResult{}, fmt.Errorf("npm install failed: %w\nOutput: %s", err, output)
-		}
-	}
-
-	// Run benchmark
-	fmt.Printf("    Running JavaScript benchmark...\n")
-	cmd := exec.Command("node", "bench.js")
-	cmd.Dir = jsDir
-	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return BenchResult{}, fmt.Errorf("benchmark failed: %w\nStderr: %s", err, exitErr.Stderr)
-		}
-		return BenchResult{}, fmt.Errorf("benchmark failed: %w", err)
-	}
-
-	var result BenchResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return BenchResult{}, fmt.Errorf("failed to parse JSON: %w\nOutput: %s", err, output)
 	}
 
 	return result, nil
@@ -2121,45 +1960,6 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_dart_"+suite.Name),
-				"--iterations", "100000",
-			); err != nil {
-				return err
-			}
-		}
-	case "python":
-		for _, suite := range suites {
-			fmt.Printf("🐍 Generating Python benchmark: %s\n", suite.Name)
-			if err := sh.Run("ffire", "bench",
-				"--lang", "python",
-				"--schema", suite.SchemaFile,
-				"--json", suite.JSONFile,
-				"--output", filepath.Join(genDir, "ffire_python_"+suite.Name),
-				"--iterations", "100000",
-			); err != nil {
-				return err
-			}
-		}
-	case "python-pybind11":
-		for _, suite := range suites {
-			fmt.Printf("🐍 Generating Python-PyBind11 benchmark: %s\n", suite.Name)
-			if err := sh.Run("ffire", "bench",
-				"--lang", "python-pybind11",
-				"--schema", suite.SchemaFile,
-				"--json", suite.JSONFile,
-				"--output", filepath.Join(genDir, "ffire_python_pybind11_"+suite.Name),
-				"--iterations", "100000",
-			); err != nil {
-				return err
-			}
-		}
-	case "javascript":
-		for _, suite := range suites {
-			fmt.Printf("🟨 Generating JavaScript benchmark: %s\n", suite.Name)
-			if err := sh.Run("ffire", "bench",
-				"--lang", "javascript",
-				"--schema", suite.SchemaFile,
-				"--json", suite.JSONFile,
-				"--output", filepath.Join(genDir, "ffire_js_"+suite.Name),
 				"--iterations", "100000",
 			); err != nil {
 				return err

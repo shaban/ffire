@@ -69,10 +69,10 @@ func GeneratePackage(config *PackageConfig) error {
 	case "rust":
 		// Rust uses native implementation (like Go)
 		return GenerateRustPackage(config)
-	case "python", "js", "swift", "dart", "java", "csharp", "ruby", "php", "zig":
+	case "swift", "dart", "java", "csharp", "zig":
 		return generateTierBPackage(config)
 	default:
-		return fmt.Errorf("unsupported language: %s (supported: go, cpp, js, python, swift, dart, java, csharp, rust, zig, igniffi)", config.Language)
+		return fmt.Errorf("unsupported language: %s (supported: go, cpp, swift, dart, java, csharp, rust, zig, igniffi)", config.Language)
 	}
 }
 
@@ -144,11 +144,6 @@ func generateTierBPackage(config *PackageConfig) error {
 
 	// Route to language-specific generator
 	switch lang {
-	case "python":
-		// Pure Python (default)
-		return generatePythonPurePackage(config)
-	case "js":
-		return generateJavaScriptPackage(config)
 	case "swift":
 		// Swift uses C++ interop - route to C++ generator with Swift packaging
 		return generateCppWithSwiftPackaging(config)
@@ -371,108 +366,6 @@ func generateGoPackage(config *PackageConfig) error {
 	}
 
 	fmt.Printf("✓ Generated Go package: %s\n", outputPath)
-	return nil
-}
-
-func generatePythonPurePackage(config *PackageConfig) error {
-	// Generate pure Python (no C++ bridge)
-	pyCode, err := GeneratePythonPure(config.Schema)
-	if err != nil {
-		return fmt.Errorf("failed to generate Python code: %w", err)
-	}
-
-	// Create output directory
-	outDir := filepath.Join(config.OutputDir, config.Schema.Package)
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Write Python file
-	pyPath := filepath.Join(outDir, "__init__.py")
-	if err := os.WriteFile(pyPath, pyCode, 0644); err != nil {
-		return fmt.Errorf("failed to write Python file: %w", err)
-	}
-
-	fmt.Printf("✓ Generated pure Python: %s\n", pyPath)
-
-	// Generate setup.py
-	setupPy := fmt.Sprintf(`from setuptools import setup
-
-setup(
-    name='%s',
-    version='1.0.0',
-    description='Pure Python ffire codec (no native bindings)',
-    packages=['%s'],
-    python_requires='>=3.7',
-    classifiers=[
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
-        'Programming Language :: Python :: 3.12',
-    ],
-)
-`, config.Schema.Package, config.Schema.Package)
-
-	setupPath := filepath.Join(config.OutputDir, "setup.py")
-	if err := os.WriteFile(setupPath, []byte(setupPy), 0644); err != nil {
-		return fmt.Errorf("failed to write setup.py: %w", err)
-	}
-
-	fmt.Printf("✓ Generated setup.py: %s\n", setupPath)
-	fmt.Printf("\n✅ Pure Python package ready at: %s\n", outDir)
-	fmt.Printf("   No compilation needed - pure Python implementation\n")
-	fmt.Printf("   Install with: pip install %s\n", config.OutputDir)
-
-	return nil
-}
-
-func generateJavaScriptPackage(config *PackageConfig) error {
-	// Generate pure JavaScript (no C++ bridge)
-	jsCode, err := GenerateJavaScript(config.Schema)
-	if err != nil {
-		return fmt.Errorf("failed to generate JavaScript code: %w", err)
-	}
-
-	// Create output directory
-	outDir := filepath.Join(config.OutputDir, config.Schema.Package)
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Write JavaScript file
-	jsPath := filepath.Join(outDir, "index.js")
-	if err := os.WriteFile(jsPath, jsCode, 0644); err != nil {
-		return fmt.Errorf("failed to write JavaScript file: %w", err)
-	}
-
-	fmt.Printf("✓ Generated pure JavaScript: %s\n", jsPath)
-
-	// Generate package.json
-	packageJSON := fmt.Sprintf(`{
-  "name": "@ffire/%s",
-  "version": "1.0.0",
-  "description": "Pure JavaScript ffire codec (no native bindings)",
-  "main": "index.js",
-  "type": "commonjs",
-  "engines": {
-    "node": ">=14.0.0"
-  },
-  "keywords": ["ffire", "serialization", "codec", "binary"]
-}
-`, config.Schema.Package)
-
-	packagePath := filepath.Join(outDir, "package.json")
-	if err := os.WriteFile(packagePath, []byte(packageJSON), 0644); err != nil {
-		return fmt.Errorf("failed to write package.json: %w", err)
-	}
-
-	fmt.Printf("✓ Generated package.json: %s\n", packagePath)
-	fmt.Printf("\n✅ Pure JavaScript package ready at: %s\n", outDir)
-	fmt.Printf("   No compilation needed - pure JS implementation\n")
-
 	return nil
 }
 
