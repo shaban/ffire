@@ -78,6 +78,11 @@ func generateStructDef(b *strings.Builder, structType *schema.StructType) {
 		if _, isArray := field.Type.(*schema.ArrayType); isArray {
 			fmt.Fprintf(b, "    uint16_t %s_len;\n", fieldName)
 		}
+
+		// If it's optional, add has_{field} boolean
+		if field.Type.IsOptional() {
+			fmt.Fprintf(b, "    bool has_%s;\n", fieldName)
+		}
 	}
 
 	fmt.Fprintf(b, "};\n\n")

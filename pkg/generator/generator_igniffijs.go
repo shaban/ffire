@@ -181,11 +181,10 @@ func generateKoffiWrapper(config *PackageConfig, jsDir string) error {
 	// Arena pointer (opaque)
 	buf.WriteString("const Arena = koffi.pointer('igniffi_Arena', koffi.opaque());\n\n")
 
-	// Generate struct types for schema
-	for _, typ := range s.Types {
-		if structType, ok := typ.(*schema.StructType); ok {
-			generateKoffiStructType(buf, s, structType)
-		}
+	// Generate struct types for schema (in topological order - dependencies first)
+	sortedTypes := topSortStructTypes(s.Types)
+	for _, structType := range sortedTypes {
+		generateKoffiStructType(buf, s, structType)
 	}
 
 	// Generate message types
@@ -376,6 +375,64 @@ func generateKoffiMessageClass(buf *bytes.Buffer, s *schema.Schema, msg *schema.
 	buf.WriteString("  }\n")
 
 	buf.WriteString("}\n\n")
+}
+
+// topSortStructTypes returns struct types sorted in topological order (dependencies first)
+// This ensures that when a struct refers to another struct, the dependency is defined first
+func topSortStructTypes(types []schema.Type) []*schema.StructType {
+	// Build a map of struct types by name
+	typeMap := make(map[string]*schema.StructType)
+	for _, typ := range types {
+		if st, ok := typ.(*schema.StructType); ok {
+			typeMap[st.Name] = st
+		}
+	}
+
+	// Build dependency graph
+	deps := make(map[string][]string) // map from type to its dependencies
+	for _, st := range typeMap {
+		var typeDeps []string
+		for _, field := range st.Fields {
+			if depSt, ok := field.Type.(*schema.StructType); ok {
+				typeDeps = append(typeDeps, depSt.Name)
+			}
+		}
+		deps[st.Name] = typeDeps
+	}
+
+	// Topological sort using DFS
+	var result []*schema.StructType
+	visited := make(map[string]bool)
+	inStack := make(map[string]bool)
+
+	var visit func(name string)
+	visit = func(name string) {
+		if inStack[name] {
+			return // Circular dependency - skip
+		}
+		if visited[name] {
+			return
+		}
+
+		inStack[name] = true
+		for _, dep := range deps[name] {
+			if _, exists := typeMap[dep]; exists {
+				visit(dep)
+			}
+		}
+		inStack[name] = false
+		visited[name] = true
+		if st, ok := typeMap[name]; ok {
+			result = append(result, st)
+		}
+	}
+
+	// Visit all types
+	for name := range typeMap {
+		visit(name)
+	}
+
+	return result
 }
 
 func koffiTypeForField(s *schema.Schema, field *schema.Field) string {

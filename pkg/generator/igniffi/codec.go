@@ -159,6 +159,10 @@ static void encoder_write_array_length(igniffi_Encoder* enc, uint16_t len) {
     encoder_write_int16(enc, (int16_t)len);
 }
 
+static void encoder_write_optional_present(igniffi_Encoder* enc, bool present) {
+    encoder_write_byte(enc, present ? 0x01 : 0x00);
+}
+
 // ============================================================================
 // Internal Decoder
 // ============================================================================
@@ -278,6 +282,10 @@ static bool decoder_read_array_length(igniffi_Decoder* dec, uint16_t* out) {
     return true;
 }
 
+static bool decoder_read_optional_present(igniffi_Decoder* dec, bool* out) {
+    return decoder_read_bool(dec, out);
+}
+
 `)
 
 	// Generate encode/decode implementations for each root message
@@ -296,10 +304,10 @@ func generateMessageCodec(b *strings.Builder, s *schema.Schema, msg *schema.Mess
 	b.WriteString("// ============================================================================\n\n")
 
 	// Forward declare helper functions
-	generateCodecForwardDecls(b, s, msg.TargetType)
+	generateCodecForwardDecls(b, s, msg.TargetType, msg.Name)
 
 	// Generate helper encode/decode functions for nested types
-	generateTypeCodecHelpers(b, s, msg.TargetType, "")
+	generateTypeCodecHelpers(b, s, msg.TargetType, msg.Name)
 
 	// Generate main decode function
 	fmt.Fprintf(b, "igniffi_%s* igniffi_decode_%s(\n", msgName, msgName)
@@ -325,20 +333,15 @@ func generateMessageCodec(b *strings.Builder, s *schema.Schema, msg *schema.Mess
 	b.WriteString("        return NULL;\n")
 	b.WriteString("    }\n\n")
 
-	// Decode based on target type
+	// Decode based on target type - both struct and array use decode_{msgName}
+	fmt.Fprintf(b, "    if (!decode_%s(dec, msg, arena)) {\n", msgName)
 	if _, ok := msg.TargetType.(*schema.ArrayType); ok {
-		// Array root type
-		b.WriteString("    if (!decode_array_root(dec, msg, arena)) {\n")
 		b.WriteString("        *status = igniffi_error(\"Failed to decode array\");\n")
-		b.WriteString("        return NULL;\n")
-		b.WriteString("    }\n\n")
 	} else {
-		// Struct root type
-		fmt.Fprintf(b, "    if (!decode_%s(dec, msg, arena)) {\n", msgName)
 		b.WriteString("        *status = igniffi_error(\"Failed to decode message\");\n")
-		b.WriteString("        return NULL;\n")
-		b.WriteString("    }\n\n")
 	}
+	b.WriteString("        return NULL;\n")
+	b.WriteString("    }\n\n")
 
 	b.WriteString("    *status = igniffi_ok();\n")
 	b.WriteString("    return msg;\n")
@@ -361,12 +364,8 @@ func generateMessageCodec(b *strings.Builder, s *schema.Schema, msg *schema.Mess
 	b.WriteString("        return NULL;\n")
 	b.WriteString("    }\n\n")
 
-	// Encode based on target type
-	if _, ok := msg.TargetType.(*schema.ArrayType); ok {
-		b.WriteString("    encode_array_root(enc, msg);\n\n")
-	} else {
-		fmt.Fprintf(b, "    encode_%s(enc, msg);\n\n", msgName)
-	}
+	// Encode based on target type - both struct and array use encode_{msgName}
+	fmt.Fprintf(b, "    encode_%s(enc, msg);\n\n", msgName)
 
 	b.WriteString("    *out_len = enc->size;\n")
 	b.WriteString("    *status = igniffi_ok();\n")
@@ -374,27 +373,93 @@ func generateMessageCodec(b *strings.Builder, s *schema.Schema, msg *schema.Mess
 	b.WriteString("}\n\n")
 }
 
-func generateCodecForwardDecls(b *strings.Builder, s *schema.Schema, typ schema.Type) {
+func generateCodecForwardDecls(b *strings.Builder, s *schema.Schema, typ schema.Type, msgName string) {
 	// Generate forward declarations for all helper functions
 	switch t := typ.(type) {
 	case *schema.StructType:
+		// Collect all nested struct types (depth-first for correct ordering)
+		nestedTypes := collectNestedStructTypes(t, make(map[string]bool))
+		for _, nested := range nestedTypes {
+			nestedName := toCIdentifier(nested.Name)
+			fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena);\n",
+				nestedName, nestedName)
+			fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg);\n",
+				nestedName, nestedName)
+		}
 		structName := toCIdentifier(t.Name)
 		fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena);\n",
 			structName, structName)
 		fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg);\n\n",
 			structName, structName)
 	case *schema.ArrayType:
-		b.WriteString("static bool decode_array_root(igniffi_Decoder* dec, void* out, igniffi_Arena* arena);\n")
-		b.WriteString("static void encode_array_root(igniffi_Encoder* enc, const void* msg);\n\n")
+		// For array of structs, also need to forward declare the element struct codec
+		if elemStruct, ok := t.ElementType.(*schema.StructType); ok {
+			nestedTypes := collectNestedStructTypes(elemStruct, make(map[string]bool))
+			for _, nested := range nestedTypes {
+				nestedName := toCIdentifier(nested.Name)
+				fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena);\n",
+					nestedName, nestedName)
+				fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg);\n",
+					nestedName, nestedName)
+			}
+			elemName := toCIdentifier(elemStruct.Name)
+			fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena);\n",
+				elemName, elemName)
+			fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg);\n",
+				elemName, elemName)
+		}
+		structName := toCIdentifier(msgName)
+		fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena);\n",
+			structName, structName)
+		fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg);\n\n",
+			structName, structName)
 	}
 }
 
-func generateTypeCodecHelpers(b *strings.Builder, s *schema.Schema, typ schema.Type, indent string) {
+// collectNestedStructTypes collects all nested struct types in dependency order
+func collectNestedStructTypes(structType *schema.StructType, seen map[string]bool) []*schema.StructType {
+	var result []*schema.StructType
+	for _, field := range structType.Fields {
+		switch t := field.Type.(type) {
+		case *schema.StructType:
+			if !seen[t.Name] {
+				seen[t.Name] = true
+				// Recursively collect nested types first
+				result = append(result, collectNestedStructTypes(t, seen)...)
+				result = append(result, t)
+			}
+		case *schema.ArrayType:
+			if elemStruct, ok := t.ElementType.(*schema.StructType); ok {
+				if !seen[elemStruct.Name] {
+					seen[elemStruct.Name] = true
+					result = append(result, collectNestedStructTypes(elemStruct, seen)...)
+					result = append(result, elemStruct)
+				}
+			}
+		}
+	}
+	return result
+}
+
+func generateTypeCodecHelpers(b *strings.Builder, s *schema.Schema, typ schema.Type, msgName string) {
 	switch t := typ.(type) {
 	case *schema.StructType:
+		// Generate helpers for nested types first (in dependency order)
+		nestedTypes := collectNestedStructTypes(t, make(map[string]bool))
+		for _, nested := range nestedTypes {
+			generateStructCodecHelper(b, s, nested)
+		}
 		generateStructCodecHelper(b, s, t)
 	case *schema.ArrayType:
-		generateArrayRootCodecHelper(b, s, t)
+		// For array of structs, generate element struct codec first
+		if elemStruct, ok := t.ElementType.(*schema.StructType); ok {
+			nestedTypes := collectNestedStructTypes(elemStruct, make(map[string]bool))
+			for _, nested := range nestedTypes {
+				generateStructCodecHelper(b, s, nested)
+			}
+			generateStructCodecHelper(b, s, elemStruct)
+		}
+		generateArrayRootCodecHelper(b, s, t, msgName)
 	}
 }
 
@@ -425,75 +490,215 @@ func generateStructCodecHelper(b *strings.Builder, s *schema.Schema, structType 
 	b.WriteString("}\n\n")
 }
 
-func generateArrayRootCodecHelper(b *strings.Builder, s *schema.Schema, arrayType *schema.ArrayType) {
-	b.WriteString("static bool decode_array_root(igniffi_Decoder* dec, void* out, igniffi_Arena* arena) {\n")
-	b.WriteString("    // TODO: Implement array root decode\n")
-	b.WriteString("    return false;\n")
+func generateArrayRootCodecHelper(b *strings.Builder, s *schema.Schema, arrayType *schema.ArrayType, msgName string) {
+	structName := toCIdentifier(msgName)
+	elemCType := getCType(arrayType.ElementType)
+	// Remove trailing * for allocation
+	elemCTypeBase := strings.TrimSuffix(elemCType, "*")
+
+	// Decode helper
+	fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena) {\n",
+		structName, structName)
+	b.WriteString("    uint16_t len;\n")
+	b.WriteString("    if (!decoder_read_array_length(dec, &len)) return false;\n")
+	b.WriteString("    out->len = len;\n\n")
+	b.WriteString("    if (len == 0) {\n")
+	b.WriteString("        out->items = NULL;\n")
+	b.WriteString("        return true;\n")
+	b.WriteString("    }\n\n")
+
+	fmt.Fprintf(b, "    out->items = (%s*)igniffi_arena_alloc(arena, len * sizeof(%s));\n",
+		elemCTypeBase, elemCTypeBase)
+	b.WriteString("    if (!out->items) return false;\n\n")
+
+	b.WriteString("    for (uint16_t i = 0; i < len; i++) {\n")
+	generateElementDecode(b, arrayType.ElementType, "out->items[i]", "        ")
+	b.WriteString("    }\n")
+	b.WriteString("    return true;\n")
 	b.WriteString("}\n\n")
 
-	b.WriteString("static void encode_array_root(igniffi_Encoder* enc, const void* msg) {\n")
-	b.WriteString("    // TODO: Implement array root encode\n")
+	// Encode helper
+	fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg) {\n",
+		structName, structName)
+	b.WriteString("    encoder_write_array_length(enc, msg->len);\n")
+	b.WriteString("    for (uint16_t i = 0; i < msg->len; i++) {\n")
+	generateElementEncode(b, arrayType.ElementType, "msg->items[i]", "        ")
+	b.WriteString("    }\n")
 	b.WriteString("}\n\n")
 }
 
+// generateElementDecode generates code to decode a single array element
+func generateElementDecode(b *strings.Builder, elemType schema.Type, resultVar, indent string) {
+	switch typ := elemType.(type) {
+	case *schema.PrimitiveType:
+		switch typ.Name {
+		case "bool":
+			fmt.Fprintf(b, "%sif (!decoder_read_bool(dec, &%s)) return false;\n", indent, resultVar)
+		case "int8":
+			fmt.Fprintf(b, "%sif (!decoder_read_int8(dec, &%s)) return false;\n", indent, resultVar)
+		case "int16":
+			fmt.Fprintf(b, "%sif (!decoder_read_int16(dec, &%s)) return false;\n", indent, resultVar)
+		case "int32":
+			fmt.Fprintf(b, "%sif (!decoder_read_int32(dec, &%s)) return false;\n", indent, resultVar)
+		case "int64":
+			fmt.Fprintf(b, "%sif (!decoder_read_int64(dec, &%s)) return false;\n", indent, resultVar)
+		case "float32":
+			fmt.Fprintf(b, "%sif (!decoder_read_float32(dec, &%s)) return false;\n", indent, resultVar)
+		case "float64":
+			fmt.Fprintf(b, "%sif (!decoder_read_float64(dec, &%s)) return false;\n", indent, resultVar)
+		case "string":
+			fmt.Fprintf(b, "%sif (!decoder_read_string(dec, &%s, arena)) return false;\n", indent, resultVar)
+		}
+	case *schema.StructType:
+		structName := toCIdentifier(typ.Name)
+		// For struct elements in arrays, the element is stored by value - decode into address
+		fmt.Fprintf(b, "%sif (!decode_%s(dec, &%s, arena)) return false;\n", indent, structName, resultVar)
+	}
+}
+
+// generateElementEncode generates code to encode a single array element
+func generateElementEncode(b *strings.Builder, elemType schema.Type, valueVar, indent string) {
+	switch typ := elemType.(type) {
+	case *schema.PrimitiveType:
+		switch typ.Name {
+		case "bool":
+			fmt.Fprintf(b, "%sencoder_write_bool(enc, %s);\n", indent, valueVar)
+		case "int8":
+			fmt.Fprintf(b, "%sencoder_write_int8(enc, %s);\n", indent, valueVar)
+		case "int16":
+			fmt.Fprintf(b, "%sencoder_write_int16(enc, %s);\n", indent, valueVar)
+		case "int32":
+			fmt.Fprintf(b, "%sencoder_write_int32(enc, %s);\n", indent, valueVar)
+		case "int64":
+			fmt.Fprintf(b, "%sencoder_write_int64(enc, %s);\n", indent, valueVar)
+		case "float32":
+			fmt.Fprintf(b, "%sencoder_write_float32(enc, %s);\n", indent, valueVar)
+		case "float64":
+			fmt.Fprintf(b, "%sencoder_write_float64(enc, %s);\n", indent, valueVar)
+		case "string":
+			fmt.Fprintf(b, "%sencoder_write_string(enc, %s);\n", indent, valueVar)
+		}
+	case *schema.StructType:
+		structName := toCIdentifier(typ.Name)
+		// For struct elements in arrays, they're stored by value - pass address
+		fmt.Fprintf(b, "%sencode_%s(enc, &%s);\n", indent, structName, valueVar)
+	}
+}
+
 func generateFieldDecode(b *strings.Builder, field *schema.Field, fieldName, resultVar string) {
+	// Check if field type is optional
+	isOptional := field.Type.IsOptional()
+
+	if isOptional {
+		// Read presence byte first
+		fmt.Fprintf(b, "    {\n")
+		fmt.Fprintf(b, "        bool has_%s;\n", fieldName)
+		fmt.Fprintf(b, "        if (!decoder_read_optional_present(dec, &has_%s)) return false;\n", fieldName)
+		fmt.Fprintf(b, "        out->has_%s = has_%s;\n", fieldName, fieldName)
+		fmt.Fprintf(b, "        if (has_%s) {\n", fieldName)
+	}
+
+	indent := "    "
+	if isOptional {
+		indent = "            "
+	}
+
 	switch typ := field.Type.(type) {
 	case *schema.PrimitiveType:
 		switch typ.Name {
 		case "bool":
-			fmt.Fprintf(b, "    if (!decoder_read_bool(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_bool(dec, &%s)) return false;\n", indent, resultVar)
 		case "int8":
-			fmt.Fprintf(b, "    if (!decoder_read_int8(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_int8(dec, &%s)) return false;\n", indent, resultVar)
 		case "int16":
-			fmt.Fprintf(b, "    if (!decoder_read_int16(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_int16(dec, &%s)) return false;\n", indent, resultVar)
 		case "int32":
-			fmt.Fprintf(b, "    if (!decoder_read_int32(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_int32(dec, &%s)) return false;\n", indent, resultVar)
 		case "int64":
-			fmt.Fprintf(b, "    if (!decoder_read_int64(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_int64(dec, &%s)) return false;\n", indent, resultVar)
 		case "float32":
-			fmt.Fprintf(b, "    if (!decoder_read_float32(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_float32(dec, &%s)) return false;\n", indent, resultVar)
 		case "float64":
-			fmt.Fprintf(b, "    if (!decoder_read_float64(dec, &%s)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_float64(dec, &%s)) return false;\n", indent, resultVar)
 		case "string":
-			fmt.Fprintf(b, "    if (!decoder_read_string(dec, &%s, arena)) return false;\n", resultVar)
+			fmt.Fprintf(b, "%sif (!decoder_read_string(dec, &%s, arena)) return false;\n", indent, resultVar)
 		}
 	case *schema.ArrayType:
-		// Array field - read length then elements
-		fmt.Fprintf(b, "    if (!decoder_read_array_length(dec, &out->%s_len)) return false;\n", fieldName)
-		fmt.Fprintf(b, "    // TODO: Decode array elements\n")
+		// Array field - read length, allocate, decode elements
+		elemCType := getCType(typ.ElementType)
+		elemCTypeBase := strings.TrimSuffix(elemCType, "*")
+
+		fmt.Fprintf(b, "%sif (!decoder_read_array_length(dec, &out->%s_len)) return false;\n", indent, fieldName)
+		fmt.Fprintf(b, "%sif (out->%s_len > 0) {\n", indent, fieldName)
+		fmt.Fprintf(b, "%s    out->%s = (%s*)igniffi_arena_alloc(arena, out->%s_len * sizeof(%s));\n",
+			indent, fieldName, elemCTypeBase, fieldName, elemCTypeBase)
+		fmt.Fprintf(b, "%s    if (!out->%s) return false;\n", indent, fieldName)
+		fmt.Fprintf(b, "%s    for (uint16_t i = 0; i < out->%s_len; i++) {\n", indent, fieldName)
+		generateElementDecode(b, typ.ElementType, fmt.Sprintf("out->%s[i]", fieldName), indent+"        ")
+		fmt.Fprintf(b, "%s    }\n", indent)
+		fmt.Fprintf(b, "%s} else {\n", indent)
+		fmt.Fprintf(b, "%s    out->%s = NULL;\n", indent, fieldName)
+		fmt.Fprintf(b, "%s}\n", indent)
 	case *schema.StructType:
-		// Nested struct
-		fmt.Fprintf(b, "    // TODO: Decode nested struct %s\n", typ.Name)
+		// Nested struct - decode inline
+		structName := toCIdentifier(typ.Name)
+		fmt.Fprintf(b, "%sif (!decode_%s(dec, &%s, arena)) return false;\n", indent, structName, resultVar)
+	}
+
+	if isOptional {
+		fmt.Fprintf(b, "        }\n")
+		fmt.Fprintf(b, "    }\n")
 	}
 }
 
 func generateFieldEncode(b *strings.Builder, field *schema.Field, fieldName, valueVar string) {
+	// Check if field type is optional
+	isOptional := field.Type.IsOptional()
+
+	if isOptional {
+		fmt.Fprintf(b, "    encoder_write_optional_present(enc, msg->has_%s);\n", fieldName)
+		fmt.Fprintf(b, "    if (msg->has_%s) {\n", fieldName)
+	}
+
+	indent := "    "
+	if isOptional {
+		indent = "        "
+	}
+
 	switch typ := field.Type.(type) {
 	case *schema.PrimitiveType:
 		switch typ.Name {
 		case "bool":
-			fmt.Fprintf(b, "    encoder_write_bool(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_bool(enc, %s);\n", indent, valueVar)
 		case "int8":
-			fmt.Fprintf(b, "    encoder_write_int8(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_int8(enc, %s);\n", indent, valueVar)
 		case "int16":
-			fmt.Fprintf(b, "    encoder_write_int16(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_int16(enc, %s);\n", indent, valueVar)
 		case "int32":
-			fmt.Fprintf(b, "    encoder_write_int32(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_int32(enc, %s);\n", indent, valueVar)
 		case "int64":
-			fmt.Fprintf(b, "    encoder_write_int64(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_int64(enc, %s);\n", indent, valueVar)
 		case "float32":
-			fmt.Fprintf(b, "    encoder_write_float32(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_float32(enc, %s);\n", indent, valueVar)
 		case "float64":
-			fmt.Fprintf(b, "    encoder_write_float64(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_float64(enc, %s);\n", indent, valueVar)
 		case "string":
-			fmt.Fprintf(b, "    encoder_write_string(enc, %s);\n", valueVar)
+			fmt.Fprintf(b, "%sencoder_write_string(enc, %s);\n", indent, valueVar)
 		}
 	case *schema.ArrayType:
-		// Array field
-		fmt.Fprintf(b, "    encoder_write_array_length(enc, msg->%s_len);\n", fieldName)
-		fmt.Fprintf(b, "    // TODO: Encode array elements\n")
+		// Array field - encode length then elements
+		fmt.Fprintf(b, "%sencoder_write_array_length(enc, msg->%s_len);\n", indent, fieldName)
+		fmt.Fprintf(b, "%sfor (uint16_t i = 0; i < msg->%s_len; i++) {\n", indent, fieldName)
+		generateElementEncode(b, typ.ElementType, fmt.Sprintf("msg->%s[i]", fieldName), indent+"    ")
+		fmt.Fprintf(b, "%s}\n", indent)
 	case *schema.StructType:
-		// Nested struct
-		fmt.Fprintf(b, "    // TODO: Encode nested struct %s\n", typ.Name)
+		// Nested struct - encode inline
+		structName := toCIdentifier(typ.Name)
+		fmt.Fprintf(b, "%sencode_%s(enc, &%s);\n", indent, structName, valueVar)
+	}
+
+	if isOptional {
+		fmt.Fprintf(b, "    }\n")
 	}
 }
+
