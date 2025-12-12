@@ -227,7 +227,7 @@ func generateCFFIMessageType(buf *bytes.Buffer, s *schema.Schema, msg *schema.Me
 		elemType := cffiCTypeForSchemaType(t.ElementType)
 		fmt.Fprintf(buf, "typedef struct {\n")
 		fmt.Fprintf(buf, "    %s* items;\n", elemType)
-		fmt.Fprintf(buf, "    size_t count;\n")
+		fmt.Fprintf(buf, "    uint16_t len;\n")
 		fmt.Fprintf(buf, "} %s;\n\n", structName)
 
 	case *schema.PrimitiveType:
@@ -525,7 +525,7 @@ func generatePythonAccessors(buf *bytes.Buffer, s *schema.Schema, msg *schema.Me
 		buf.WriteString("        \"\"\"Get array items.\"\"\"\n")
 		buf.WriteString("        if self._disposed:\n")
 		buf.WriteString("            raise FFIError('Message has been disposed')\n")
-		buf.WriteString("        count = self._handle.count\n")
+		buf.WriteString("        count = self._handle.len\n")
 		buf.WriteString("        result = []\n")
 		buf.WriteString("        for i in range(count):\n")
 		generatePythonElementConversion(buf, s, t.ElementType, "self._handle.items[i]", "            ")
@@ -535,7 +535,7 @@ func generatePythonAccessors(buf *bytes.Buffer, s *schema.Schema, msg *schema.Me
 		buf.WriteString("    def __len__(self) -> int:\n")
 		buf.WriteString("        if self._disposed:\n")
 		buf.WriteString("            raise FFIError('Message has been disposed')\n")
-		buf.WriteString("        return self._handle.count\n\n")
+		buf.WriteString("        return self._handle.len\n\n")
 
 		buf.WriteString("    def __iter__(self):\n")
 		buf.WriteString("        return iter(self.items)\n\n")
@@ -618,7 +618,7 @@ func generatePythonValueConversion(buf *bytes.Buffer, s *schema.Schema, t schema
 	case *schema.ArrayType:
 		// Convert array
 		fmt.Fprintf(buf, "%s_arr = []\n", indent)
-		fmt.Fprintf(buf, "%sfor _i in range(%s.count):\n", indent, cAccess)
+		fmt.Fprintf(buf, "%sfor _i in range(%s.len):\n", indent, cAccess)
 		generatePythonElementConversion(buf, s, typ.ElementType, fmt.Sprintf("%s.items[_i]", cAccess), indent+"    ")
 		fmt.Fprintf(buf, "%s    _arr.append(elem)\n", indent)
 		fmt.Fprintf(buf, "%sreturn _arr\n", indent)

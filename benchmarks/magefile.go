@@ -377,12 +377,14 @@ func Run(target string) error {
 		return runZig()
 	case "rust":
 		return runRust()
+	case "python", "py":
+		return runPython()
 	case "js", "javascript":
 		return runJavaScript()
 	case "proto":
 		return runProto()
 	default:
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, zig, rust, js, proto", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, zig, rust, python, js, proto", target)
 	}
 }
 
@@ -1400,17 +1402,16 @@ func runCppBench(dir string) (BenchResult, error) {
 }
 
 func runPythonBench(dir string) (BenchResult, error) {
-	// Python benchmarks are in the python/ subdirectory
-	pythonDir := filepath.Join(dir, "python")
+	// dir is already the python directory (e.g., generated/ffire_python_struct/python)
 
-	// Install the pybind11 package (editable mode for fast iteration)
+	// Install the CFFI package (editable mode for fast iteration)
 	// Use --break-system-packages for Homebrew Python or --user as fallback
 	installCmd := exec.Command("pip3", "install", "-e", ".", "--quiet", "--break-system-packages")
-	installCmd.Dir = pythonDir
+	installCmd.Dir = dir
 	if err := installCmd.Run(); err != nil {
 		// Try again with --user if --break-system-packages failed
 		installCmd = exec.Command("pip3", "install", "-e", ".", "--quiet", "--user")
-		installCmd.Dir = pythonDir
+		installCmd.Dir = dir
 		if err := installCmd.Run(); err != nil {
 			return BenchResult{}, fmt.Errorf("pip install failed: %w", err)
 		}
@@ -1418,7 +1419,7 @@ func runPythonBench(dir string) (BenchResult, error) {
 
 	// Run benchmark with JSON output
 	cmd := exec.Command("python3", "bench.py")
-	cmd.Dir = pythonDir
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "BENCH_JSON=1")
 
 	output, err := cmd.Output()
