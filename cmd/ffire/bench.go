@@ -175,8 +175,16 @@ Examples:
 		fmt.Printf("✓ Generated JavaScript benchmark in %s\n", *outputDir)
 		fmt.Printf("  Run with: cd %s/javascript && npm install && node bench.js\n", *outputDir)
 
+	case "python", "py", "igniffi-python":
+		if err := benchmark.GenerateIgniffiPython(schema, schemaName, actualMessageName, jsonData, *outputDir, *iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating benchmark: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Generated Python benchmark in %s\n", *outputDir)
+		fmt.Printf("  Run with: cd %s/python && pip install . && python bench.py\n", *outputDir)
+
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, swift, dart, java, csharp, zig, rust)\n", *lang)
+		fmt.Fprintf(os.Stderr, "Error: unsupported language '%s' (supported: go, cpp, js, python, swift, dart, java, csharp, zig, rust)\n", *lang)
 		os.Exit(1)
 	}
 }

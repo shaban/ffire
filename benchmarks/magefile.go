@@ -284,15 +284,15 @@ func Gen(target string) error {
 		return genAll()
 	}
 
-	// Validate target (python/javascript removed - use igniffi for FFI-based languages)
+	// Validate target (python/javascript use igniffi for FFI-based bindings)
 	validTargets := map[string]bool{
 		"go": true, "cpp": true, "java": true, "csharp": true,
 		"dart": true, "swift": true, "proto": true, "zig": true, "rust": true,
-		"js": true, "javascript": true,
+		"js": true, "javascript": true, "python": true, "py": true,
 	}
 
 	if !validTargets[target] {
-		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust, js", target)
+		return fmt.Errorf("unknown target: %s\nValid targets: all, go, cpp, java, csharp, dart, swift, proto, zig, rust, js, python", target)
 	}
 
 	// Create output directories
@@ -598,11 +598,60 @@ func runCpp() error {
 	return saveResults(allResults, "ffire_cpp")
 }
 
-// runPython runs the Pure Python benchmarks (now the default)
+// runPython runs the Python benchmarks using igniffi/CFFI
 func runPython() error {
-	// TODO: Pure Python generator removed - will be replaced by igniffi FFI wrapper
-	fmt.Println("\n⏭️  Skipping Python benchmarks (pure generator removed, use igniffi)")
-	return nil
+	fmt.Println("\n🏃 Running ffire Python benchmarks (igniffi/CFFI)...")
+
+	// Check if python is available
+	pythonCmd := "python3"
+	if _, err := exec.LookPath(pythonCmd); err != nil {
+		pythonCmd = "python"
+		if _, err := exec.LookPath(pythonCmd); err != nil {
+			fmt.Println("  ⚠️  python not found (skipping)")
+			return nil
+		}
+	}
+
+	// Find all Python benchmark directories
+	pattern := filepath.Join(genDir, "ffire_python_*")
+	dirs, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+
+	if len(dirs) == 0 {
+		fmt.Println("  ⚠️  No Python benchmarks found (run 'mage gen python' first)")
+		return nil
+	}
+
+	var allResults []BenchResult
+	for _, dir := range dirs {
+		name := strings.TrimPrefix(filepath.Base(dir), "ffire_python_")
+		fmt.Printf("\n  Testing: %s\n", name)
+
+		pyDir := filepath.Join(dir, "python")
+		if _, err := os.Stat(pyDir); os.IsNotExist(err) {
+			fmt.Printf("  ⚠️  Skipping %s: no python directory\n", name)
+			continue
+		}
+
+		result, err := runPythonBench(pyDir)
+		if err != nil {
+			fmt.Printf("  ❌ Failed: %v\n", err)
+			continue
+		}
+
+		result.Message = name
+
+		fmt.Printf("  ✓ Encode: %d ns/op\n", result.EncodeNs)
+		fmt.Printf("  ✓ Decode: %d ns/op\n", result.DecodeNs)
+		fmt.Printf("  ✓ Total:  %d ns/op\n", result.TotalNs)
+		fmt.Printf("  ✓ Size:   %d bytes\n", result.WireSize)
+
+		allResults = append(allResults, result)
+	}
+
+	return saveResults(allResults, "ffire_python")
 }
 
 // runPythonPyBind11 runs the PyBind11 benchmarks (legacy)
@@ -2092,6 +2141,19 @@ func genLanguage(lang string, suites []BenchmarkSuite) error {
 				"--schema", suite.SchemaFile,
 				"--json", suite.JSONFile,
 				"--output", filepath.Join(genDir, "ffire_js_"+suite.Name),
+				"--iterations", "100000",
+			); err != nil {
+				return err
+			}
+		}
+	case "python", "py":
+		for _, suite := range suites {
+			fmt.Printf("🐍 Generating Python benchmark: %s\n", suite.Name)
+			if err := sh.Run("ffire", "bench",
+				"--lang", "python",
+				"--schema", suite.SchemaFile,
+				"--json", suite.JSONFile,
+				"--output", filepath.Join(genDir, "ffire_python_"+suite.Name),
 				"--iterations", "100000",
 			); err != nil {
 				return err
