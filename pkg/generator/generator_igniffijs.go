@@ -356,8 +356,9 @@ func generateKoffiMessageClass(buf *bytes.Buffer, s *schema.Schema, msg *schema.
 	buf.WriteString("    }\n")
 	buf.WriteString("    \n")
 	buf.WriteString("    const outLen = koffi.decode(outLenPtr, 'size_t');\n")
-	buf.WriteString("    // Copy data to JS Buffer (arena owns the memory)\n")
-	buf.WriteString("    const result = Buffer.from(koffi.decode(dataPtr, koffi.array('uint8_t', outLen)));\n")
+	buf.WriteString("    // Zero-copy view of arena memory, then copy to JS Buffer\n")
+	buf.WriteString("    const view = koffi.view(dataPtr, Number(outLen));\n")
+	buf.WriteString("    const result = Buffer.from(view);\n")
 	buf.WriteString("    return result;\n")
 	buf.WriteString("  }\n\n")
 

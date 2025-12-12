@@ -496,6 +496,26 @@ func generateArrayRootCodecHelper(b *strings.Builder, s *schema.Schema, arrayTyp
 	// Remove trailing * for allocation
 	elemCTypeBase := strings.TrimSuffix(elemCType, "*")
 
+	// Check if element type is a fixed-size primitive (can use memcpy)
+	isPrimitive := false
+	primitiveSize := 0
+	if prim, ok := arrayType.ElementType.(*schema.PrimitiveType); ok {
+		switch prim.Name {
+		case "bool", "int8":
+			isPrimitive = true
+			primitiveSize = 1
+		case "int16":
+			isPrimitive = true
+			primitiveSize = 2
+		case "int32", "float32":
+			isPrimitive = true
+			primitiveSize = 4
+		case "int64", "float64":
+			isPrimitive = true
+			primitiveSize = 8
+		}
+	}
+
 	// Decode helper
 	fmt.Fprintf(b, "static bool decode_%s(igniffi_Decoder* dec, igniffi_%s* out, igniffi_Arena* arena) {\n",
 		structName, structName)
@@ -511,9 +531,18 @@ func generateArrayRootCodecHelper(b *strings.Builder, s *schema.Schema, arrayTyp
 		elemCTypeBase, elemCTypeBase)
 	b.WriteString("    if (!out->items) return false;\n\n")
 
-	b.WriteString("    for (uint16_t i = 0; i < len; i++) {\n")
-	generateElementDecode(b, arrayType.ElementType, "out->items[i]", "        ")
-	b.WriteString("    }\n")
+	if isPrimitive && primitiveSize > 0 {
+		// Bulk memcpy for primitive arrays (little-endian assumed)
+		fmt.Fprintf(b, "    size_t bytes = len * %d;\n", primitiveSize)
+		b.WriteString("    if (!decoder_check_remaining(dec, bytes)) return false;\n")
+		b.WriteString("    memcpy(out->items, dec->data + dec->pos, bytes);\n")
+		b.WriteString("    dec->pos += bytes;\n")
+	} else {
+		// Loop for struct/string arrays
+		b.WriteString("    for (uint16_t i = 0; i < len; i++) {\n")
+		generateElementDecode(b, arrayType.ElementType, "out->items[i]", "        ")
+		b.WriteString("    }\n")
+	}
 	b.WriteString("    return true;\n")
 	b.WriteString("}\n\n")
 
@@ -521,9 +550,19 @@ func generateArrayRootCodecHelper(b *strings.Builder, s *schema.Schema, arrayTyp
 	fmt.Fprintf(b, "static void encode_%s(igniffi_Encoder* enc, const igniffi_%s* msg) {\n",
 		structName, structName)
 	b.WriteString("    encoder_write_array_length(enc, msg->len);\n")
-	b.WriteString("    for (uint16_t i = 0; i < msg->len; i++) {\n")
-	generateElementEncode(b, arrayType.ElementType, "msg->items[i]", "        ")
-	b.WriteString("    }\n")
+
+	if isPrimitive && primitiveSize > 0 {
+		// Bulk memcpy for primitive arrays
+		fmt.Fprintf(b, "    size_t bytes = msg->len * %d;\n", primitiveSize)
+		b.WriteString("    encoder_ensure_capacity(enc, bytes);\n")
+		b.WriteString("    memcpy(enc->data + enc->size, msg->items, bytes);\n")
+		b.WriteString("    enc->size += bytes;\n")
+	} else {
+		// Loop for struct/string arrays
+		b.WriteString("    for (uint16_t i = 0; i < msg->len; i++) {\n")
+		generateElementEncode(b, arrayType.ElementType, "msg->items[i]", "        ")
+		b.WriteString("    }\n")
+	}
 	b.WriteString("}\n\n")
 }
 
